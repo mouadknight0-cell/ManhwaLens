@@ -10,6 +10,7 @@ import com.manhwalens.app.names.NameForm
 import com.manhwalens.app.names.PageNameTable
 import com.manhwalens.app.names.Series
 import com.manhwalens.app.names.SeriesCatalog
+import com.manhwalens.app.util.PipelineTracer
 import java.io.File
 
 /**
@@ -94,7 +95,13 @@ class NameSession(
     }
 
     private var cachedTable: PageNameTable? = null
-    private var cachedKey: Int = 0
+
+    /**
+     * The exact text list the cached table was computed from. Content equality (not
+     * `texts.hashCode()`) is the identity: two different pages can share a hash, and reusing a
+     * table across them would apply one page's names to another page's bubbles.
+     */
+    private var cachedTexts: List<String> = emptyList()
 
     val isAssigned: Boolean get() = !seriesId.isNullOrBlank()
 
@@ -103,12 +110,17 @@ class NameSession(
      * the local engine and the remote relay share one computation per page.
      */
     fun tableFor(texts: List<String>): PageNameTable {
-        val key = texts.hashCode()
-        cachedTable?.let { if (cachedKey == key) return it }
+        cachedTable?.let { if (cachedTexts == texts) return it }
         val table = resolver.resolve(seriesId, texts)
         if (isAssigned) runCatching { writer.commit(table, now()) }
+        // Surfaced in the pipeline trace so the reader can see WHICH series a page is filed
+        // under (or that nothing is being saved) while translating, not only in Settings.
+        runCatching {
+            PipelineTracer.span("character memory", 0, describe() + " · " + table.describe())
+        }
         cachedTable = table
-        cachedKey = key
+        // Defensive copy: a caller that mutates its list later must not alias the cache key.
+        cachedTexts = texts.toList()
         return table
     }
 

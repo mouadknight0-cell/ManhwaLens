@@ -34,6 +34,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.manhwalens.app.R
 import com.manhwalens.app.data.SettingsPrefs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.manhwalens.app.data.CharacterMemory
 import com.manhwalens.app.util.ErrorLog
 import com.manhwalens.app.ui.theme.LensVioletSoft
 import com.manhwalens.app.ui.theme.PanelAmber
@@ -64,9 +68,22 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showLiveSelfCheck by remember { mutableStateOf(false) }
     var showCharacters by remember { mutableStateOf(false) }
 
+    // P1: the series currently receiving character names. Shown on the card so the scope is
+    // never a mystery: names are filed under exactly this series, and under nothing when unset.
+    var activeSeriesTitle by remember { mutableStateOf<String?>(null) }
+    var seriesRefresh by remember { mutableStateOf(0) }
+    LaunchedEffect(seriesRefresh) {
+        activeSeriesTitle = withContext(Dispatchers.IO) {
+            runCatching { CharacterMemory.activeSeries(context)?.title }.getOrNull()
+        }
+    }
+
     // P1: character name memory (series selection + corrections).
     if (showCharacters) {
-        CharacterNamesScreen(onBack = { showCharacters = false })
+        CharacterNamesScreen(onBack = {
+            showCharacters = false
+            seriesRefresh++ // the reader may have selected another series
+        })
         return
     }
 
@@ -219,6 +236,14 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         // ---------- Character names (P1) ----------
         Section(stringResource(R.string.settings_characters_button)) {
+            Text(
+                text = activeSeriesTitle?.let { stringResource(R.string.character_names_active, it) }
+                    ?: stringResource(R.string.character_names_no_series_card),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (activeSeriesTitle == null) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.size(4.dp))
             Text(
                 text = stringResource(R.string.character_names_note),
                 style = MaterialTheme.typography.bodySmall,

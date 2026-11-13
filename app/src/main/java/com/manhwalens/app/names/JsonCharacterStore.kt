@@ -4,6 +4,9 @@ import com.manhwalens.app.translate.NameScript
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * JSON-file character store (P1) — the smallest reliable option for this data set.
@@ -18,10 +21,22 @@ import java.io.File
  *
  * Safety properties:
  *  - one in-memory index per file, loaded once (no full-table scan per OCR block);
- *  - writes go to `<file>.tmp` and are renamed over the original (never a half file);
+ *  - **the live file is never opened for writing.** Each save writes a complete copy to
+ *    `<file>.tmp`, fsyncs it, then commits it with one atomic rename (startWrite →
+ *    finishWrite → failWrite, the contract of `android.util.AtomicFile`). If anything fails
+ *    before the rename, the previously stored file stays exactly as it was;
+ *  - a `<file>.tmp` left behind by a crash is adopted only when it is complete (parses as JSON)
+ *    *and* the live file is missing or unreadable — a stray copy can never shadow valid data;
  *  - a corrupt file is set aside as `<file>.corrupt` and the store starts empty instead of
  *    crashing the pipeline — the unreadable original is kept for support;
  *  - a locked record can never be replaced by an automatic (unlocked) write.
+ *
+ * Why not `android.util.AtomicFile` itself: it lives in `android.jar`, whose methods are stubs
+ * in JVM unit tests (this project sets `unitTests.isReturnDefaultValues = true` and Robolectric
+ * is unavailable offline), so the persistence path — the one thing that must never corrupt the
+ * reader's data — would become untestable. The same contract is implemented below with
+ * `FileOutputStream` + `fd.sync()` + `Files.move(ATOMIC_MOVE)`, which the JVM tests exercise for
+ * real.
  *
  * Thread-safe: the pipeline writes from the live and tap workers while the settings screen
  * writes from a background dispatcher.
@@ -189,6 +204,7 @@ class JsonCharacterStore(
     private fun ensureLoaded() {
         if (loaded) return
         loaded = true
+        recoverInterruptedWrite()
         if (!file.exists()) return
         val raw = runCatching { file.readText() }.getOrNull()
         if (raw.isNullOrBlank()) return
@@ -233,18 +249,83 @@ class JsonCharacterStore(
             series.put(seriesId, arr)
         }
         root.put("series", series)
-        val tmp = File(file.parentFile, file.name + ".tmp")
-        try {
-            file.parentFile?.mkdirs()
-            tmp.writeText(root.toString())
-            if (!tmp.renameTo(file)) {
-                file.writeText(root.toString())
-                tmp.delete()
-            }
-        } catch (e: Exception) {
-            runCatching { tmp.delete() }
+
+        val staging = stagingFile()
+        // startWrite: a complete, durable copy — the live file is not touched yet.
+        if (!writeDurably(staging, root.toString())) {
+            // failWrite: drop the incomplete copy; whatever is stored stays readable.
+            discard(staging)
+            return
+        }
+        // finishWrite: one atomic step turns the copy into the live file.
+        if (commitAtomically(staging)) return
+        // The filesystem refused an atomic move. Keep the complete copy (it is picked up on the
+        // next load only if the live file is unreadable) instead of truncating valid data with an
+        // in-place write — losing one save is recoverable, a half-written file is not.
+    }
+
+    /**
+     * A `<file>.tmp` can only be the remains of a write that never reached [commitAtomically]
+     * (a crash, a kill, a full disk). Adopt it only when it is complete and nothing better
+     * exists, so a stray copy can never replace readable data.
+     */
+    private fun recoverInterruptedWrite() {
+        val staging = stagingFile()
+        if (!staging.exists() || staging.length() == 0L) return
+        if (isReadableJson(file)) return
+        if (!isReadableJson(staging)) {
+            // Interrupted half-write: useless, and it must not be mistaken for data.
+            discard(staging)
+            return
+        }
+        if (!commitAtomically(staging)) {
+            // Cannot rename it into place either: read from it directly rather than lose it.
+            runCatching { staging.copyTo(file, overwrite = true) }
         }
     }
+
+    private fun isReadableJson(target: File): Boolean {
+        if (!target.exists() || target.length() == 0L) return false
+        return runCatching { JSONObject(target.readText()) }.isSuccess
+    }
+
+    /** startWrite: write UTF-8 off to the side and fsync so the bytes outlive a power cut. */
+    private fun writeDurably(target: File, text: String): Boolean = try {
+        target.parentFile?.mkdirs()
+        FileOutputStream(target).use { out ->
+            out.write(text.toByteArray(Charsets.UTF_8))
+            out.flush()
+            out.fd.sync()
+        }
+        true
+    } catch (e: Exception) {
+        false
+    }
+
+    /** finishWrite: commit [staging] over the live file in one atomic step. */
+    private fun commitAtomically(staging: File): Boolean {
+        if (runCatching {
+                Files.move(
+                    staging.toPath(),
+                    file.toPath(),
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING
+                )
+            }.isSuccess
+        ) {
+            return true
+        }
+        // A same-directory rename is atomic on every Android filesystem we support; the NIO call
+        // above simply cannot express ATOMIC_MOVE on some of them.
+        return runCatching { staging.renameTo(file) }.getOrDefault(false)
+    }
+
+    /** failWrite: remove the staged copy; never propagates, never touches the live file. */
+    private fun discard(staging: File) {
+        runCatching { staging.delete() }
+    }
+
+    private fun stagingFile(): File = File(file.parentFile, file.name + ".tmp")
 
     companion object {
         /** Bump only together with a reader for the older shape in [ensureLoaded]. */

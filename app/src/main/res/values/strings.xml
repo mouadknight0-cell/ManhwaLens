@@ -255,6 +255,8 @@
     <string name="character_names_note">Names are remembered per series and stay on this device. Locked names always win, even over a cached translation.</string>
     <string name="character_names_series">Series</string>
     <string name="character_names_no_series">No series selected — names are not saved</string>
+    <string name="character_names_no_series_card">No series selected — names are not saved. Pick one to enable memory.</string>
+    <string name="character_names_active">Series: %1$s</string>
     <string name="character_names_new_series">New series title</string>
     <string name="character_names_create">Create</string>
     <string name="character_names_clear">Clear selection</string>

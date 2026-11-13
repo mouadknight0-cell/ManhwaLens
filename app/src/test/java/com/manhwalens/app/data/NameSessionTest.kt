@@ -8,6 +8,7 @@ import com.manhwalens.app.translate.NameScript
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -81,6 +82,34 @@ class NameSessionTest {
         val second = session.tableFor(texts)
 
         assertSame(first, second)
+    }
+
+    @Test
+    fun `an equal text list with a different instance reuses the table`() {
+        val session = NameSession(seriesId = "s1", seriesTitle = "Solo", store = store)
+        val first = session.tableFor(listOf("Han Ji-woo left."))
+        val second = session.tableFor(listOf("Han Ji-woo left."))
+
+        assertSame(first, second) // content equality, not identity
+    }
+
+    @Test
+    fun `two page texts sharing a hash never share a name table`() {
+        store.upsert(locked("Aa", "آ"))
+        val session = NameSession(seriesId = "s1", seriesTitle = "Solo", store = store)
+
+        val pageA = listOf("Aa")
+        val pageB = listOf("BB")
+        // Premise of the regression: "Aa" and "BB" collide as strings, so these two pages have
+        // the same List.hashCode() — which is exactly what the old cache key compared.
+        assertEquals(pageA.hashCode(), pageB.hashCode())
+
+        val tableA = session.tableFor(pageA)
+        val tableB = session.tableFor(pageB)
+
+        assertNotSame(tableA, tableB)
+        assertTrue(tableA.names.any { it.original == "Aa" })
+        assertTrue(tableB.names.none { it.original == "Aa" }) // page A's names must not leak into B
     }
 
     @Test

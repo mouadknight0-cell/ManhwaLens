@@ -157,6 +157,99 @@ class JsonCharacterStoreTest {
     }
 
     @Test
+    fun `a successful save leaves no staging file behind`() {
+        val store = JsonCharacterStore(file)
+        store.upsert(newRecord("Han Ji-woo", "هان جيو"))
+
+        assertTrue(file.exists())
+        assertFalse(File(dir, "character_memory.json.tmp").exists())
+    }
+
+    @Test
+    fun `a failed write leaves the stored records readable`() {
+        val store = JsonCharacterStore(file)
+        store.upsert(newRecord("Han Ji-woo", "هان جيو"))
+
+        // Block the staging path so startWrite cannot even open its file: a directory with a
+        // file in it can be neither opened for writing nor deleted.
+        val staging = File(dir, "character_memory.json.tmp")
+        assertTrue(staging.mkdirs())
+        File(staging, "keep").writeText("x")
+
+        store.upsert(newRecord("Lan Wangji", "لان وانغجي")) // in memory only: the save failed
+
+        // The stored file is untouched and still parses — no truncation, no half-written JSON.
+        val reopened = JsonCharacterStore(file)
+        val kept = reopened.records("s1")
+        assertEquals(1, kept.size)
+        assertEquals("Han Ji-woo", kept.single().originalName)
+    }
+
+    @Test
+    fun `a successful save after a failed one persists the full state`() {
+        val store = JsonCharacterStore(file)
+        store.upsert(newRecord("Han Ji-woo", "هان جيو"))
+
+        val staging = File(dir, "character_memory.json.tmp")
+        assertTrue(staging.mkdirs())
+        File(staging, "keep").writeText("x")
+        store.upsert(newRecord("Lan Wangji", "لان وانغجي")) // not persisted
+
+        // The obstacle disappears (crash cleanup, user freed space, …): the next save repairs
+        // everything, because the in-memory index is the source of truth.
+        File(staging, "keep").delete()
+        assertTrue(staging.delete())
+        store.upsert(newRecord("Wei Wuxian", "وي ووشيان"))
+
+        val reopened = JsonCharacterStore(file)
+        assertEquals(3, reopened.records("s1").size)
+    }
+
+    @Test
+    fun `a complete copy left by an interrupted write is adopted`() {
+        val store = JsonCharacterStore(file)
+        store.upsert(newRecord("Han Ji-woo", "هان جيو"))
+
+        // Crash between startWrite and finishWrite: the live file never appeared, but the
+        // fsynced copy is complete.
+        val staging = File(dir, "character_memory.json.tmp")
+        assertTrue(file.renameTo(staging))
+        assertFalse(file.exists())
+
+        val reopened = JsonCharacterStore(file)
+
+        assertEquals("Han Ji-woo", reopened.records("s1").single().originalName)
+        assertTrue(file.exists())
+        assertFalse(staging.exists())
+    }
+
+    @Test
+    fun `a truncated copy left by an interrupted write is never adopted`() {
+        File(dir, "character_memory.json.tmp").writeText("""{"version":1,"series":{"s1":[{"id":"s1-""")
+
+        val store = JsonCharacterStore(file)
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists()) // nothing was promoted into the live file
+    }
+
+    @Test
+    fun `a leftover copy never shadows a readable file`() {
+        val store = JsonCharacterStore(file)
+        store.upsert(newRecord("Han Ji-woo", "هان جيو"))
+
+        val other = newRecord("Lan Wangji", "لان وانغجي").copy(id = "s1-other")
+        File(dir, "character_memory.json.tmp")
+            .writeText("""{"version":1,"series":{"s1":[${other.toJson()}]}}""")
+
+        val reopened = JsonCharacterStore(file)
+        val records = reopened.records("s1")
+
+        assertEquals(1, records.size)
+        assertEquals("Han Ji-woo", records.single().originalName)
+    }
+
+    @Test
     fun `a corrupt file is set aside and the store starts empty`() {
         file.writeText("{ this is not json")
 

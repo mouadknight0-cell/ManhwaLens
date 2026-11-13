@@ -41,6 +41,17 @@ class SeriesCatalogTest {
     }
 
     @Test
+    fun `creating a series never selects it`() {
+        // A series becomes active only when the reader says so: records can therefore never be
+        // filed under a series that merely exists.
+        catalog.create("Solo Leveling")
+
+        assertEquals(1, catalog.all().size)
+        assertEquals("", catalog.activeId())
+        assertNull(catalog.active())
+    }
+
+    @Test
     fun `creating the same title twice keeps one series`() {
         val first = catalog.create("Solo Leveling")
         val second = catalog.create("  solo   leveling ")
