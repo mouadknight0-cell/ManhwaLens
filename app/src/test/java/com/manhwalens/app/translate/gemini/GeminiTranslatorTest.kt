@@ -14,7 +14,9 @@ private class FakeGeminiApi(
     var result: GeminiHttpResult? = null,
     var throws: Throwable? = null,
     var listResult: GeminiHttpResult? = null,
-    var resultsByModel: Map<String, GeminiHttpResult>? = null
+    var resultsByModel: Map<String, GeminiHttpResult>? = null,
+    /** Scripted per-call responses, consumed in order before [result] is used. */
+    val queue: ArrayDeque<GeminiHttpResult> = ArrayDeque()
 ) : GeminiApi {
     val requestBodies = ArrayList<String>()
     val requestedModels = ArrayList<String>()
@@ -24,6 +26,7 @@ private class FakeGeminiApi(
         requestBodies += requestBodyJson
         requestedModels += model
         throws?.let { throw it }
+        if (queue.isNotEmpty()) return queue.removeFirst()
         return resultsByModel?.get(model) ?: result ?: GeminiHttpResult(500, "no scripted response")
     }
 
@@ -271,16 +274,30 @@ class GeminiTranslatorTest {
     }
 
     @Test
-    fun primaryJsonRequestCarriesThePageNameSheet() {
+    fun jsonRetryBodyCarriesThePageNameSheetToo() {
         val sheet = expectedSheet()
         assertTrue("sanity: this page must produce a name sheet", sheet.isNotBlank())
-        val api = FakeGeminiApi(result = namedReply)
+        // 400 → the translator retries once with the JSON "fast" body (responseMimeType).
+        // That retry used to be the ONLY place the sheet survived; it must keep carrying it.
+        val api = FakeGeminiApi(
+            queue = ArrayDeque(
+                listOf(
+                    GeminiHttpResult(400, """{"error":{"message":"bad request"}}"""),
+                    namedReply
+                )
+            )
+        )
         GeminiTranslator(api, jsonReply = true).translatePage(namedBlocks)
-        val first = api.requestBodies.first()
+        assertEquals(2, api.requestBodies.size)
+        val retry = api.requestBodies[1]
         sheet.split("; ").forEach { line ->
-            assertTrue("JSON first request is missing sheet line '$line'", first.contains(line))
+            assertTrue("JSON retry body is missing sheet line '$line'", retry.contains(line))
         }
-        assertTrue(first.contains("\"responseMimeType\":\"application/json\""))
+        assertTrue(retry.contains("\"responseMimeType\":\"application/json\""))
+        // And the primary request that preceded it carried the sheet as well.
+        sheet.split("; ").forEach { line ->
+            assertTrue("primary body is missing sheet line '$line'", api.requestBodies[0].contains(line))
+        }
     }
 
     @Test
