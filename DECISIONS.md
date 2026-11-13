@@ -763,3 +763,25 @@ would have broken the painter's id → bounds lookup.
 K8. **Verification.** 509 JVM unit tests pass in the local harness. Gradle and the Android SDK
 are unavailable in the authoring sandbox, so the APK and `testDebugUnitTest` run in GitHub
 Actions; device validation (patch opacity, name consistency on a real chapter) is outstanding.
+
+# P1 — series character memory — 2026-11-13
+
+**Report:** [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) · **Design:** [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md) · **Baseline:** v0.11.0 `b8e37de` → `8d5cc9e` (PR #2) · **CI:** run 43518604612 green.
+
+One line per decision.
+
+- P1.1. Character memory is scoped by an **explicitly selected series** (`SeriesCatalog` id), never by the reader package name: one package can host two stories, and one story can ship in two packages.
+- P1.2. With **no series selected** the session is unassigned: names still resolve for the page (no regression vs v0.11.0) but nothing is read from or written to series memory, so a mapping can never be attributed to a story the reader did not choose.
+- P1.3. Storage is a **JSON file** (`filesDir/character_memory.json`, `version: 1`) written via `.tmp` + rename; Room was rejected because it would add a Gradle dependency (standing rule) to query tens of rows that fit in memory, and the app already persists JSON atomically for the translation cache.
+- P1.4. A corrupt file is set aside as `.corrupt` and a newer schema as `.newer` (both kept for support); the store starts empty instead of crashing, matching the self-healing policy of the translation cache.
+- P1.5. A **locked** record is final: `upsert` returns it untouched when the incoming write is unlocked, so no automatic detection can displace a reader's decision.
+- P1.6. Lookup key = letters only, lower case, **no fuzzy matching** (`Han Ji-woo` / `Han Jiwoo` / `han ji woo` are one person); fuzzy matching would eventually merge two different people.
+- P1.7. Priority ladder lives in one function (`CharacterResolver.decide`): locked → user (series, then glossary) → built-in → trusted series memory → page model (0.8) → transliteration → **keep Latin**.
+- P1.8. `TRUST_MIN = 0.6`: a stored machine transliteration is never treated as confirmed, and is only persisted when the script is confident **and** the name was seen at least twice.
+- P1.9. A bare surname (`Wang`, `Kim`, `Lee`, `Lin`, `Han`) is **not evidence of a script**; `NameScript.classify` returns `UNKNOWN` with confidence 0.25, and the guard runs *before* the pinyin letter-cluster rules because `wang`/`lin` contain `ng` (a single spelling must never decide a script).
+- P1.10. Ambiguous English given names (`Hope`, `May`, `Rose`, …) are never auto-confirmed but can still be locked, and a locked one is applied even when the page scanner deliberately drops the token.
+- P1.11. One `NameSession` per translator instance feeds all three consumers from one memoised table: ML Kit gets `.table` (longest-first inline substitution), Gemini gets `.sheet` (the P0-A path), so the engines cannot disagree by construction.
+- P1.12. `CachingTranslator.pinnedOverride` repairs a cache hit (memory/disk/fuzzy) **before** `ArabicValidator.issue` judges it, and writes the repair back; fresh engine output is repaired before caching — so a correction beats an already-cached chapter.
+- P1.13. `CharacterRecord.previousArabic` (≤ 4) is what makes an old Arabic spelling findable; repairs are whole-word only and an Arabic fragment under 3 letters is never rewritten.
+- P1.14. UI = Settings → Character names: create/select a series, then edit (save = save + lock), alias, lock/unlock, delete; all I/O on `Dispatchers.IO` against the same store instance the pipeline uses. No network anywhere on the naming path.
+- P1.15. Verification: 73 new JVM tests (590 total). CI run 1 failed to compile (nullable *property* cannot be smart-cast inside a lambda — snapshotted into local vals), run 2 failed 4 tests, one of which exposed a real bug (a repaired plain **memory** cache hit was never written back); run 3 green. Device validation of §12 of the report is still outstanding because the authoring sandbox has no Android SDK/JDK.

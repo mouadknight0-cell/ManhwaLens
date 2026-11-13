@@ -1,7 +1,10 @@
 # P1 — Series character memory
 
-Status: implemented on `arena/8a718184-manhwalens` (PR #2). Supersedes the scene-only name
-pinning of v0.11.0, which forgot every name when the page changed.
+Status: implemented on `arena/8a718184-manhwalens` (PR #2), CI green (run 43518604612).
+**Phase report — root cause, decisions, evidence, diff, risks: [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md).**
+This document is the design reference; that one is the delivery record.
+
+Supersedes the scene-only name pinning of v0.11.0, which forgot every name when the page changed.
 
 ## 1. The defect
 
