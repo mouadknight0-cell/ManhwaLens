@@ -101,8 +101,9 @@ class CharacterResolver(
         if (texts.isEmpty()) return PageNameTable.EMPTY
         val plan = runCatching { NameMemory.plan(texts, known) }
             .getOrDefault(NameMemory.Plan(emptyList(), emptyMap()))
-        val records = if (seriesId.isNullOrBlank() || store == null) emptyList()
-        else runCatching { store.records(seriesId) }.getOrDefault(emptyList())
+        val source = store
+        val records = if (seriesId.isNullOrBlank() || source == null) emptyList()
+        else runCatching { source.records(seriesId) }.getOrDefault(emptyList())
 
         val byKey = HashMap<String, CharacterRecord>(records.size)
         val byAlias = HashMap<String, CharacterRecord>(records.size)
@@ -232,14 +233,15 @@ class CharacterWriter(private val store: CharacterStore?) {
     /** @return how many NEW records were created (0 when nothing was eligible). */
     fun commit(table: PageNameTable, now: Long = System.currentTimeMillis()): Int {
         val seriesId = table.seriesId
-        if (seriesId.isNullOrBlank() || store == null) return 0
+        val target = store
+        if (seriesId.isNullOrBlank() || target == null) return 0
         var created = 0
         for (n in table.names) {
             val arabic = n.arabic
             if (!n.persistable || arabic.isNullOrBlank()) continue
             val key = NameForm.normalize(n.original)
             if (key.isEmpty()) continue
-            val existing = runCatching { store.find(seriesId, key) }.getOrNull()
+            val existing = runCatching { target.find(seriesId, key) }.getOrNull()
             if (existing != null) continue // never overwrite, never merge
             val record = CharacterRecord(
                 id = "",
@@ -261,7 +263,7 @@ class CharacterWriter(private val store: CharacterStore?) {
                 updatedAt = now,
                 occurrences = 0
             )
-            val stored = runCatching { store.upsert(record) }.getOrNull() ?: continue
+            val stored = runCatching { target.upsert(record) }.getOrNull() ?: continue
             if (stored.originalName == n.original) created++
         }
         return created

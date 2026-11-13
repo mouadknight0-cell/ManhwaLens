@@ -87,8 +87,10 @@ class NameSession(
     /** Loaded once per session: one query per page, never one per block. */
     private val records: List<CharacterRecord> by lazy {
         val id = seriesId
-        if (id.isNullOrBlank() || store == null) emptyList()
-        else runCatching { store.records(id) }.getOrDefault(emptyList())
+        // Snapshot the nullable field: smart casts do not survive into a lambda.
+        val source = store
+        if (id.isNullOrBlank() || source == null) emptyList()
+        else runCatching { source.records(id) }.getOrDefault(emptyList())
     }
 
     private var cachedTable: PageNameTable? = null
