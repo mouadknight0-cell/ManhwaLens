@@ -27,6 +27,10 @@ import java.nio.file.StandardCopyOption
  *    before the rename, the previously stored file stays exactly as it was;
  *  - a `<file>.tmp` left behind by a crash is adopted only when it is complete (parses as JSON)
  *    *and* the live file is missing or unreadable — a stray copy can never shadow valid data;
+ *  - recovery is **read-only with respect to the live file**: if the atomic promotion is refused,
+ *    nothing is written anywhere — the records are read from the complete copy in place, the copy
+ *    stays on disk for the next attempt, the live file keeps its exact bytes, and the failure is
+ *    reported through [onWarning] instead of being thrown;
  *  - a corrupt file is set aside as `<file>.corrupt` and the store starts empty instead of
  *    crashing the pipeline — the unreadable original is kept for support;
  *  - a locked record can never be replaced by an automatic (unlocked) write.
@@ -43,7 +47,18 @@ import java.nio.file.StandardCopyOption
  */
 class JsonCharacterStore(
     private val file: File,
-    private val clock: () -> Long = System::currentTimeMillis
+    private val clock: () -> Long = System::currentTimeMillis,
+    /**
+     * Commit seam: move [staging] over the live file. The default performs a real atomic move;
+     * tests inject a refusing implementation to exercise the "promotion impossible" path
+     * deterministically (a filesystem cannot be asked to fail on demand in a portable test).
+     */
+    private val atomicMove: (File, File) -> Boolean = ::atomicMoveOrRename,
+    /**
+     * Diagnostic sink for a recovery that had to be deferred. The JVM store stays Android-free,
+     * so the Android layer ([com.manhwalens.app.data.CharacterMemory]) wires this to ErrorLog.
+     */
+    private val onWarning: (String) -> Unit = {}
 ) : CharacterStore {
 
     /** seriesId → records, in creation order. Guarded by [lock]. */
@@ -204,33 +219,73 @@ class JsonCharacterStore(
     private fun ensureLoaded() {
         if (loaded) return
         loaded = true
-        recoverInterruptedWrite()
-        if (!file.exists()) return
-        val raw = runCatching { file.readText() }.getOrNull()
-        if (raw.isNullOrBlank()) return
-        try {
-            val root = JSONObject(raw)
-            val version = root.optInt("version", SCHEMA_VERSION)
-            if (version > SCHEMA_VERSION) {
-                // Written by a newer build: keep the file, do not guess at its shape.
-                setAside("newer")
-                return
-            }
-            val series = root.optJSONObject("series") ?: return
-            for (seriesId in series.keys()) {
-                val arr = series.optJSONArray(seriesId) ?: continue
-                val list = ArrayList<CharacterRecord>(arr.length())
-                for (i in 0 until arr.length()) {
-                    val o = arr.optJSONObject(i) ?: continue
-                    val record = CharacterRecord.fromJson(o) ?: continue
-                    if (record.seriesId == seriesId) list += record
-                }
-                if (list.isNotEmpty()) bySeries[seriesId] = list
-            }
+        if (loadFrom(file)) return
+        // The live file is missing, empty, corrupt or from a newer build. A complete staging file
+        // left by an interrupted save is the only other copy: read it IN PLACE (never write to the
+        // live path here) and try to promote it atomically. If promotion is impossible, both files
+        // stay exactly as they are for a later attempt.
+        val staging = stagingFile()
+        if (!staging.exists() || staging.length() == 0L) return
+        if (!isReadableJson(staging)) {
+            // Half-written: it must never be mistaken for data.
+            discard(staging)
+            return
+        }
+        if (!loadFrom(staging)) return
+        if (commitAtomically(staging)) return
+        reportDeferredRecovery(staging)
+    }
+
+    /**
+     * Read [target] into the in-memory index.
+     *
+     * @return true when [target] held a usable document (possibly an empty one), so the caller
+     *         knows whether another copy is worth looking at. A corrupt or newer-schema live file
+     *         is set aside exactly as before.
+     */
+    private fun loadFrom(target: File): Boolean {
+        if (!target.exists()) return false
+        val raw = runCatching { target.readText() }.getOrNull()
+        if (raw.isNullOrBlank()) return false
+        val root = try {
+            JSONObject(raw)
         } catch (e: Exception) {
             // Corrupt JSON: never crash the translation pipeline over a name database.
-            setAside("corrupt")
+            if (target == file) setAside("corrupt")
             bySeries.clear()
+            return false
+        }
+        if (root.optInt("version", SCHEMA_VERSION) > SCHEMA_VERSION) {
+            // Written by a newer build: keep the file, do not guess at its shape.
+            if (target == file) setAside("newer")
+            bySeries.clear()
+            return false
+        }
+        val series = root.optJSONObject("series") ?: return true
+        for (seriesId in series.keys()) {
+            val arr = series.optJSONArray(seriesId) ?: continue
+            val list = ArrayList<CharacterRecord>(arr.length())
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val record = CharacterRecord.fromJson(o) ?: continue
+                if (record.seriesId == seriesId) list += record
+            }
+            if (list.isNotEmpty()) bySeries[seriesId] = list
+        }
+        return true
+    }
+
+    /**
+     * Atomic promotion was refused. Nothing is written: the staged copy is the newer, complete
+     * document and stays on disk so a later load can promote it, while the live file (if any)
+     * keeps its exact bytes. Reported through [onWarning] — never thrown.
+     */
+    private fun reportDeferredRecovery(staging: File) {
+        runCatching {
+            onWarning(
+                "character memory: could not promote ${staging.name} atomically; " +
+                    "kept for the next attempt (records loaded from it in memory)"
+            )
         }
     }
 
@@ -264,26 +319,6 @@ class JsonCharacterStore(
         // in-place write — losing one save is recoverable, a half-written file is not.
     }
 
-    /**
-     * A `<file>.tmp` can only be the remains of a write that never reached [commitAtomically]
-     * (a crash, a kill, a full disk). Adopt it only when it is complete and nothing better
-     * exists, so a stray copy can never replace readable data.
-     */
-    private fun recoverInterruptedWrite() {
-        val staging = stagingFile()
-        if (!staging.exists() || staging.length() == 0L) return
-        if (isReadableJson(file)) return
-        if (!isReadableJson(staging)) {
-            // Interrupted half-write: useless, and it must not be mistaken for data.
-            discard(staging)
-            return
-        }
-        if (!commitAtomically(staging)) {
-            // Cannot rename it into place either: read from it directly rather than lose it.
-            runCatching { staging.copyTo(file, overwrite = true) }
-        }
-    }
-
     private fun isReadableJson(target: File): Boolean {
         if (!target.exists() || target.length() == 0L) return false
         return runCatching { JSONObject(target.readText()) }.isSuccess
@@ -302,23 +337,13 @@ class JsonCharacterStore(
         false
     }
 
-    /** finishWrite: commit [staging] over the live file in one atomic step. */
-    private fun commitAtomically(staging: File): Boolean {
-        if (runCatching {
-                Files.move(
-                    staging.toPath(),
-                    file.toPath(),
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING
-                )
-            }.isSuccess
-        ) {
-            return true
-        }
-        // A same-directory rename is atomic on every Android filesystem we support; the NIO call
-        // above simply cannot express ATOMIC_MOVE on some of them.
-        return runCatching { staging.renameTo(file) }.getOrDefault(false)
-    }
+    /**
+     * finishWrite: commit [staging] over the live file in one atomic step — or not at all.
+     * There is deliberately no copy-into-the-live-file fallback: a partial copy would destroy
+     * the very data this store exists to protect.
+     */
+    private fun commitAtomically(staging: File): Boolean =
+        runCatching { atomicMove(staging, file) }.getOrDefault(false)
 
     /** failWrite: remove the staged copy; never propagates, never touches the live file. */
     private fun discard(staging: File) {
@@ -331,4 +356,22 @@ class JsonCharacterStore(
         /** Bump only together with a reader for the older shape in [ensureLoaded]. */
         const val SCHEMA_VERSION = 1
     }
+}
+
+/**
+ * Default commit: an atomic move when the filesystem supports one, otherwise a plain rename —
+ * which is atomic for two names in the same directory on every Android filesystem we support.
+ * Returns false instead of throwing; the caller keeps both files untouched.
+ */
+private fun atomicMoveOrRename(from: File, to: File): Boolean {
+    val moved = runCatching {
+        Files.move(
+            from.toPath(),
+            to.toPath(),
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING
+        )
+    }.isSuccess
+    if (moved) return true
+    return runCatching { from.renameTo(to) }.getOrDefault(false)
 }

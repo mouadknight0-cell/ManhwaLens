@@ -38,7 +38,13 @@ object CharacterMemory {
         storeCache?.let { return it }
         return synchronized(this) {
             storeCache ?: JsonCharacterStore(
-                File(context.applicationContext.filesDir, FILE_NAME)
+                File(context.applicationContext.filesDir, FILE_NAME),
+                // A deferred recovery (the filesystem refused to promote a complete copy) is a
+                // data-integrity warning: surface it in the pipeline trace rather than in the
+                // last-error file, which is reserved for crashes.
+                onWarning = { message ->
+                    runCatching { PipelineTracer.span("character memory", 0, message) }
+                }
             ).also { storeCache = it }
         }
     }

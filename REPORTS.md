@@ -30,6 +30,7 @@ stated in the report before the code changes.
 
 | Date | Phase | Report | Base → final | Verified by |
 | --- | --- | --- | --- | --- |
+| 2026-11-13 | P1 persistence safety (recovery never writes the live file) | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → this commit | CI run at HEAD (see Actions) |
 | 2026-11-13 | P1 review corrections | [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) | `1c0c270` → `e99dd93` (docs `06b3d84`) | CI 43523522645, 43524129101 |
 | 2026-11-13 | P1 series character memory | [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) · design: [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md) | `528d629` → `8d5cc9e` (docs `1c0c270`) | CI 43518604612, 43520783453 |
 | 2026-11-13 | P0-A Gemini name sheet | [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md) | `b8e37de` → `528d629` | CI 43514068424, 43514608722 |

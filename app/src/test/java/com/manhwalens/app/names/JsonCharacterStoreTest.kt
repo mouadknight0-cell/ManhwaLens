@@ -2,6 +2,7 @@ package com.manhwalens.app.names
 
 import com.manhwalens.app.translate.NameScript
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -250,6 +251,100 @@ class JsonCharacterStoreTest {
     }
 
     @Test
+    fun `a refused promotion never writes into the live file`() {
+        // Complete copy from an interrupted save, no live file, and a filesystem that refuses to
+        // promote it: the old fallback copied into the live path, which could be torn by a kill.
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(staging, newRecord("Han Ji-woo", "هان جيو").copy(id = "s1-a"))
+        val stagingBefore = staging.readBytes()
+        val warnings = ArrayList<String>()
+
+        val store = JsonCharacterStore(
+            file,
+            atomicMove = { _, _ -> false },
+            onWarning = { warnings += it }
+        )
+        val records = store.records("s1")
+
+        // The records are still available — read from the copy in place, never duplicated by a
+        // non-atomic write into the live file.
+        assertEquals(1, records.size)
+        assertEquals("Han Ji-woo", records.single().originalName)
+        assertFalse(file.exists())
+        assertArrayEquals(stagingBefore, staging.readBytes())
+        assertEquals(1, warnings.size)
+        assertTrue(warnings.single().contains("could not promote"))
+    }
+
+    @Test
+    fun `a refused promotion keeps the complete copy for a later attempt`() {
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(
+            staging,
+            newRecord("Han Ji-woo", "هان جيو").copy(id = "s1-a"),
+            newRecord("Lan Wangji", "لان وانغجي").copy(id = "s1-b")
+        )
+
+        val blocked = JsonCharacterStore(file, atomicMove = { _, _ -> false })
+        assertEquals(2, blocked.records("s1").size)
+        assertTrue(staging.exists())
+
+        // The obstacle is gone (a later process, a different filesystem state): the copy is
+        // promoted and the complete record set is restored.
+        val reopened = JsonCharacterStore(file)
+        val restored = reopened.records("s1").map { it.originalName }.sorted()
+
+        assertEquals(listOf("Han Ji-woo", "Lan Wangji"), restored)
+        assertFalse(staging.exists())
+        assertTrue(file.exists())
+    }
+
+    @Test
+    fun `a refused promotion leaves a valid live file byte-for-byte unchanged`() {
+        val store = JsonCharacterStore(file)
+        store.upsert(newRecord("Han Ji-woo", "هان جيو"))
+        val liveBefore = file.readBytes()
+        // A stale copy from an unrelated failure must not be promoted over readable data.
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(staging, newRecord("Lan Wangji", "لان وانغجي").copy(id = "s1-other"))
+
+        val reopened = JsonCharacterStore(file, atomicMove = { _, _ -> false })
+
+        assertEquals("Han Ji-woo", reopened.records("s1").single().originalName)
+        assertArrayEquals(liveBefore, file.readBytes())
+    }
+
+    @Test
+    fun `a save after a refused promotion keeps the full state in the copy`() {
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(
+            staging,
+            newRecord("Han Ji-woo", "هان جيو").copy(id = "s1-a"),
+            newRecord("Lan Wangji", "لان وانغجي").copy(id = "s1-b")
+        )
+
+        val blocked = JsonCharacterStore(file, atomicMove = { _, _ -> false })
+        assertEquals(2, blocked.records("s1").size)
+        // Loading from the copy means a mutation writes the complete state back, not an
+        // empty store over the only surviving data.
+        blocked.upsert(newRecord("Wei Wuxian", "وي ووشيان"))
+
+        val reopened = JsonCharacterStore(file)
+        assertEquals(3, reopened.records("s1").size)
+    }
+
+    @Test
+    fun `a truncated copy is never promoted even when the live file is missing`() {
+        File(dir, "character_memory.json.tmp")
+            .writeText("""{"version":1,"series":{"s1":[{"id":"s1-""")
+
+        val store = JsonCharacterStore(file, atomicMove = { _, _ -> false })
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+    }
+
+    @Test
     fun `a corrupt file is set aside and the store starts empty`() {
         file.writeText("{ this is not json")
 
@@ -267,6 +362,12 @@ class JsonCharacterStoreTest {
 
         assertTrue(store.records("s1").isEmpty())
         assertTrue(File(dir, "character_memory.json.newer").exists())
+    }
+
+    /** Serialize records exactly like the store does, for staging-copy fixtures. */
+    private fun writeDocument(target: File, vararg records: CharacterRecord) {
+        val body = records.joinToString(",") { it.toJson().toString() }
+        target.writeText("""{"version":1,"series":{"s1":[$body]}}""")
     }
 
     private fun newRecord(
