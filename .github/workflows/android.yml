@@ -44,7 +44,20 @@ jobs:
         run: chmod +x gradlew
 
       - name: Unit tests
-        run: ./gradlew $GRADLE_ARGS :app:testDebugUnitTest
+        run: |
+          set +e
+          ./gradlew $GRADLE_ARGS :app:testDebugUnitTest > /tmp/ut.log 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then
+            # Surface compiler/test errors as annotations (the raw log is not always
+            # retrievable through the API from a sandbox).
+            grep -aE "^e: |^w: .*error|error: |Execution failed for task|^[A-Za-z0-9_.]+Test > .* FAILED|tests completed" /tmp/ut.log \
+              | head -20 | sed 's/%/%25/g' | while IFS= read -r line; do
+                  echo "::error::$line"
+                done
+            tail -40 /tmp/ut.log
+            exit $code
+          fi
 
       - name: Build debug APK
         run: ./gradlew $GRADLE_ARGS :app:assembleDebug
