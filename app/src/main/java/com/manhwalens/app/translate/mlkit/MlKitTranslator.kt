@@ -11,6 +11,7 @@ import com.manhwalens.app.translate.BatchPolicyHolder
 import com.manhwalens.app.translate.BatchSplitter
 import com.manhwalens.app.translate.Glossary
 import com.manhwalens.app.translate.MlKitWarmth
+import com.manhwalens.app.translate.SceneNames
 import com.manhwalens.app.translate.SplitStrategy
 import com.manhwalens.app.translate.TextChunker
 import com.manhwalens.app.translate.PageTranslation
