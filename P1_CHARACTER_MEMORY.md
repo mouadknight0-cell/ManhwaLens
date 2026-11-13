@@ -45,8 +45,9 @@ writes nothing, so a mapping can never leak into a story the reader did not choo
   dependency, which this phase forbids — to query a list that fits in memory. Everything Room
   would buy here is covered by the tolerant reader in `CharacterRecord.fromJson`, the
   `SCHEMA_VERSION` field, and the atomic write below.
-* **Durability.** Writes go to `character_memory.json.tmp` and are renamed over the original: a
-  kill mid-write can never leave half a file.
+* **Durability.** Writes go to `character_memory.json.tmp`, are fsynced, and are committed with one
+  atomic move: a kill mid-write can never leave half a file, and the live file is never opened for
+  writing (see [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) §1).
 * **Corruption.** A file that does not parse is renamed to `character_memory.json.corrupt` and
   kept for support; the store then starts empty. A file written by a newer build is set aside as
   `.newer` instead of being guessed at. Neither case crashes the pipeline.

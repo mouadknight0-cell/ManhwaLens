@@ -785,3 +785,18 @@ One line per decision.
 - P1.13. `CharacterRecord.previousArabic` (≤ 4) is what makes an old Arabic spelling findable; repairs are whole-word only and an Arabic fragment under 3 letters is never rewritten.
 - P1.14. UI = Settings → Character names: create/select a series, then edit (save = save + lock), alias, lock/unlock, delete; all I/O on `Dispatchers.IO` against the same store instance the pipeline uses. No network anywhere on the naming path.
 - P1.15. Verification: 73 new JVM tests (590 total). CI run 1 failed to compile (nullable *property* cannot be smart-cast inside a lambda — snapshotted into local vals), run 2 failed 4 tests, one of which exposed a real bug (a repaired plain **memory** cache hit was never written back); run 3 green. Device validation of §12 of the report is still outstanding because the authoring sandbox has no Android SDK/JDK.
+
+# P1 review corrections — 2026-11-13
+
+**Report:** [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) · **Base:** `1c0c270` → **Fix:** `e99dd93` · **CI:** run 43523522645 green.
+
+One line per correction.
+
+- R1. `JsonCharacterStore` no longer writes the live file in place: its `renameTo` fallback (`file.writeText`) could truncate valid data if the process died mid-write, so the whole save path now follows the AtomicFile contract — complete copy in `<file>.tmp`, `fd.sync()`, one atomic move, and delete-on-failure with the live file never opened for writing.
+- R2. `android.util.AtomicFile` was rejected deliberately: it is an `android.jar` stub under `unitTests.isReturnDefaultValues` and Robolectric is unavailable offline, so the persistence path would be untestable; the same contract is implemented with `FileOutputStream` + `fsync` + `Files.move(ATOMIC_MOVE)` and covered by JVM tests on a real filesystem.
+- R3. A leftover `<file>.tmp` is adopted at load only when it parses as JSON **and** the live file is missing/empty/unparsable; a truncated copy is discarded, so an interrupted write can never replace or shadow valid records.
+- R4. A failed save is non-fatal and self-healing: the in-memory index stays authoritative, nothing is truncated, and the next successful save persists the complete state.
+- R5. `NameSession.tableFor` now memoises on the actual immutable text list instead of `texts.hashCode()`; two pages with colliding hashes could otherwise share one name table (`listOf("Aa")` and `listOf("BB")` both hash to 2143). One entry per page is kept, and the stored list is a defensive copy.
+- R6. Series selection has no inference: no package/app-name lookup, no default series, `create()` never selects, and an unassigned session reads and writes nothing. The sticky manual selection is intentional and documented.
+- R7. The active series is now visible where memory is managed: `Series: <title>` (or a red "names are not saved" state) on the Settings card, refreshed on return from the editor, plus one `character memory` trace line per page with the series and record count.
+- R8. Verification: 9 new regression tests (599 test methods in the module), `:app:testDebugUnitTest` + `:app:assembleDebug` green on CI run 43523522645 at `e99dd93`; no local run was possible (no JDK/SDK in the sandbox) and none is claimed.

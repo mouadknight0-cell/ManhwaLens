@@ -68,7 +68,7 @@ Safety properties implemented in `JsonCharacterStore`:
 
 | Property | Mechanism |
 | --- | --- |
-| No half-written file | write `character_memory.json.tmp`, then rename over the original |
+| No half-written file | complete copy in `character_memory.json.tmp` + `fd.sync()`, committed with one atomic move; the live file is never opened for writing (reviewed and hardened — see [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) §1) |
 | Corrupt file never crashes the pipeline | `character_memory.json.corrupt` is set aside (kept for support), store starts empty |
 | A newer schema is not guessed at | `version > SCHEMA_VERSION` → set aside as `.newer` |
 | A reader's decision is final | `upsert` returns the existing record untouched when it is locked and the write is not |
@@ -263,6 +263,10 @@ Full compare: <https://github.com/mouadknight0-cell/ManhwaLens/compare/528d629..
 ---
 
 ## 13. Remaining risks / follow-ups
+
+**Post-review corrections (2026-11-13):** [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md)
+— atomic persistence, `NameSession` cache identity (`texts.hashCode()` → content equality), and the
+series-selection audit with its minimal UX fixes. Base `1c0c270`, fix `e99dd93`, CI run 43523522645.
 
 | Risk | Status |
 | --- | --- |
