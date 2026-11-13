@@ -71,52 +71,52 @@ JUnit 4 + `org.json` only — no new dependencies.
 | `blankNameSheetFallsBackWithoutMalformedPromptContent` | a blank sheet produces a body **identical** to the old 1-arg body; no `null`, no empty `"text":""`, at most one glossary header |
 | `nullThinkingLevelOmitsThinkingConfigButKeepsTheSheet` | `thinkingLevel = null` emits no `thinkingConfig`, no `null`, sheet still present |
 
-**`GeminiTranslatorTest` (primary path, via the existing `FakeGeminiApi`):**
+**`GeminiTranslatorTest` (primary and retry paths, via `FakeGeminiApi`):**
 
 | Test | Proves |
 |---|---|
 | `primaryLegacyRequestCarriesThePageNameSheet` | default translator, **exactly one** captured request (so it is the primary request, not the 400 retry), every sheet line present, `thinkingLevel: low` kept, no `responseMimeType` |
-| `primaryJsonRequestCarriesThePageNameSheet` | same guarantee with `jsonReply = true` |
+| `jsonRetryBodyCarriesThePageNameSheetToo` | a queued HTTP 400 then 200 proves **both** the primary body and the JSON retry body carry the sheet |
 | `pageWithoutNamesSendsNoMalformedPrompt` | a page with no proper nouns sends no `null`, no empty text part, at most one glossary header |
 
 The expected sheet is computed with the same `NameMemory.plan` + `sheet(limit = 20)` calls the
-translator uses, so the tests cannot drift from production.
+translator uses, so the tests cannot drift from production. `FakeGeminiApi` gained an optional
+response `queue` (consumed before `result`) so the 400-retry path can be scripted; existing tests
+are unaffected.
 
 ---
 
-## 4. Verification status — read this before review
+## 4. Verification status — verified by CI
 
-The test suite has **not** been executed on a real toolchain yet. The development sandbox had no
-JDK, no Android SDK and no reachable Gradle/Maven hosts, so the targeted task could not start.
-
-Run this before sign-off (single invocation, no parallel tasks):
+The suite does not run in the development sandbox (no JDK, no Android SDK, no reachable
+Gradle/Maven hosts), so it was verified on GitHub Actions, which runs on every pull request:
 
 ```
-./gradlew :app:testDebugUnitTest --tests "com.manhwalens.app.translate.gemini.*" --no-daemon --console=plain
+./gradlew :app:testDebugUnitTest        # CI, and the same command locally
 ```
 
-Expected: 8 new tests pass; the 17 pre-existing Gemini tests are unaffected (their assertions are
-substrings that this change does not alter — the sheet is added only when one exists, and a blank
-sheet is a no-op).
+**Run 1** (`43513473811`): 517 tests completed, **1 failed** — `primaryJsonRequestCarriesThePageNameSheet`.
 
-Verified in the sandbox instead:
+The failure was in the new test, not in the fix, and it exposed a real asymmetry:
+`translateChunk` hardcodes `jsonReply = false` for the **primary** request
+(`GeminiTranslator.kt:216`), so the constructor flag `jsonReply` only changes the HTTP-400
+**retry** body (`buildFastBody`, `:234`). The test asserted `responseMimeType` on the first
+request, which is only ever a legacy body. Replaced by `jsonRetryBodyCarriesThePageNameSheetToo`,
+which scripts a 400 then a 200 and asserts the sheet on **both** bodies.
 
-- Static review of overload resolution (the 3-argument builder is the only exactly-3-parameter
-  candidate), nullability (`thinkingLevel: String?`, handled by `isNullOrBlank()`), imports, and
-  every call site — only the 1-argument form in existing tests, one 4-argument call in production,
-  no Java sources.
-- A faithful Python mirror of `promptFor`, both body builders and the router, running the same
-  assertions: **26/26 checks passed**, including proof that the pre-fix router really did drop the
-  sheet. This validates prompt assembly only, not Kotlin compilation.
+**Run 2** (`43514068424`): **passed** — `:app:testDebugUnitTest` green (517 tests) and
+`:app:assembleDebug` produced the debug APK.
 
----
+> Note (out of scope, tracked for later): the `jsonReply` constructor flag does not make the
+> primary request JSON — its KDoc implies it does. It only affects the retry body. Fixing that
+> would change production request behaviour, so it is not part of P0-A; the name sheet is now
+> carried by both formats either way.
 
 ## 5. Remaining risks
 
-1. **Compilation/test execution unverified** (see §4) — the highest risk. If a test fails, the
-   likely cause is a test assumption (`Glossary.prepare` touching `"Hello!"`, or the Arabic reply
-   being rejected by `ArabicValidator`), not the fix; both are asserted explicitly so they fail
-   loudly rather than silently.
+1. **`jsonReply` is retry-only** (see the note in §4): the constructor flag never makes the
+   primary request JSON. Harmless for names now that both bodies carry the sheet, but the flag's
+   KDoc overstates what it does — fix separately if the JSON format is ever wanted first.
 2. The 3-argument legacy builder and the 4-argument router both accept three positional
    arguments. Kotlin picks the legacy one, and both now carry the sheet, so a mis-resolution could
    only change the *reply format* — never lose names. Renaming the router would remove even that;
