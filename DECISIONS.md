@@ -714,6 +714,6 @@ J7. Review GitHub OCR/translation projects before adding native dependencies. Pa
 ## Version and verification
 
 - `versionCode = 29`, `versionName = 0.10.0`.
-- Added wire/translator/Arabic-validator unit tests; no tests or APK build could be executed in this sandbox because Java/JDK and Android SDK are absent.
+- Added wire/translator/Arabic-validator unit tests. Local Gradle remained unavailable because Java/JDK and Android SDK are absent; GitHub Actions run `43478059287` later passed `:app:testDebugUnitTest` and `:app:assembleDebug`, producing `ManhwaLens-v0.10.0-debug.apk` as the `ManhwaLens-debug-apk` artifact. Device/server validation and release signing remain outstanding.
 - Manual device/server checks are listed in `MANUAL_TESTS.md` M0.1–M0.6.
 - Full GitHub project review, licenses, and future OCR test plan: `OPEN_SOURCE_RESEARCH.md`.

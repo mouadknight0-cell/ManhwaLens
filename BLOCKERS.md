@@ -87,3 +87,10 @@ Open (cannot be closed from the build box — needs the phone):
 - Added pure-JVM tests for LibreTranslate request batching/response order, HTTPS validation, API error classification, and Arabic output screening. They are authored but NOT executed in this environment.
 - No trusted LibreTranslate endpoint or physical Android device is available here. Validate remote HTTPS behavior, fallback, overlay timing, and Live mode on a device before release; checklist: `MANUAL_TESTS.md` M0.1–M0.6.
 - Open-source OCR replacement is intentionally deferred until PaddleOCR is benchmarked for CER, bubble recall, P95 latency, APK/model size, and memory on the target device.
+
+## 2026-11-13 GitHub Actions build
+
+- First cloud attempt failed in `android-actions/setup-android@v3`; upgraded the workflow actions and pinned `ubuntu-24.04`.
+- GitHub Actions run `43478059287` then passed both `:app:testDebugUnitTest` and `:app:assembleDebug`. It produced `ManhwaLens-v0.10.0-debug.apk` inside artifact `ManhwaLens-debug-apk` (artifact archive: 61,444,466 bytes).
+- The artifact is available at https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43478059287. This sandbox cannot copy it into Dropbox because GitHub redirects artifact downloads to a blob host outside the allowed outbound hosts.
+- This is a debug build, not a release-signed APK. It has not been tested on a physical Android device or against a trusted LibreTranslate server.
