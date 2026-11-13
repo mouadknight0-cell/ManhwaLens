@@ -227,4 +227,73 @@ class GeminiTranslatorTest {
         assertTrue(api.requestBodies.single().contains("[2]"))
         assertEquals("", result.blocks.first { it.id == 1 }.arabic)
     }
+
+    // ------------------------------------------------------------------
+    // P0-A: the page name sheet must be in the FIRST request body — not
+    // only in the HTTP-400 retry, and not only in the JSON format.
+    // ------------------------------------------------------------------
+
+    private val namedBlocks = listOf(
+        TranslationBlock(1, "Lan Wangji drew his sword."),
+        TranslationBlock(2, "Wei Wuxian said nothing.")
+    )
+
+    private val namedReply = GeminiHttpResult(
+        200,
+        okBody(1 to "لان وانغجي سحب سيفه.", 2 to "وي ووشيان لم يقل شيئا.")
+    )
+
+    /** The sheet the translator itself computes for these blocks (same code path). */
+    private fun expectedSheet(): String {
+        com.manhwalens.app.translate.Glossary.refresh("", true)
+        return com.manhwalens.app.translate.NameMemory.sheet(
+            com.manhwalens.app.translate.NameMemory.plan(namedBlocks.map { it.english }),
+            limit = 20
+        )
+    }
+
+    @Test
+    fun primaryLegacyRequestCarriesThePageNameSheet() {
+        val sheet = expectedSheet()
+        assertTrue("sanity: this page must produce a name sheet", sheet.isNotBlank())
+        val api = FakeGeminiApi(result = namedReply)
+        // Default translator = legacy numbered-lines body: the production primary path.
+        translatorWith(api).translatePage(namedBlocks)
+        // Exactly one request: the primary one, not a 400 retry and not a re-ask.
+        assertEquals(1, api.requestBodies.size)
+        val first = api.requestBodies.first()
+        sheet.split("; ").forEach { line ->
+            assertTrue("first request is missing sheet line '$line'", first.contains(line))
+        }
+        // The legacy path must stay legacy (no JSON reply mode) while carrying the names.
+        assertTrue(first.contains("\"thinkingLevel\":\"low\""))
+        assertTrue(!first.contains("responseMimeType"))
+    }
+
+    @Test
+    fun primaryJsonRequestCarriesThePageNameSheet() {
+        val sheet = expectedSheet()
+        assertTrue("sanity: this page must produce a name sheet", sheet.isNotBlank())
+        val api = FakeGeminiApi(result = namedReply)
+        GeminiTranslator(api, jsonReply = true).translatePage(namedBlocks)
+        val first = api.requestBodies.first()
+        sheet.split("; ").forEach { line ->
+            assertTrue("JSON first request is missing sheet line '$line'", first.contains(line))
+        }
+        assertTrue(first.contains("\"responseMimeType\":\"application/json\""))
+    }
+
+    @Test
+    fun pageWithoutNamesSendsNoMalformedPrompt() {
+        com.manhwalens.app.translate.Glossary.refresh("", true)
+        val plain = listOf(TranslationBlock(1, "Hello!"), TranslationBlock(2, "Take my hand."))
+        val api = FakeGeminiApi(result = GeminiHttpResult(200, okBody(1 to "مرحبا", 2 to "خذ يدي")))
+        translatorWith(api).translatePage(plain)
+        val first = api.requestBodies.first()
+        assertTrue(first, first.contains("[1] Hello!"))
+        assertTrue(first, first.contains("[2] Take my hand."))
+        assertTrue("no null must reach the prompt", !first.contains("null"))
+        assertTrue("the prompt text must never be empty", !first.contains("\"text\":\"\""))
+        assertTrue(first.split(GeminiWire.GLOSSARY_HEADER).size - 1 <= 1)
+    }
 }

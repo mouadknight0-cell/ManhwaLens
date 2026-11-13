@@ -211,6 +211,8 @@ class GeminiTranslator(
     ): ChunkResult {
         val ids = chunk.map { it.id }
         val tAttempt = System.currentTimeMillis()
+        // P0-A: both body formats carry the page name sheet, so the FIRST request already
+        // tells the model how to spell every name — names must not depend on the 400 retry.
         var body = GeminiWire.buildRequestBody(chunk, GeminiWire.THINKING_LEVEL, sheet, jsonReply = false)
         var result = try {
             api.generate(body, model).also {

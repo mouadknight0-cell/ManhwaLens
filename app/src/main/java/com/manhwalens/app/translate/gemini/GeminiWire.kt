@@ -166,11 +166,29 @@ object GeminiWire {
     fun buildRequestBody(blocks: List<TranslationBlock>): String = buildRequestBody(blocks, THINKING_LEVEL)
 
     /**
+     * Legacy numbered-lines body (no `responseMimeType`) without a page name sheet.
+     * Kept for callers that have no sheet; the translator uses the 3-argument form.
+     */
+    fun buildRequestBody(blocks: List<TranslationBlock>, thinkingLevel: String?): String =
+        buildRequestBody(blocks, thinkingLevel, "")
+
+    /**
+     * Legacy numbered-lines body (no `responseMimeType`) carrying the page name sheet.
+     *
      * [thinkingLevel] null = leave the model's default. Translation needs no deep reasoning:
      * the Flash default ("medium") routinely took longer than the HTTP timeout, so the app
      * asks for "low" (accepted by every model in [MODEL_OPTIONS]).
+     *
+     * [nameSheet] is the page name sheet from [com.manhwalens.app.translate.NameMemory] — the
+     * SAME sheet the JSON body carries. It used to be dropped on this path, so the primary
+     * request went out with no name guidance and only the HTTP-400 retry had it. A blank
+     * sheet still falls back to the reader's glossary ([promptFor]).
      */
-    fun buildRequestBody(blocks: List<TranslationBlock>, thinkingLevel: String?): String {
+    fun buildRequestBody(
+        blocks: List<TranslationBlock>,
+        thinkingLevel: String?,
+        nameSheet: String
+    ): String {
         val root = JSONObject()
         root.put(
             "systemInstruction",
@@ -183,7 +201,7 @@ object GeminiWire {
             "contents",
             JSONObject().put(
                 "parts",
-                JSONArray().put(JSONObject().put("text", promptFor(blocks)))
+                JSONArray().put(JSONObject().put("text", promptFor(blocks, nameSheet)))
             )
         )
         val generationConfig = JSONObject()
@@ -199,7 +217,8 @@ object GeminiWire {
     /**
      * Router: the fast JSON body when [jsonReply] is true (the translator's default), else
      * the legacy numbered-lines body. Keeping both lets a model that rejects the JSON mode
-     * still be used after a single retry.
+     * still be used after a single retry. **Both branches carry [nameSheet]** — the page's
+     * names must never depend on which format the first attempt happens to use.
      */
     fun buildRequestBody(
         blocks: List<TranslationBlock>,
@@ -208,7 +227,7 @@ object GeminiWire {
         jsonReply: Boolean = true
     ): String =
         if (jsonReply) buildFastBody(blocks, nameSheet)
-        else buildRequestBody(blocks, thinkingLevel)
+        else buildRequestBody(blocks, thinkingLevel, nameSheet)
 
     /**
      * Fast, explicit request: JSON reply, low temperature, no thinking budget, plus the
