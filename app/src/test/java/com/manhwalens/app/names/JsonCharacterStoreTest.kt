@@ -344,6 +344,161 @@ class JsonCharacterStoreTest {
         assertFalse(file.exists())
     }
 
+    // ---------------------------------------------------------------- strict staging validation
+
+    @Test
+    fun `a staging document without a series object is rejected`() {
+        val staging = File(dir, "character_memory.json.tmp")
+        staging.writeText("""{"version":1}""")
+        val warnings = ArrayList<String>()
+
+        val store = JsonCharacterStore(file, onWarning = { warnings += it })
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+        assertFalse(staging.exists()) // moved aside, not promoted
+        assertTrue(File(dir, "character_memory.json.tmp.rejected").exists())
+        assertEquals(1, warnings.size)
+        assertTrue(warnings.single().contains("rejected"))
+    }
+
+    @Test
+    fun `a staging document without a version is rejected`() {
+        File(dir, "character_memory.json.tmp").writeText("""{"series":{}}""")
+
+        val store = JsonCharacterStore(file, atomicMove = { _, _ -> false })
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+    }
+
+    @Test
+    fun `a staging document from an unsupported newer schema is rejected`() {
+        File(dir, "character_memory.json.tmp").writeText("""{"version":2,"series":{}}""")
+
+        val store = JsonCharacterStore(file)
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+    }
+
+    @Test
+    fun `a staging document whose series is not an object is rejected`() {
+        File(dir, "character_memory.json.tmp").writeText("""{"version":1,"series":[]}""")
+
+        val store = JsonCharacterStore(file)
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+    }
+
+    @Test
+    fun `a staging document with a malformed record is rejected instead of reduced`() {
+        // Valid JSON, valid shape, but the record has no original name: the tolerant reader would
+        // skip it and a later save would persist the reduced set.
+        val staging = File(dir, "character_memory.json.tmp")
+        staging.writeText("""{"version":1,"series":{"s1":[{"id":"s1-a","seriesId":"s1"}]}}""")
+
+        val store = JsonCharacterStore(file)
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+        assertTrue(File(dir, "character_memory.json.tmp.rejected").exists())
+    }
+
+    @Test
+    fun `a staging record filed under another series is rejected`() {
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(staging, newRecord("Han Ji-woo", "هان جيو").copy(id = "s2-a", seriesId = "s2"))
+
+        val store = JsonCharacterStore(file)
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+    }
+
+    @Test
+    fun `duplicate record ids in a staging document are rejected`() {
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(
+            staging,
+            newRecord("Han Ji-woo", "هان جيو").copy(id = "s1-dup"),
+            newRecord("Lan Wangji", "لان وانغجي").copy(id = "s1-dup")
+        )
+
+        val store = JsonCharacterStore(file)
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+    }
+
+    @Test
+    fun `duplicate normalized names in a staging document are rejected`() {
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(
+            staging,
+            newRecord("Han Ji-woo", "هان جيو").copy(id = "s1-a"),
+            // Same person, second row: two rows for one identity would make resolution ambiguous.
+            newRecord("Han Ji-woo", "هان جي وو").copy(id = "s1-b")
+        )
+
+        val store = JsonCharacterStore(file)
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+    }
+
+    @Test
+    fun `an invalid staging copy never touches a valid live file`() {
+        val live = JsonCharacterStore(file)
+        live.upsert(newRecord("Han Ji-woo", "هان جيو"))
+        val liveBefore = file.readBytes()
+
+        val staging = File(dir, "character_memory.json.tmp")
+        staging.writeText("""{"version":1,"series":[]}""")
+        val stagingBefore = staging.readBytes()
+
+        val reopened = JsonCharacterStore(file)
+
+        assertEquals("Han Ji-woo", reopened.records("s1").single().originalName)
+        assertArrayEquals(liveBefore, file.readBytes())
+        // The live file is readable, so recovery does not even look at the copy.
+        assertArrayEquals(stagingBefore, staging.readBytes())
+    }
+
+    @Test
+    fun `a rejected staging copy leaves no live file behind`() {
+        val staging = File(dir, "character_memory.json.tmp")
+        staging.writeText("""{"version":1,"series":{"s1":[{"id":"","seriesId":"s1","originalName":"X"}]}}""")
+
+        val store = JsonCharacterStore(file)
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+        assertTrue(File(dir, "character_memory.json.tmp.rejected").exists())
+    }
+
+    @Test
+    fun `a save after a rejected staging copy persists the complete in-memory state`() {
+        val staging = File(dir, "character_memory.json.tmp")
+        staging.writeText("""{"version":1,"series":{"s1":[{"id":"s1-a","seriesId":"s1"}]}}""")
+        val rejected = File(dir, "character_memory.json.tmp.rejected")
+
+        val store = JsonCharacterStore(file)
+        assertTrue(store.records("s1").isEmpty())
+        assertTrue(rejected.exists())
+
+        // Nothing was loaded, so the store writes exactly what it knows — no silent merge with a
+        // document it refused to trust.
+        store.upsert(newRecord("Han Ji-woo", "هان جيو"))
+        store.upsert(newRecord("Lan Wangji", "لان وانغجي"))
+
+        val reopened = JsonCharacterStore(file)
+        assertEquals(2, reopened.records("s1").size)
+        assertTrue(rejected.exists()) // kept for diagnosis
+        assertFalse(staging.exists())
+    }
+
     @Test
     fun `a corrupt file is set aside and the store starts empty`() {
         file.writeText("{ this is not json")

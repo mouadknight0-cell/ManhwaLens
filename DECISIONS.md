@@ -823,3 +823,14 @@ One line per correction.
 # Repository report — 2026-11-13
 
 - S5. [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) is the repository-level snapshot (branch and PR state, the per-change work packages with their commits and CI runs, what is verifiable in this environment and what is not, the code map, the open blockers, and the ranked next steps). It is updated in the same push whenever the snapshot changes — a new phase, a changed head/PR state, a new verification run, or a blocker appearing or clearing — while per-change detail stays in the reports indexed by [REPORTS.md](REPORTS.md).
+
+# P1.1 strict staging validation — 2026-11-13
+
+**Report:** [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) · **Base:** `8140a4b`.
+
+- U1. A staging copy is promoted into the live slot, so it is validated by a **strict** path (`validateStaging`) that is separate from the tolerant live-file reader: root object, `version` present/integral/supported, `series` present and an object, every series value an array, every element a record the parser accepts, non-blank id/series-id/name, `seriesId` equal to its containing key, and per-series uniqueness of both record id and normalized name.
+- U2. Validation is all-or-nothing: one deviation rejects the whole document. The old gate (`isReadableJson`, syntax only) plus the tolerant loader silently skipped bad records, and the next save persisted the reduced set — silent, permanent data loss.
+- U3. A parsable-but-invalid staging copy is renamed to `<file>.tmp.rejected` (bytes kept for diagnosis, one copy at a time), nothing is loaded, nothing is promoted, the in-memory store stays empty, and the exact reason goes through `onWarning`. A copy that is not JSON at all keeps the previous "demonstrably truncated" cleanup.
+- U4. The live file stays tolerant and is still never opened for writing: recovery only renames the staging file, and the only writer of the live path remains `commitAtomically` (atomic move, else same-directory rename).
+- U5. No schema change: `version` stays `1` and the writer is untouched, so self-written documents always satisfy the strict rules (the writer's own invariants — ids and names unique per series — are exactly what is enforced).
+- U6. Verification: 11 new regression tests (615 test methods in the module) covering missing `series`, missing/invalid/unsupported `version`, wrong `series` type, malformed and misfiled records, duplicate id and duplicate normalized name, invalid staging beside a valid live file (bytes unchanged), invalid staging with no live file (no live path created), and a post-rejection save persisting the complete state; the valid-recovery and refused-promotion suites still pass.

@@ -27,6 +27,9 @@ import java.nio.file.StandardCopyOption
  *    before the rename, the previously stored file stays exactly as it was;
  *  - a `<file>.tmp` left behind by a crash is adopted only when it is complete (parses as JSON)
  *    *and* the live file is missing or unreadable — a stray copy can never shadow valid data;
+ *  - a staging copy is promoted only after [validateStaging] proves it complete (root, version,
+ *    series shape, every record, id/name uniqueness); a parsable-but-incomplete copy is set aside
+ *    as `<file>.tmp.rejected` and nothing is loaded, instead of silently loading a reduced set;
  *  - recovery is **read-only with respect to the live file**: if the atomic promotion is refused,
  *    nothing is written anywhere — the records are read from the complete copy in place, the copy
  *    stays on disk for the next attempt, the live file keeps its exact bytes, and the failure is
@@ -220,24 +223,145 @@ class JsonCharacterStore(
         if (loaded) return
         loaded = true
         if (loadFrom(file)) return
-        // The live file is missing, empty, corrupt or from a newer build. A complete staging file
-        // left by an interrupted save is the only other copy: read it IN PLACE (never write to the
-        // live path here) and try to promote it atomically. If promotion is impossible, both files
-        // stay exactly as they are for a later attempt.
+        // The live file is missing, empty, corrupt or from a newer build. A staging file left by an
+        // interrupted save is the only other copy. It is NOT read with the tolerant live-file
+        // reader and NOT read in place first: a staging file is promoted into the live slot, so it
+        // must be proved complete by [validateStaging] before a single record is trusted.
         val staging = stagingFile()
         if (!staging.exists() || staging.length() == 0L) return
-        if (!isReadableJson(staging)) {
-            // Half-written: it must never be mistaken for data.
+        val raw = runCatching { staging.readText() }.getOrNull()
+        if (raw.isNullOrBlank()) {
+            // Empty or unreadable: half-written, never data.
             discard(staging)
             return
         }
-        if (!loadFrom(staging)) return
+        val verdict = validateStaging(raw)
+        // Snapshot the nullable property: smart casts do not survive into the loop below.
+        val validated = verdict.records
+        if (validated == null) {
+            if (verdict.truncated) {
+                // Demonstrably truncated (not JSON at all): the existing cleanup policy applies.
+                discard(staging)
+            } else {
+                // Parsable but structurally incomplete: keep the bytes for diagnosis, promote
+                // nothing, and leave the store empty rather than loading a reduced record set.
+                rejectStaging(staging, verdict.problem ?: "invalid document")
+            }
+            return
+        }
+        for ((seriesId, list) in validated) bySeries[seriesId] = ArrayList(list)
         if (commitAtomically(staging)) return
         reportDeferredRecovery(staging)
     }
 
+    /** Outcome of [validateStaging]: either every record or the reason it cannot be trusted. */
+    private class StagingVerdict(
+        val records: LinkedHashMap<String, List<CharacterRecord>>?,
+        val problem: String? = null,
+        /** True only when the copy is not JSON at all (a torn write), never for a bad shape. */
+        val truncated: Boolean = false
+    )
+
+    /**
+     * Strict structural validation of a staging file — deliberately NOT the tolerant live-file
+     * reader.
+     *
+     * A staging file is about to become the live database, so the question is not "can I read
+     * something out of it?" but "is this the complete document the writer intended?". The live
+     * reader skips malformed records; doing that here would silently drop the reader's characters
+     * and the very next save would persist the reduced set. So every deviation rejects the whole
+     * document: nothing is loaded, nothing is promoted, the bytes are kept for diagnosis.
+     *
+     * Rules (schema `version 1`, unchanged):
+     *  - the root is a JSON object;
+     *  - `version` is present, an integer, and supported (1 … [SCHEMA_VERSION]);
+     *  - `series` is present and is a JSON object;
+     *  - every series value is a JSON array;
+     *  - every element is a JSON object accepted by [CharacterRecord.fromJson];
+     *  - every record has non-blank id, series id and original name;
+     *  - every record's `seriesId` equals its containing series key;
+     *  - within a series, record ids are unique and normalized names are unique (the two keys
+     *    [upsert] and [find] resolve on).
+     */
+    private fun validateStaging(raw: String): StagingVerdict {
+        val root = try {
+            JSONObject(raw)
+        } catch (e: Exception) {
+            return StagingVerdict(null, "not a JSON object", truncated = true)
+        }
+        val versionValue = root.opt("version") as? Number
+            ?: return StagingVerdict(null, "missing or non-numeric version")
+        val version = versionValue.toDouble()
+        if (version.isNaN() || version.isInfinite() || version != Math.floor(version)) {
+            return StagingVerdict(null, "version is not an integer")
+        }
+        val versionInt = version.toInt()
+        if (versionInt !in 1..SCHEMA_VERSION) {
+            return StagingVerdict(null, "unsupported version $versionInt")
+        }
+        val seriesValue = root.opt("series")
+            ?: return StagingVerdict(null, "missing series object")
+        if (seriesValue !is JSONObject) {
+            return StagingVerdict(null, "series is not an object")
+        }
+        val records = LinkedHashMap<String, List<CharacterRecord>>()
+        for (seriesId in seriesValue.keys()) {
+            val array = seriesValue.optJSONArray(seriesId)
+                ?: return StagingVerdict(null, "series '$seriesId' is not an array")
+            val list = ArrayList<CharacterRecord>(array.length())
+            val ids = HashSet<String>(array.length())
+            val keys = HashSet<String>(array.length())
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i)
+                    ?: return StagingVerdict(null, "series '$seriesId' record #$i is not an object")
+                val record = CharacterRecord.fromJson(obj)
+                    ?: return StagingVerdict(null, "series '$seriesId' record #$i is not a valid record")
+                if (record.id.isBlank() || record.seriesId.isBlank() || record.originalName.isBlank()) {
+                    return StagingVerdict(null, "series '$seriesId' record #$i has a blank id, series id or name")
+                }
+                if (record.seriesId != seriesId) {
+                    return StagingVerdict(
+                        null,
+                        "series '$seriesId' record #$i belongs to '${record.seriesId}'"
+                    )
+                }
+                if (!ids.add(record.id)) {
+                    return StagingVerdict(null, "duplicate record id '${record.id}' in '$seriesId'")
+                }
+                if (!keys.add(record.normalizedName)) {
+                    return StagingVerdict(null, "duplicate name '${record.originalName}' in '$seriesId'")
+                }
+                list += record
+            }
+            records[seriesId] = list
+        }
+        return StagingVerdict(records)
+    }
+
+    /**
+     * Refuse a structurally invalid staging copy: its bytes are kept (renamed aside, so the slot
+     * is free and the next load does not repeat the same verdict), the live file is not touched,
+     * the in-memory store stays empty, and the reason is reported through [onWarning].
+     */
+    private fun rejectStaging(staging: File, problem: String) {
+        val rejected = File(file.parentFile, staging.name + ".rejected")
+        runCatching { if (rejected.exists()) rejected.delete() }
+        val kept = runCatching { staging.renameTo(rejected) }.getOrDefault(false)
+        runCatching {
+            onWarning(
+                "character memory: staging copy rejected ($problem); " +
+                    if (kept) "kept as ${rejected.name}, nothing loaded"
+                    else "left in place, nothing loaded"
+            )
+        }
+    }
+
     /**
      * Read [target] into the in-memory index.
+     *
+     * Tolerant by design and used for the **live** file only: a reader who already has data must
+     * still get whatever is readable, so a malformed record is skipped rather than fatal. Staging
+     * files never go through this path (see [validateStaging]).
      *
      * @return true when [target] held a usable document (possibly an empty one), so the caller
      *         knows whether another copy is worth looking at. A corrupt or newer-schema live file
@@ -317,11 +441,6 @@ class JsonCharacterStore(
         // The filesystem refused an atomic move. Keep the complete copy (it is picked up on the
         // next load only if the live file is unreadable) instead of truncating valid data with an
         // in-place write — losing one save is recoverable, a half-written file is not.
-    }
-
-    private fun isReadableJson(target: File): Boolean {
-        if (!target.exists() || target.length() == 0L) return false
-        return runCatching { JSONObject(target.readText()) }.isSuccess
     }
 
     /** startWrite: write UTF-8 off to the side and fsync so the bytes outlive a power cut. */
