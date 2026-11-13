@@ -103,6 +103,9 @@ class CachingTranslator(
                     }
                     fromFuzzy && repairedHit != null -> cache.put(engineId, b.english, repairedHit, style)
                 }
+                // A repaired plain memory hit must be written back too, otherwise every capture
+                // re-repairs the same stale entry.
+                if (repairedHit != rawHit) cache.put(engineId, b.english, repairedHit, style)
             } else {
                 if (hit != null && issue != null) {
                     val key = cache.key(engineId, b.english, style)

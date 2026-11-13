@@ -63,7 +63,10 @@ class NameSessionTest {
         )
 
         assertTrue(session.isAssigned)
-        assertEquals("هان جيو", table.table["Han Ji-woo"])
+        assertEquals(
+            "هان جيو",
+            table.names.first { NameForm.normalize(it.original) == "hanjiwoo" }.arabic
+        )
         // Whatever else the page detected is now remembered for THIS series only.
         assertTrue(store.records("s1").size >= 1)
         assertTrue(store.records("s2").isEmpty())

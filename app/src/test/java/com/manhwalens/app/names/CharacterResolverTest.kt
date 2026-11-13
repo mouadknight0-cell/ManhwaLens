@@ -26,7 +26,8 @@ class CharacterResolverTest {
         store.add(record(arabic = "هان جيو", locked = true, source = NameSource.USER))
 
         val table = CharacterResolver(store).resolve("s1", page, known = emptyMap())
-        val han = table.names.first { it.original.equals("Han Ji-woo", ignoreCase = true) }
+        // The page spelling may be canonicalised ("Han Jiwoo"), so match on the lookup key.
+        val han = table.names.first { NameForm.normalize(it.original) == "hanjiwoo" }
 
         assertEquals("هان جيو", han.arabic)
         assertTrue(han.locked)
@@ -52,7 +53,7 @@ class CharacterResolverTest {
         val table = CharacterResolver(store)
             .resolve("s1", listOf("I still Hope you come back."), known = emptyMap())
 
-        assertEquals("هوب", table.table["Hope"])
+        assertEquals("هوب", table.names.first { NameForm.normalize(it.original) == "hope" }.arabic)
     }
 
     @Test
@@ -70,7 +71,7 @@ class CharacterResolverTest {
         val table = CharacterResolver(store)
             .resolve("s1", listOf("Jiwoo is late."), known = emptyMap())
 
-        assertEquals("هان جيو", table.table["Han Ji-woo"])
+        assertEquals("هان جيو", table.names.first { NameForm.normalize(it.original) == "hanjiwoo" }.arabic)
     }
 
     @Test

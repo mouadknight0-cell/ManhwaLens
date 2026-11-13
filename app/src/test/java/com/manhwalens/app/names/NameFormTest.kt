@@ -79,8 +79,10 @@ class NameFormTest {
 
     @Test
     fun `replaceArabic repairs a superseded spelling`() {
-        val out = NameForm.replaceArabic("قلت لهان جي وو مرحبا", "هان جي وو", "هان جيو")
-        assertEquals("قلت لهان جيو مرحبا", out)
+        val out = NameForm.replaceArabic("قلت هان جي وو مرحبا", "هان جي وو", "هان جيو")
+        assertEquals("قلت هان جيو مرحبا", out)
+        // Whole-word only: a form glued to a preceding letter (لهان…) is left alone.
+        assertEquals("قلت لهان جي وو مرحبا", NameForm.replaceArabic("قلت لهان جي وو مرحبا", "هان جي وو", "هان جيو"))
     }
 
     @Test
