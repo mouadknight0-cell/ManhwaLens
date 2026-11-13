@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ManhwaLens</string>
+    <string name="app_tagline">كل فقاعة… بالعربية.</string>
+
+    <string name="phase_m5">M5 · السرعة والإعدادات</string>
+
+    <string name="perm_title">إذن الظهور فوق التطبيقات</string>
+    <string name="perm_body">يعرض ManhwaLens زرّ العدسة ونافذة اللقطة فوق أي تطبيق. يتطلب أندرويد إذنًا صريحًا منك لهذا.</string>
+    <string name="perm_granted">مُمنوح</string>
+    <string name="perm_needed">مطلوب</string>
+    <string name="perm_grant">امنح إذن الظهور</string>
+
+    <string name="floating_title">زرّ العدسة العائم</string>
+    <string name="floating_body">زرّ قابل للسحب يبقى فوق التطبيقات الأخرى. انقر عليه لالتقاط الإطار الحالي وعرض الترجمة العربية في مكانها.</string>
+    <string name="floating_needs_perm">امنح إذن الظهور أولًا، ثم فعّل المفتاح.</string>
+
+    <string name="settings_entry_title">الإعدادات</string>
+    <string name="settings_entry_summary">محرك الترجمة، حجم الخط العربي، الالتقاط التلقائي، سياسة الخصوصية</string>
+
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_back">رجوع</string>
+    <string name="appearance_title">المظهر</string>
+    <string name="font_size_title">حجم خط العربية</string>
+    <string name="font_size_note">يُطبَّق في المرة القادمة التي تُفتح فيها نافذة اللقطة.</string>
+    <string name="font_small">صغير</string>
+    <string name="font_medium">متوسط</string>
+    <string name="font_large">كبير</string>
+
+    <string name="diagnostics_title">التشخيص</string>
+    <string name="debug_mode_title">وضع التصحيح</string>
+    <string name="debug_mode_summary">بعد كل نقرة على العدسة، تُعرض لوحة صغيرة قابلة للإغلاق تُظهر حالة كل مرحلة من مراحل خط المعالجة (النقرة، الإذن، الالتقاط، OCR، الفلترة، الترجمة، العرض). تُحفظ النسخة نفسها في «آخر خطأ»، مع حفظ آخر لقطة مرسوم عليها صناديق OCR.</string>
+    <!-- v0.9.5 Part 2: الفحص الذاتي للوضع الحي -->
+    <string name="self_check_button">الفحص الذاتي للوضع الحي</string>
+    <string name="self_check_title">الفحص الذاتي للوضع الحي</string>
+    <string name="self_check_summary">اثنتا عشرة مرحلة من خط عمل الوضع الحي، تُحدَّث كل ثانية: نجاح / فشل / انتظار. إذا لم يترجم الوضع الحي، فأول سطر «فشل» هو مكان التوقف. زر «نسخ التقرير» يضيف آخر 60 سطر سجل (مع حذف مفاتيح API) — الصقه في تقرير المشكلة.</string>
+    <string name="self_check_copy">نسخ التقرير</string>
+    <string name="self_check_copied">تم نسخ تقرير الفحص الذاتي إلى الحافظة.</string>
+    <string name="self_check_report_title">تقرير الفحص الذاتي</string>
+    <string name="self_check_state">الحالة</string>
+    <string name="lens_menu_status_unknown">الوضع الحي: الحالة غير معروفة (الخدمة تبدأ)</string>
+    <string name="self_check_no_data">لا توجد بيانات بعد — فعّل العدسة العائمة، ثم فعّل الوضع الحي وافتح صفحة. تمتلئ هذه الشاشة خلال ثانية.</string>
+    <string name="debug_panel_title">ManhwaLens · تتبع خط المعالجة (انقر للإغلاق)</string>
+    <!-- Part C: قائمة العدسة -->
+    <string name="lens_menu_title">ManhwaLens</string>
+    <string name="lens_menu_state_on">الوضع الحي: مفعّل</string>
+    <string name="lens_menu_state_off">الوضع الحي: متوقف</string>
+    <string name="lens_menu_live">الوضع الحي (Live)</string>
+    <string name="lens_menu_translate_now">ترجم الآن</string>
+    <string name="lens_menu_patches">العربية (إيقاف = الأصلية)</string>
+    <string name="lens_menu_review">مراجعة آخر لقطة</string>
+    <string name="lens_menu_clear">مسح الترجمة</string>
+    <string name="lens_menu_settings">الإعدادات…</string>
+    <string name="lens_menu_run_live">تشغيل</string>
+    <string name="lens_menu_stop_live">إيقاف</string>
+    <string name="toast_review_unavailable">لا توجد لقطة للمراجعة بعد — انقر العدسة على صفحة أولًا.</string>
+    <string name="toast_patches_cleared">تم مسح الترجمة.</string>
+    <string name="notif_action_live_on">تشغيل الوضع الحي</string>
+    <string name="notif_action_live_off">إيقاف الوضع الحي</string>
+    <string name="lens_tap_title">النقر على العدسة</string>
+    <string name="lens_tap_summary">ماذا تفعل نقرة واحدة على العدسة العائمة. يُطلب إذن الالتقاط أولًا دائمًا إذا لم تكن هناك جلسة نشطة.</string>
+    <string name="lens_tap_menu">القائمة</string>
+    <string name="lens_tap_translate">ترجم الآن</string>
+    <string name="view_last_capture">عرض آخر لقطة</string>
+    <string name="view_last_capture_none">لا توجد لقطة تصحيح محفوظة بعد — فعّل وضع التصحيح ثم انقر العدسة مرة واحدة.</string>
+    <string name="view_last_capture_title">آخر لقطة (صناديق OCR)</string>
+    <string name="close">إغلاق</string>
+    <string name="last_error_note">تُكتب تلقائيًا عند حدوث أي انهيار، وتُستبدل بأحدث تتبع لخط المعالجة بعد كل نقرة. انسخها وشاركها عند الإبلاغ عن خطأ.</string>
+    <string name="automation_title">الأتمتة</string>
+    <string name="auto_capture_title">الالتقاط التلقائي عند التمرير</string>
+    <string name="auto_capture_summary">محفّز إضافي اختياري — غير مطلوب. الوضع المباشر يتبع التمرير بنفسه؛ هذا الخيار فقط يلتقط فور توقّفك عبر خدمة إمكانية الوصول للقراءة فقط (لا يقرأ محتوى الشاشة إطلاقًا). يحتاج جلسة التقاط مُسلّحة: انقر العدسة مرة واحدة أولًا.</string>
+    <string name="auto_capture_open">فتح إعدادات إمكانية الوصول</string>
+    <string name="a11y_service_description">يُبلغ عند انتهاء التمرير ليتمكّن ManhwaLens من التقاط الصفحة الظاهرة. لا يقرأ محتوى الشاشة أبدًا.</string>
+
+    <string name="about_title">حول</string>
+    <string name="last_error_title">آخر خطأ</string>
+    <string name="last_error_none">لم تُسجَّل أخطاء.</string>
+    <string name="copy_error_button">نسخ</string>
+    <string name="toast_error_copied">نُسخ الخطأ إلى الحافظة</string>
+    <string name="toast_fgs_failed_reason">تعذر على ManhwaLens البقاء فوق التطبيقات: %1$s</string>
+    <string name="toast_capture_failed_reason">فشل الالتقاط: %1$s</string>
+    <string name="toast_consent_invalid">تعذر استخدام إذن الالتقاط — حاول مجددًا</string>
+    <string name="gemini_model_label">نموذج Gemini</string>
+    <string name="gemini_model_note">الافتراضي: gemini-3.8-flash. إن أُحيل المحدد (HTTP 404) يُجرَّب الآخر تلقائيًا ويُحفظ.</string>
+    <string name="check_models">تحقق من النماذج المتاحة</string>
+    <string name="check_models_running">جارٍ التحقق…</string>
+    <string name="check_models_title">النماذج التي تدعم generateContent:</string>
+    <string name="check_models_none">لم يُعثر على نماذج تدعم generateContent لهذا المفتاح.</string>
+    <string name="toast_model_switched">Gemini: تُستخدم الآن %1$s</string>
+    <string name="notice_translated_offline">تعذرت الترجمة عن بُعد — استُخدم المحرك المحلي.</string>
+    <string name="version_label">الإصدار</string>
+    <string name="privacy_policy_title">سياسة الخصوصية</string>
+    <string name="privacy_policy_summary">ما الذي يقرأه ManhwaLens ويحتفظ به ويُرسله.</string>
+    <string name="privacy_policy_body">تُلتقط الإطارات وتُعالج على جهازك للتعرّف على النص ورصد الفقاعات. عند اختيار ML Kit تبقى الترجمة على الجهاز.\n\nعند اختيار Gemini يُرسل نص الفقاعات إلى Google باستخدام مفتاحك؛ لا تُرسل لقطات الشاشة لترجمة النص. يبقى المفتاح في التخزين الخاص بالتطبيق ويُرسل في ترويسة HTTP.\n\nعند اختيار LibreTranslate يُرسل النص المستخرج دفعة واحدة عبر HTTPS إلى عنوان الخادم الذي أدخلته؛ ويُرسل مفتاح الخادم الاختياري ضمن جسم طلب JSON. لا يشغّل ManhwaLens هذا الخادم؛ استخدم خادمًا تثق به.\n\nإذا فُعّل التنظيف التجريبي بالذكاء الاصطناعي، فقد تُرسل صور مقتطعة لما يصل إلى ثلاث فقاعات إلى Gemini لتحرير الصور.\n\nيُحفظ كاش الترجمة النصي في ذاكرة التطبيق وتخزينه الخاص، ويمكن مسحه من الإعدادات. لا تُرسل تحليلات أو بيانات قياس؛ وليس لدى ManhwaLens حسابات أو خادم ترجمة.</string>
+
+    <string name="translate_title">الترجمة</string>
+    <string name="engine_mlkit">ML Kit · على الجهاز (إنجليزي ← عربي)</string>
+    <string name="engine_mlkit_caption">مجاني ويعمل دون إنترنت بعد تنزيل لمرة واحدة (~30MB). لا يغادر شيء هاتفك.</string>
+    <string name="engine_gemini">Gemini · عبر الإنترنت</string>
+    <string name="engine_gemini_caption">جودة عربية عامية أعلى وسياق عبر الفقاعات. يتطلب مفتاح API خاصًا بك.</string>
+    <string name="engine_libre_translate">LibreTranslate / Argos · مستضاف ذاتيًا</string>
+    <string name="engine_libre_translate_caption">محرك مفتوح المصدر تتحكم به. يُرسل طلبًا واحدًا مجمّعًا بالتوازي مع المسودة المحلية؛ أدخل خادم HTTPS موثوقًا.</string>
+    <string name="libre_translate_url_label">عنوان HTTPS لخادم LibreTranslate</string>
+    <string name="libre_translate_url_placeholder">https://translate.example.com</string>
+    <string name="libre_translate_key_label">مفتاح الخادم (اختياري)</string>
+    <string name="libre_translate_note">يُرسل نص OCR فقط (لا تُرسل صور الشاشة). يُخزّن العنوان والمفتاح الاختياري على هذا الجهاز؛ استخدم خادمًا تثق به. HTTPS مطلوب.</string>
+    <string name="libre_translate_save">حفظ الخادم</string>
+    <string name="libre_translate_clear">مسح الخادم</string>
+    <string name="libre_translate_saved">حُفظ ✓</string>
+    <string name="gemini_key_label">مفتاح Gemini API</string>
+    <string name="gemini_key_placeholder">AIza…</string>
+    <string name="gemini_key_note">يُحفظ المفتاح على هذا الجهاز فقط (تخزين خاص بالتطبيق) ويُرسل إلى Google فقط كترويسة HTTP. لا يظهر أبدًا في اللوغز أو في مصدر التطبيق.</string>
+    <string name="gemini_save">حفظ المفتاح</string>
+    <string name="gemini_clear">مسح</string>
+    <string name="gemini_key_saved">حُفظ ✓</string>
+    <string name="test_translate">اختبار الترجمة</string>
+    <string name="test_running">تتم الترجمة…</string>
+    <string name="test_note">يترجم صفحة عينية بسطرين بالمحرك المختار ويعرض النتيجة الخام.</string>
+    <string name="cache_clear">مسح كاش الترجمة</string>
+    <string name="debug_no_translation">لا توجد ترجمة — راجع النتيجة أعلاه</string>
+    <string name="debug_no_text">لم يُرصد أي نص إنجليزي في هذا الإطار</string>
+    <string name="debug_overlay_title">العربية في مكانها</string>
+    <string name="debug_toggle_original">الأصلي</string>
+    <string name="debug_toggle_arabic">العربية</string>
+
+    <string name="notif_capture_title">ManhwaLens</string>
+    <string name="notif_capture_starting">بدأ تحضير التقاط الشاشة</string>
+    <string name="notif_capture_ready">الالتقاط جاهز · انقر العدسة لالتقاط إطار</string>
+    <string name="notif_capture_button">ManhwaLens يعمل · انقر العدسة للالتقاط</string>
+    <string name="action_stop">إيقاف ManhwaLens</string>
+
+    <string name="toast_capture_ready">التقاط الشاشة جاهز</string>
+    <string name="toast_capture_denied">رُفض إذن التقاط الشاشة</string>
+    <string name="toast_capture_failed">فشل الالتقاط · راجع logcat (MLCapture)</string>
+    <string name="toast_fgs_failed">تعذر على ManhwaLens البقاء فوق التطبيقات — تحقق من الإشعار وحاول مجددًا</string>
+
+    <string name="pill_capturing">جارٍ الالتقاط…</string>
+    <string name="pill_model_download">جارٍ تنزيل نموذج الترجمة (مرة واحدة، نحو 30 ميغابايت)…</string>
+    <string name="toast_capture_in_progress">الالتقاط جارٍ بالفعل…</string>
+    <string name="notice_gemini_paused">أوقف Gemini مؤقتًا (5 دقائق) — تُرجمت دون اتصال. استخدم «إعادة تجربة Gemini» من الإعدادات للمحاولة فورًا.</string>
+    <string name="gemini_paused_title">Gemini متوقف مؤقتًا</string>
+    <string name="gemini_paused_body">بعد فشل (%1$s)، تُستخدم الترجمة دون اتصال (ML Kit) لنحو %2$s دقيقة، ثم يُستأنف Gemini تلقائيًا.</string>
+    <string name="retry_gemini">إعادة تجربة Gemini</string>
+    <string name="gemini_retry_toast">أُعيد تفعيل Gemini — ستُجرّب في الالتقاط القادم</string>
+    <string name="live_mode_title">الوضع الحي (Live)</string>
+    <string name="live_mode_summary">راقب الشاشة بسرعة ~3 إطار/ثانية. أثناء التمرير تُخفى الطبقة العربية، وعند استقرار الصفحة تُترجم تلقائيًا. يُفعَّل تلقائيًا بأول نقرة على العدسة. نقرة مطوّلة على الزر للإيقاف/الاستئناف.</string>
+    <string name="live_apps_title">فقط في هذه التطبيقات (اختياري)</string>
+    <string name="live_apps_summary">قائمة أسماء حزم مفصولة بفواصل، مثل com.brave.browser,com.android.chrome. فارغة = كل مكان. يتطلب صلاحية الوصول إلى بيانات الاستخدام لاكتشاف التطبيق الأمامي.</string>
+    <string name="live_apps_hint">مثال: com.brave.browser, com.android.chrome</string>
+    <string name="live_apps_grant">منح صلاحية الاستخدام</string>
+    <string name="live_enabled_toast">الوضع الحي مفعّل — نقرة مطوّلة لإيقافه</string>
+    <string name="live_disabled_toast">الوضع الحي متوقف</string>
+    <string name="live_paused_battery">أُوقف الوضع الحي مؤقتًا لتوفير البطارية (5 دقائق دون تغيير) — يُستأنف تلقائيًا عند تغيّر الصفحة</string>
+    <string name="live_resumed_toast">أُعيد تفعيل الوضع الحي</string>
+    <string name="live_needs_capture">الوضع الحي يحتاج إذن الالتقاط — انقر زر العدسة مرة واحدة للمنح</string>
+    <string name="live_toggle_original">الأصلية (قبل الترجمة)</string>
+    <string name="live_toggle_arabic">العربية (المترجمة)</string>
+    <string name="edge_ignore_title">تجاهل أطراف الإطار</string>
+    <string name="edge_ignore_summary">البلوكات الواقعة بالكامل داخل النطاقين العلوي/السفلي لا تُترجم أبدًا — غالبًا واجهة المتصفح لا المانهوا. الافتراضي: 8% لكل طرف.</string>
+    <string name="edge_ignore_top">تجاهل الأعلى %1$d%%</string>
+    <string name="edge_ignore_bottom">تجاهل الأسفل %1$d%%</string>
+    <string name="pill_capture_failed">فشل الالتقاط · راجع logcat (MLCapture)</string>
+    <string name="pill_translate_failed">تعذرت الترجمة — التفاصيل في النافذة</string>
+
+    <string name="debug_title">ManhwaLens · اللقطة</string>
+    <string name="debug_tap_to_close">انقر في أي مكان للإغلاق</string>
+    <string name="debug_secure_warn">الإطار شبه أسود · قد يكون هذا التطبيق يمنع الالتقاط (FLAG_SECURE)</string>
+
+    <string name="footer_version">v0.10.0 · ترجمة مفتوحة المصدر</string>
+    <!-- Live status (Part B) -->
+    <string name="live_status_paused">متوقف</string>
+    <string name="live_status_waiting">مراقبة</string>
+    <string name="live_status_scanning">جارٍ المسح</string>
+    <string name="live_status_translating">ترجمة…</string>
+    <string name="live_status_skipped">نفس الصفحة</string>
+    <string name="live_status_no_session">انقر للبدء</string>
+    <string name="live_status_no_frames">لا إطارات بعد</string>
+    <string name="live_status_error">خطأ</string>
+    <string name="live_auto_armed">تم تفعيل الوضع المباشر — الترجمة تتبع التمرير. نقرة مطوّلة على الزر للإيقاف.</string>
+
+    <!-- Live settings (Part A) -->
+    <string name="live_stability_title">مهلة الاستقرار</string>
+    <string name="live_stability_summary">المدة التي يجب أن تثبت فيها الصفحة قبل ترجمتها (200–1000 م.ث، الافتراضي 400).</string>
+    <string name="live_stability_value">%1$d م.ث</string>
+    <string name="live_sensitivity_title">حساسية التغيير</string>
+    <string name="live_sensitivity_summary">مقدار تغيّر الإطار لاعتباره تمريرًا/حركة. المرتفعة تلتقط التغيّرات الطفيفة (مثل مؤشر وامض).</string>
+    <string name="live_sensitivity_low">منخفضة</string>
+    <string name="live_sensitivity_medium">متوسطة</string>
+    <string name="live_sensitivity_high">عالية</string>
+
+    <!-- Faster scroll detection (Part B) -->
+    <string name="faster_scroll_title">كشف تمرير أسرع (اختياري)</string>
+    <string name="faster_scroll_summary">الوضع المباشر لا يحتاج خدمة إمكانية الوصول إطلاقًا. هذا الخيار يضيف فقط محفّزًا إضافيًا يلتقط فور توقّفك عن التمرير. على التطبيقات المثبّتة جانبيًا (sideload) يحظر Android الخدمة كـ«إعداد مقيّد» — اسمح بها أولًا أو اتركها مغلقة واعتمد على الوضع المباشر.</string>
+    <string name="faster_scroll_hint">تطبيق sideload: افتح معلومات التطبيق ← القائمة ⋮ ← «السماح بالإعدادات المقيّدة»، ثم إمكانية الوصول ← ManhwaLens ← تشغيل.</string>
+    <string name="faster_scroll_appinfo">فتح معلومات التطبيق</string>
+
+    <!-- Ignore list (Part C) -->
+    <string name="ignore_list_title">قائمة التجاهل (نصوص واجهة الموقع)</string>
+    <string name="ignore_list_summary">عبارة في كل سطر (أو مفصولة بفواصل)، بلا تمييز لحالة الأحرف. تُتخطى البلوكات الحاوية لأي عبارة قبل الترجمة. مملوءة مسبقًا بـ Subscribe وGet the app وContinue Reading وTOP وEpisode وviews وcoins. امسح الحقل للتعطيل.</string>
+
+    <!-- Benchmark (Part C) -->
+    <string name="benchmark_button">قياس أداء الترجمة</string>
+    <string name="benchmark_summary">يترجم نفس الجمل العشرين عبر محرك ML Kit على الجهاز (بدون إنترنت): واحدة تلو الأخرى، وبالتوازي (2/3/4/6 معًا)، وكطلب واحد مدمج بثمانية فواصل مختلفة. خمس جولات لكل طريقة مع إهمال الأولى؛ يعرض الزمن الوسيط والأسوأ وهل عادت كل فقاعة لموضعها الصحيح. يستغرق نحو دقيقة. تُضاف النتيجة أيضًا إلى «نسخ التقرير» في الفحص الذاتي.</string>
+    <string name="benchmark_title">قياس أداء الترجمة</string>
+    <string name="benchmark_running">جارٍ القياس…</string>
+    <string name="benchmark_close">إغلاق</string>
+    <string name="benchmark_copy">نسخ النتائج</string>
+    <string name="benchmark_copied">نُسخت النتائج</string>
+
+    <string name="safe_mode_title">الوضع الآمن</string>
+    <string name="safe_mode_body">تعطّل التطبيق مرتين عند الإقلاع، فتم تشغيله بدون الزر العائم والترجمة ووضع Live. إعداداتك لم تتغيّر. اضغط للمحاولة بشكل طبيعي.</string>
+    <string name="safe_mode_no_log">لم يُسجَّل أي سجل أعطال.</string>
+    <string name="safe_mode_copy">نسخ سجل العطل</string>
+    <string name="safe_mode_copied">تم نسخ سجل العطل</string>
+    <string name="safe_mode_exit">الخروج من الوضع الآمن</string>
+    <string name="safe_mode_blocked_toast">الوضع الآمن مفعّل — اخرجه من اللافتة الحمراء أولًا</string>
+
+    <!-- تنظيف بالذكاء (الجزء D، تجريبي، سحابي) -->
+    <string name="ai_cleanup_title">التنظيف بالذكاء الاصطناعي (تجريبي)</string>
+    <string name="ai_cleanup_summary">بعد الترجمة بلمسة، تُرسَل فقط قصاصات أكبر 3 فقاعات إلى Gemini ويُستبدَل الرقعة المحلية بفقاعة عربية يرسمها. تبقى الرقع المحلية عند أي فشل. سحابي فقط، محاولة واحدة لكل فقاعة، مهلة 15 ثانية.</string>
+    <string name="ai_cleanup_needs_key">احفظ مفتاح Gemini أعلاه لتفعيل التنظيف بالذكاء الاصطناعي.</string>
+    <string name="ai_cleanup_model_label">نموذج الصورة</string>
+    <string name="ai_cleanup_model_auto">تلقائي (أول نموذج يدعم الصور)</string>
+    <string name="ai_cleanup_list_models">عرض نماذج الصور</string>
+    <string name="ai_cleanup_list_running">جارٍ العرض…</string>
+    <string name="ai_cleanup_models_none">هذا الحساب لا يبلغ عن نماذج صور متاحة. سيبقى التصحيح المحلي.</string>
+    <string name="ai_cleanup_models_failed">تعذّر عرض النماذج: %1$s</string>
+    <string name="ai_cleanup_note">تُرسَل صورة الفقاعة إلى Google مع النص العربي المترجَم. لا يغادر الجهاز أي شيء آخر.</string>
+    <string name="ai_cleanup_switch_toast_on">التنظيف بالذكاء مفعّل — ستستخدم الترجمة القادمة Gemini لأكبر الفقاعات</string>
+    <string name="ai_cleanup_switch_toast_off">التنظيف بالذكاء متوقف</string>
+
+    <!-- مسار خط الأنابيب الأخير (محتوى لوحة التصحيح متوفر داخل التطبيق) -->
+    <string name="pipeline_trace_title">آخر مسار خط أنابيب</string>
+    <string name="pipeline_trace_none">لم يُسجَّل أي مسار خط أنابيب بعد. ترجم صفحة أولاً.</string>
+    <string name="pipeline_trace_note">هذا هو نفس التتبع الذي كان يظهر في لوحة التصحيح العائمة. انسخه لمشاركته مع الدعم.</string>
+    <string name="copy_trace_button">نسخ التتبع</string>
+    <string name="toast_trace_copied">تم نسخ التتبع</string>
+    <string name="lens_icon_live_start">مباشر</string>
+    <string name="lens_icon_live_stop">إيقاف</string>
+    <string name="lens_icon_capture">التقاط</string>
+    <string name="lens_icon_clear">مسح</string>
+    <string name="lens_icon_exit">خروج</string>
+    <string name="live_translate_failed">فشلت الترجمة: %1$s</string>
+</resources>

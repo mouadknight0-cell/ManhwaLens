@@ -1,0 +1,135 @@
+package com.manhwalens.app.translate.libre
+
+import com.manhwalens.app.translate.ArabicValidator
+import com.manhwalens.app.translate.FailureReason
+import com.manhwalens.app.translate.Glossary
+import com.manhwalens.app.translate.PageTranslation
+import com.manhwalens.app.translate.TranslatedBlock
+import com.manhwalens.app.translate.TranslationBlock
+import com.manhwalens.app.translate.Translator
+import com.manhwalens.app.util.PipelineTracer
+import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
+
+/**
+ * Optional, self-hosted English → Arabic engine using LibreTranslate's page-array API.
+ * The endpoint is user-configured; the app does not ship or operate a translation server.
+ * OCR text is glossary-prepared and sent as one batch, never as a screenshot.
+ */
+class LibreTranslateTranslator(
+    private val api: LibreTranslateApi,
+    private val endpointProvider: () -> String,
+    private val apiKeyProvider: () -> String = { "" }
+) : Translator {
+
+    override val engineId = ENGINE_ID
+
+    override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
+        val startedAt = System.currentTimeMillis()
+        if (blocks.isEmpty()) {
+            return PageTranslation.Failure(FailureReason.EMPTY_INPUT, "No blocks to translate", engineId)
+        }
+
+        val translatable = blocks.filter { it.english.isNotBlank() }
+        if (translatable.isEmpty()) {
+            return PageTranslation.Success(
+                blocks = blocks.map { TranslatedBlock(it.id, it.english, "") },
+                engineId = engineId,
+                elapsedMs = System.currentTimeMillis() - startedAt,
+                cacheHits = 0,
+                cacheMisses = 0
+            )
+        }
+
+        val endpoint = LibreTranslateWire.translateEndpoint(runCatching(endpointProvider).getOrDefault(""))
+            ?: return PageTranslation.Failure(
+                FailureReason.UNKNOWN,
+                "Set a valid HTTPS LibreTranslate server URL in translation settings",
+                engineId
+            )
+        val apiKey = runCatching(apiKeyProvider).getOrDefault("").trim()
+        val prepared = translatable.map { Glossary.prepare(it.english) }
+        val requestBody = LibreTranslateWire.buildRequestBody(prepared, apiKey)
+        val response = try {
+            api.translate(endpoint, requestBody)
+        } catch (e: Exception) {
+            return PageTranslation.Failure(classifyTransport(e), briefMessage(e), engineId)
+        }
+
+        if (response.code !in 200..299) {
+            val detail = LibreTranslateWire.errorMessage(response.body, apiKey)
+            val suffix = if (detail.isBlank()) "" else " · $detail"
+            val reason = when (response.code) {
+                401, 403 -> FailureReason.INVALID_API_KEY
+                429 -> FailureReason.RATE_LIMITED
+                else -> FailureReason.UNKNOWN
+            }
+            return PageTranslation.Failure(
+                reason,
+                "LibreTranslate HTTP ${response.code}$suffix",
+                engineId
+            )
+        }
+
+        val outputs = LibreTranslateWire.parseTranslatedTexts(response.body, translatable.size)
+            ?: return PageTranslation.Failure(
+                FailureReason.PARSE_ERROR,
+                "LibreTranslate returned an incomplete or malformed page response",
+                engineId
+            )
+
+        val rejected = translatable.indices.mapNotNull { index ->
+            ArabicValidator.issue(translatable[index].english, outputs[index])?.let {
+                translatable[index].id to it
+            }
+        }
+        if (rejected.isNotEmpty()) {
+            val summary = rejected.take(4).joinToString { "#${it.first}:${it.second.name.lowercase()}" }
+            PipelineTracer.span("libre quality guard", 0, "rejected ${rejected.size}/${translatable.size} block(s)")
+            return PageTranslation.Failure(
+                FailureReason.PARSE_ERROR,
+                "Translation quality check rejected ${rejected.size} block(s) ($summary)",
+                engineId
+            )
+        }
+
+        val translatedById = translatable.indices.associate { index ->
+            translatable[index].id to outputs[index]
+        }
+        val elapsedMs = System.currentTimeMillis() - startedAt
+        PipelineTracer.span("libre translate batch", elapsedMs, "${translatable.size} block(s), 1 request")
+        return PageTranslation.Success(
+            blocks = blocks.map { block ->
+                TranslatedBlock(block.id, block.english, translatedById[block.id] ?: "")
+            },
+            engineId = engineId,
+            elapsedMs = elapsedMs,
+            cacheHits = 0,
+            cacheMisses = translatable.size
+        )
+    }
+
+    private fun classifyTransport(error: Throwable): FailureReason = when (error) {
+        is SocketTimeoutException, is InterruptedIOException -> FailureReason.TIMEOUT
+        is UnknownHostException,
+        is NoRouteToHostException,
+        is ConnectException,
+        is SocketException,
+        is SSLException,
+        is IOException -> FailureReason.NO_INTERNET
+        else -> FailureReason.UNKNOWN
+    }
+
+    private fun briefMessage(error: Throwable): String =
+        (error.message ?: error.javaClass.simpleName).take(120)
+
+    companion object {
+        const val ENGINE_ID = "libre_translate"
+    }
+}
