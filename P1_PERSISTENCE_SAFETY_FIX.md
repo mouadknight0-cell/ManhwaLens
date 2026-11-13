@@ -7,9 +7,9 @@ OCR, Gemini or ML Kit. No P2 work.
 `e99dd93`, untouched by the two documentation commits after it)
 **Files changed:** `names/JsonCharacterStore.kt`, `data/CharacterMemory.kt` (diagnostic wiring),
 `names/JsonCharacterStoreTest.kt`. Docs: this file, `DECISIONS.md`, `REPORTS.md`.
-**Verified by:** the `build` check of GitHub Actions on the final commit — see
-[REPORTS.md](REPORTS.md) for the recorded run id (docs-only follow-up commits are covered by the
-run at HEAD).
+**Verified by:** CI run [43526686657](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43526686657)
+— `build` **success** at `345715db62213a85721b4bb83ff77863c6ba2895` (the code, tests and this report
+were pushed together; the commit that records this run id is docs-only).
 
 ---
 
@@ -99,8 +99,9 @@ newer-schema handling, locked immunity, series isolation, restart persistence.
 ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --console=plain
 ```
 
-Executed by GitHub Actions on this exact commit (the authoring sandbox has no JDK/Android SDK, so no
-local run is possible or claimed — `BLOCKERS.md`). Test methods in the module: 604 (599 + 5).
+Executed by GitHub Actions on `345715d` → **run 43526686657: success** (3m37s). The authoring
+sandbox has no JDK/Android SDK, so no local run is possible and none is claimed (`BLOCKERS.md`).
+Test methods in the module: 604 (599 + 5).
 
 ---
 
