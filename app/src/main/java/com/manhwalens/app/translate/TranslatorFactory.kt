@@ -1,6 +1,8 @@
 package com.manhwalens.app.translate
 
 import android.content.Context
+import com.manhwalens.app.data.CharacterMemory
+import com.manhwalens.app.data.NameSession
 import com.manhwalens.app.data.TranslationPrefs
 import com.manhwalens.app.translate.gemini.GeminiTranslator
 import com.manhwalens.app.translate.gemini.HttpUrlConnectionGeminiApi
@@ -44,6 +46,25 @@ object TranslatorFactory {
     @Volatile
     private var diskCache: PersistentTranslationCache? = null
 
+    /**
+     * P1 — one name session per translator instance (i.e. per captured page).
+     *
+     * Built here rather than in [com.manhwalens.app.overlay.FloatingButtonService] so no
+     * orchestration code changes: every engine the factory returns is already series-aware.
+     * Unassigned sessions (no series selected) resolve names exactly like v0.11.0 and persist
+     * nothing.
+     */
+    fun nameSession(context: Context): NameSession = runCatching {
+        CharacterMemory.session(context)
+    }.getOrElse {
+        // A name-memory failure must never break translation: fall back to an unassigned session.
+        com.manhwalens.app.util.ErrorLog.write(context, "names", it)
+        NameSession(seriesId = null, seriesTitle = null, store = null)
+    }
+
+    /** Shared P1 wiring: series-aware page names + authoritative override for cached text. */
+    private fun names(context: Context): NameSession = nameSession(context)
+
     private fun disk(context: Context): PersistentTranslationCache =
         diskCache ?: PersistentTranslationCache(
             File(context.applicationContext.filesDir, "translation_cache.json"),
@@ -78,29 +99,39 @@ object TranslatorFactory {
         CachingTranslator.memoFor(engineId, style)
 
     /** Build a cached Gemini translator with the app-private disk cache. */
-    private fun gemini(context: Context, prefs: TranslationPrefs): Translator = CachingTranslator(
-        GeminiTranslator(
-            HttpUrlConnectionGeminiApi(prefs.geminiKey),
-            modelProvider = { prefs.geminiModel },
-            modelSaver = { prefs.geminiModel = it }
-        ),
-        sharedCache,
-        disk(context),
-        prefs.translationStyle,
-        memo = memo("gemini", prefs.translationStyle)
-    )
+    private fun gemini(context: Context, prefs: TranslationPrefs): Translator {
+        val session = names(context)
+        return CachingTranslator(
+            GeminiTranslator(
+                HttpUrlConnectionGeminiApi(prefs.geminiKey),
+                modelProvider = { prefs.geminiModel },
+                modelSaver = { prefs.geminiModel = it },
+                // P1: the series sheet wins; the page-local one still fills in when unassigned.
+                sheetProvider = { texts -> session.tableFor(texts).sheet }
+            ),
+            sharedCache,
+            disk(context),
+            prefs.translationStyle,
+            memo = memo("gemini", prefs.translationStyle),
+            pinnedOverride = session::rewrite
+        )
+    }
 
-    private fun libre(context: Context, prefs: TranslationPrefs): Translator = CachingTranslator(
-        LibreTranslateTranslator(
-            api = HttpUrlConnectionLibreTranslateApi(),
-            endpointProvider = { prefs.libreTranslateUrl },
-            apiKeyProvider = { prefs.libreTranslateApiKey }
-        ),
-        sharedCache,
-        disk(context),
-        styleForLibre(prefs),
-        memo = memo(LibreTranslateTranslator.ENGINE_ID, styleForLibre(prefs))
-    )
+    private fun libre(context: Context, prefs: TranslationPrefs): Translator {
+        val session = names(context)
+        return CachingTranslator(
+            LibreTranslateTranslator(
+                api = HttpUrlConnectionLibreTranslateApi(),
+                endpointProvider = { prefs.libreTranslateUrl },
+                apiKeyProvider = { prefs.libreTranslateApiKey }
+            ),
+            sharedCache,
+            disk(context),
+            styleForLibre(prefs),
+            memo = memo(LibreTranslateTranslator.ENGINE_ID, styleForLibre(prefs)),
+            pinnedOverride = session::rewrite
+        )
+    }
 
     fun create(context: Context): Translator {
         ensureBatchPolicy(context)
@@ -109,9 +140,14 @@ object TranslatorFactory {
         val style = prefs.translationStyle
         val disk = disk(context)
         return when (prefs.engine) {
-            TranslationEngine.ML_KIT -> CachingTranslator(
-                MlKitTranslator(), sharedCache, disk, style, memo = memo("ml_kit_en_ar", style)
-            )
+            TranslationEngine.ML_KIT -> {
+                val session = names(context)
+                CachingTranslator(
+                    MlKitTranslator(nameTableProvider = { texts -> session.tableFor(texts).table }),
+                    sharedCache, disk, style, memo = memo("ml_kit_en_ar", style),
+                    pinnedOverride = session::rewrite
+                )
+            }
             TranslationEngine.GEMINI ->
                 if (prefs.geminiCircuit.isOpen()) {
                     // Circuit open: do NOT gamble 3+6 s per tap — go straight offline.
@@ -119,8 +155,11 @@ object TranslatorFactory {
                         "circuit breaker -> ML Kit", 0,
                         "gemini paused (${prefs.geminiCircuit.reason().take(60)})"
                     )
+                    val session = names(context)
                     CachingTranslator(
-                        MlKitTranslator(), sharedCache, disk, style, memo = memo("ml_kit_en_ar", style)
+                        MlKitTranslator(nameTableProvider = { texts -> session.tableFor(texts).table }),
+                        sharedCache, disk, style, memo = memo("ml_kit_en_ar", style),
+                        pinnedOverride = session::rewrite
                     )
                 } else if (prefs.hasGeminiKey) {
                     gemini(context, prefs)
@@ -141,7 +180,12 @@ object TranslatorFactory {
         ensureBatchPolicy(context)
         TranslationPrefs(context).refreshGlossary()
         val style = styleOf(context)
-        return CachingTranslator(MlKitTranslator(), sharedCache, disk(context), style, memo = memo("ml_kit_en_ar", style))
+        val session = names(context)
+        return CachingTranslator(
+            MlKitTranslator(nameTableProvider = { texts -> session.tableFor(texts).table }),
+            sharedCache, disk(context), style, memo = memo("ml_kit_en_ar", style),
+            pinnedOverride = session::rewrite
+        )
     }
 
     /**
@@ -153,13 +197,18 @@ object TranslatorFactory {
         ensureBatchPolicy(context)
         TranslationPrefs(context).refreshGlossary()
         val style = styleOf(context)
+        val session = names(context)
         return CachingTranslator(
-            MlKitTranslator(onBlockReady),
+            MlKitTranslator(
+                onBlockReady,
+                nameTableProvider = { texts -> session.tableFor(texts).table }
+            ),
             sharedCache,
             disk(context),
             style,
             onBlockReady = onBlockReady,
-            memo = memo("ml_kit_en_ar", style)
+            memo = memo("ml_kit_en_ar", style),
+            pinnedOverride = session::rewrite
         )
     }
 

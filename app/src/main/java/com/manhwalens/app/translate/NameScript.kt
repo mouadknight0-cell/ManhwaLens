@@ -103,6 +103,128 @@ enum class NameScript {
             return UNKNOWN
         }
 
+        /**
+         * Confidence-aware view of the same signals (P1).
+         *
+         * [of] answers "which table should transliterate this?", which only needs a guess.
+         * P1 additionally needs to know HOW SURE that guess is, because a stored character
+         * record must never present a guess as a confirmed spelling:
+         *
+         *  - multi-syllable structural evidence (hyphenated Korean blocks, pinyin initials
+         *    English never produces, Japanese clusters) is trusted (>= 0.65);
+         *  - a BARE surname ("Wang", "Kim", "Lee", "Lin", "Han") is explicitly NOT evidence:
+         *    it is returned as UNKNOWN with low confidence, so the character stays Latin
+         *    until the reader confirms it (requirement: never classify from Latin spelling
+         *    alone);
+         *  - nothing recognised -> UNKNOWN with a low confidence, never an invented script.
+         */
+        fun classify(raw: String): Evidence {
+            val name = raw.trim()
+            if (name.isEmpty()) return Evidence(UNKNOWN, 0f, listOf("empty"))
+            val lower = name.lowercase().replace('\u2019', '\'')
+            val parts = lower.split(' ', '-', '_').filter { it.isNotBlank() }
+            if (parts.isEmpty()) return Evidence(UNKNOWN, 0f, listOf("empty"))
+            val joined = parts.joinToString("")
+            val reasons = ArrayList<String>(3)
+
+            // --- Korean: a hyphenated syllable block is the strongest signal there is.
+            if (parts.size >= 2) {
+                val hyphenated = lower.contains('-')
+                val koreanish = parts.count { it in KOREAN_SYLLABLES || it in KOREAN_SURNAMES }
+                if (hyphenated && koreanish >= 1) {
+                    reasons += "hyphenated syllable block"
+                    return Evidence(KOREAN, 0.92f, reasons)
+                }
+                if (parts.first() in KOREAN_SURNAMES && koreanish >= 1) {
+                    reasons += "Korean surname + Korean given syllable"
+                    return Evidence(KOREAN, 0.85f, reasons)
+                }
+                if (parts.first() in KOREAN_SURNAMES && joined.length >= 5 && parts.any { it in KOREAN_SYLLABLES }) {
+                    reasons += "Korean surname + Korean syllable"
+                    return Evidence(KOREAN, 0.72f, reasons)
+                }
+            }
+            if (joined.length >= 5 && joined in KOREAN_SURNAMES) {
+                reasons += "multi-syllable Korean surname"
+                return Evidence(KOREAN, 0.7f, reasons)
+            }
+            if (looksKoreanGiven(lower)) {
+                reasons += "Korean vowel rhythm"
+                return Evidence(KOREAN, 0.62f, reasons)
+            }
+
+            // --- A bare surname is NOT evidence: Wang / Kim / Lee / Lin / Han are English
+            // words, Chinese surnames, Korean surnames and Japanese readings all at once.
+            // This runs BEFORE the pinyin/Japanese letter-cluster rules on purpose: "wang"
+            // and "lin" contain pinyin-only pairs ("ng"), and treating that as proof of a
+            // script is exactly the "spelling alone" mistake this pipeline must not make.
+            if (parts.size == 1 && joined.length <= 5 && isAmbiguousBareSurname(joined)) {
+                reasons += "single ambiguous surname"
+                return Evidence(UNKNOWN, 0.25f, reasons)
+            }
+
+            // --- Chinese pinyin: initials/finals English never uses.
+            if (hasAny(joined, PINYIN_PAIRS) && !hasAny(joined, listOf("tsu", "ryu", "kyo"))) {
+                reasons += "pinyin-only letter pair"
+                // A pinyin-only pair inside a single short syllable is weaker than one in a
+                // full name, but still clearly not English.
+                return Evidence(CHINESE, if (parts.size >= 2) 0.82f else 0.74f, reasons)
+            }
+            val pinyinSyllables = parts.count { it in PINYIN_SYLLABLES }
+            if (parts.size >= 2 && pinyinSyllables == parts.size) {
+                reasons += "all syllables are pinyin"
+                return Evidence(CHINESE, 0.7f, reasons)
+            }
+
+            // --- Japanese romaji.
+            if (hasAny(joined, JAPANESE_MARKERS)) {
+                reasons += "Japanese letter cluster"
+                return Evidence(JAPANESE, 0.76f, reasons)
+            }
+            if (JAPANESE_ENDINGS.any { joined.endsWith(it) && joined.length > it.length + 1 }) {
+                reasons += "Japanese ending"
+                return Evidence(JAPANESE, 0.64f, reasons)
+            }
+
+            reasons += "no romanization evidence"
+            return Evidence(UNKNOWN, 0.15f, reasons)
+        }
+
+        /** Result of [classify]: what the name looks like and how strongly. */
+        data class Evidence(
+            val script: NameScript,
+            /** 0..1 — below 0.6 the script must not be treated as confirmed. */
+            val confidence: Float,
+            val reasons: List<String> = emptyList()
+        ) {
+            val isConfident: Boolean get() = confidence >= 0.6f
+        }
+
+        /**
+         * Short pinyin syllable inventory used ONLY for classification (not transliteration —
+         * that lives in [Glossary]). Every entry is a syllable that cannot be an ordinary
+         * English word ending, so an all-pinyin multi-syllable name is safe to call Chinese.
+         */
+        private val PINYIN_SYLLABLES = setOf(
+            "wei", "wu", "xian", "lan", "wang", "wangji", "jiang", "jin", "nie", "wen", "hua",
+            "xie", "mu", "pei", "ling", "jun", "luo", "shen", "liu", "shang", "ning", "qiu",
+            "yue", "xiao", "xue", "zhao", "zheng", "zhou", "zhu", "zhang", "chen", "cao", "cui",
+            "deng", "fang", "feng", "gao", "guan", "guo", "hao", "hong", "huang", "jia", "kang",
+            "kong", "liang", "long", "meng", "pan", "peng", "qi", "qian", "qin", "qing", "ren",
+            "rui", "song", "sun", "tan", "tang", "tao", "tian", "xiang", "xin", "xu", "xiong",
+            "ye", "zhan", "zhi", "zhong", "jie", "hui", "banyue", "mobei"
+        )
+
+        /**
+         * Latin spellings that are a surname in at least two traditions (and often an English
+         * word too), so a lone token proves nothing about the script.
+         */
+        private fun isAmbiguousBareSurname(joined: String): Boolean =
+            joined in KOREAN_SURNAMES || joined in PINYIN_SYLLABLES || joined in AMBIGUOUS_BARE_SURNAMES
+
+        /** Surnames that are common enough to be written both ways but are in neither list. */
+        private val AMBIGUOUS_BARE_SURNAMES = setOf("lin", "wu", "su", "nam", "jin", "min")
+
         private fun hasAny(s: String, marks: List<String>) = marks.any { s.contains(it) }
 
         /** "jiwoo", "seoyeon", "minjun", "haein" — Korean blocks that pinyin never spells. */

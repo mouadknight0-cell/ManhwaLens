@@ -33,7 +33,16 @@ class CachingTranslator(
      * Optional fuzzy tier (short strings only). OFF by default so a decorator instance is
      * self-contained and testable; [TranslatorFactory] passes the process-wide memo.
      */
-    private val memo: TranslationMemo? = null
+    private val memo: TranslationMemo? = null,
+    /**
+     * P1 — authoritative name override applied to BOTH cache hits and fresh engine output:
+     * `(originalEnglish, arabic) → arabic`. Wired to
+     * [com.manhwalens.app.data.NameSession.rewrite], so a locked/confirmed series spelling
+     * wins over a translation that was cached before the correction existed.
+     *
+     * Null (the default) leaves every existing caller byte-identical to v0.11.0.
+     */
+    private val pinnedOverride: ((String, String) -> String)? = null
 ) : Translator {
 
     override val engineId: String get() = delegate.engineId
@@ -71,17 +80,28 @@ class CachingTranslator(
                     fuzzyHits++
                 }
             }
-            val issue = if (hit != null && requiresArabicGuard) {
-                ArabicValidator.issue(b.english, hit)
+            // P1: a cached translation may pre-date a name correction — repair it BEFORE the
+            // quality guard sees it, so the guard judges the text we would actually paint.
+            val rawHit = hit
+            val nameOverride = pinnedOverride
+            val repairedHit: String? = if (rawHit != null && nameOverride != null) {
+                runCatching { nameOverride.invoke(b.english, rawHit) }.getOrDefault(rawHit)
+            } else {
+                rawHit
+            }
+            hit = repairedHit
+            val issue = if (repairedHit != null && requiresArabicGuard) {
+                ArabicValidator.issue(b.english, repairedHit)
             } else null
-            if (hit != null && issue == null) {
-                cached[b.id] = hit
+            if (repairedHit != null && issue == null) {
+                cached[b.id] = repairedHit
                 when {
                     diskHit != null -> {
-                        cache.put(engineId, b.english, diskHit, style) // promote a valid disk hit to memory
+                        // Promote the (possibly name-repaired) disk hit, so the correction sticks.
+                        cache.put(engineId, b.english, repairedHit ?: diskHit, style)
                         diskHits++
                     }
-                    fromFuzzy && hit != null -> cache.put(engineId, b.english, hit, style)
+                    fromFuzzy && repairedHit != null -> cache.put(engineId, b.english, repairedHit, style)
                 }
             } else {
                 if (hit != null && issue != null) {
@@ -155,11 +175,20 @@ class CachingTranslator(
                     val toPersist = LinkedHashMap<String, String>(polished.size)
                     for (tb in polished) {
                         val isRejected = rejectedIds.any { it.first == tb.id }
-                        translatedById[tb.id] = if (isRejected) "" else tb.arabic
-                        if (tb.arabic.isNotBlank() && !isRejected) {
-                            cache.put(engineId, tb.english, tb.arabic, style)
-                            toPersist[cache.key(engineId, tb.english, style)] = tb.arabic
-                            memo?.put(cachePrepared(tb.english), tb.arabic)
+                        // P1: the engine's own output gets the same authoritative override, so
+                        // a model that spells a locked name differently cannot reach the screen.
+                        val source = tb.arabic
+                        val nameOverride = pinnedOverride
+                        val finalArabic = if (!isRejected && source.isNotBlank() && nameOverride != null) {
+                            runCatching { nameOverride.invoke(tb.english, source) }.getOrDefault(source)
+                        } else {
+                            source
+                        }
+                        translatedById[tb.id] = if (isRejected) "" else finalArabic
+                        if (finalArabic.isNotBlank() && !isRejected) {
+                            cache.put(engineId, tb.english, finalArabic, style)
+                            toPersist[cache.key(engineId, tb.english, style)] = finalArabic
+                            memo?.put(cachePrepared(tb.english), finalArabic)
                         }
                     }
                     if (toPersist.isNotEmpty()) persistent?.putAll(toPersist)

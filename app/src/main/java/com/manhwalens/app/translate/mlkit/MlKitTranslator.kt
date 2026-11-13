@@ -52,7 +52,14 @@ import java.util.concurrent.TimeoutException
  */
 class MlKitTranslator(
     /** Progressive display hook: invoked once per finished block (non-blank arabic only). */
-    private val onBlockReady: ((TranslatedBlock) -> Unit)? = null
+    private val onBlockReady: ((TranslatedBlock) -> Unit)? = null,
+    /**
+     * P1: the authoritative page table from the persistent series memory
+     * ([com.manhwalens.app.data.NameSession]). When supplied it OUTRANKS the fresh page guess
+     * from [SceneNames.pin], so a locked spelling can never be replaced by a new detection.
+     * Null keeps the v0.11.0 behaviour (page-local names only).
+     */
+    private val nameTableProvider: ((List<String>) -> Map<String, String>)? = null
 ) : Translator {
 
     override val engineId = "ml_kit_en_ar"
@@ -116,9 +123,28 @@ class MlKitTranslator(
         // 1b) Scene names for this page (v0.11.0): detect the proper nouns once and pin one
         // Arabic spelling for each, so "Han Ji-woo" is not spelled three ways in one page.
         pageNames = runCatching {
-            val table = SceneNames.pin(translatable.map { it.english })
+            val sources = translatable.map { it.english }
+            val seriesTable = nameTableProvider?.invoke(sources).orEmpty()
+            val pageTable = SceneNames.pin(sources)
+            // Series memory first (locked/user/built-in spellings), page detections fill gaps.
+            // Longest name first in BOTH cases, so "Wei Wuxian" is replaced before "Wei".
+            val table: Map<String, String> = if (seriesTable.isEmpty()) {
+                pageTable
+            } else {
+                val merged = LinkedHashMap<String, String>(seriesTable)
+                for ((name, arabic) in pageTable) merged.putIfAbsent(name, arabic)
+                LinkedHashMap<String, String>().apply {
+                    for ((name, arabic) in merged.entries.sortedByDescending { it.key.length }) {
+                        put(name, arabic)
+                    }
+                }
+            }
             if (table.isNotEmpty()) {
-                PipelineTracer.span("mlkit scene names", 0, SceneNames.describe(table))
+                PipelineTracer.span(
+                    "mlkit scene names", 0,
+                    if (seriesTable.isEmpty()) SceneNames.describe(table)
+                    else "series ${seriesTable.size} + page ${table.size - seriesTable.size} · ${SceneNames.describe(table)}"
+                )
             }
             table
         }.getOrDefault(emptyMap())

@@ -42,7 +42,9 @@ object NameMemory {
         val arabic: String,
         val script: NameScript,
         /** How the Arabic form was decided — shown in the debug report. */
-        val origin: Origin
+        val origin: Origin,
+        /** Occurrences of this phrase on the page (P1 uses it to decide what is worth remembering). */
+        val count: Int = 0
     ) {
         enum class Origin { USER, BUILT_IN, PAGE_AI, TRANSLITERATION }
     }
@@ -316,7 +318,7 @@ object NameMemory {
             // The same person reached through a second spelling ("Han Ji-woo" vs "Ji-woo")
             // keeps ONE Arabic form: drop the fragment when a fuller name already pins it.
             if (pinned.any { it.text.length > name.length && sameArabic(it.arabic, resolved) }) continue
-            pinned += Pinned(name, resolved, script, origin)
+            pinned += Pinned(name, resolved, script, origin, count)
         }
 
         // Longest-first table so "Wei Wuxian" is replaced before "Wei". A name whose Arabic

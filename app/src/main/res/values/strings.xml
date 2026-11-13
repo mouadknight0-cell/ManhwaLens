@@ -248,4 +248,25 @@
     <string name="lens_icon_clear">Clear</string>
     <string name="lens_icon_exit">Exit</string>
     <string name="live_translate_failed">Translation failed: %1$s</string>
+
+    <!-- P1: character name memory -->
+    <string name="settings_characters_button">Character names</string>
+    <string name="character_names_title">Character names</string>
+    <string name="character_names_note">Names are remembered per series and stay on this device. Locked names always win, even over a cached translation.</string>
+    <string name="character_names_series">Series</string>
+    <string name="character_names_no_series">No series selected — names are not saved</string>
+    <string name="character_names_new_series">New series title</string>
+    <string name="character_names_create">Create</string>
+    <string name="character_names_clear">Clear selection</string>
+    <string name="character_names_characters">Characters</string>
+    <string name="character_names_need_series">Select or create a series first. Names are only stored inside a series, so one story never reuses another one’s spelling.</string>
+    <string name="character_names_empty">No characters remembered yet. Translate a page of this series and they will appear here.</string>
+    <string name="character_names_locked">locked</string>
+    <string name="character_names_arabic_hint">Arabic spelling</string>
+    <string name="character_names_alias_hint">Alternative Latin spelling</string>
+    <string name="character_names_add_alias">Add alias</string>
+    <string name="character_names_lock">Lock</string>
+    <string name="character_names_save">Save</string>
+    <string name="character_names_delete">Delete</string>
+    <string name="character_names_back">Back</string>
 </resources>

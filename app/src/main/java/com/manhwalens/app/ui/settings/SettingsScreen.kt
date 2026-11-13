@@ -62,6 +62,13 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showPrivacy by remember { mutableStateOf(false) }
     var showLastCapture by remember { mutableStateOf(false) }
     var showLiveSelfCheck by remember { mutableStateOf(false) }
+    var showCharacters by remember { mutableStateOf(false) }
+
+    // P1: character name memory (series selection + corrections).
+    if (showCharacters) {
+        CharacterNamesScreen(onBack = { showCharacters = false })
+        return
+    }
 
     if (showPrivacy) {
         PrivacyPolicyScreen(onBack = { showPrivacy = false })
@@ -206,6 +213,23 @@ fun SettingsScreen(onBack: () -> Unit) {
                         translationPrefs.refreshGlossary()
                     }
                 )
+            }
+        }
+        Spacer(Modifier.size(12.dp))
+
+        // ---------- Character names (P1) ----------
+        Section(stringResource(R.string.settings_characters_button)) {
+            Text(
+                text = stringResource(R.string.character_names_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.size(8.dp))
+            androidx.compose.material3.OutlinedButton(
+                onClick = { showCharacters = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.settings_characters_button))
             }
         }
         Spacer(Modifier.size(12.dp))

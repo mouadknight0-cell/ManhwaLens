@@ -52,7 +52,14 @@ class GeminiTranslator(
     private val jsonReply: Boolean = false,
     private val maxBlocksPerRequest: Int = 18,
     /** Hard cap on parallel requests (mobile radio + quota friendly). */
-    private val maxParallelRequests: Int = 3
+    private val maxParallelRequests: Int = 3,
+    /**
+     * P1: the authoritative page name sheet from the persistent series memory
+     * ([com.manhwalens.app.data.NameSession]). Non-blank wins over the page-local sheet
+     * computed below, so a locked series spelling reaches the model unchanged. Null keeps the
+     * v0.11.0 / P0-A behaviour.
+     */
+    private val sheetProvider: ((List<String>) -> String)? = null
 ) : Translator {
 
     override val engineId = "gemini"
@@ -74,10 +81,19 @@ class GeminiTranslator(
         }
 
         // One name sheet for the page: the model is told exactly how to spell each name.
-        val sheet = runCatching {
-            val plan = NameMemory.plan(translatable.map { it.english })
-            if (plan.isEmpty) "" else NameMemory.sheet(plan, limit = 20)
-        }.getOrDefault("")
+        // P1: the series memory supplies it when a series is selected (it already contains the
+        // locked/user/built-in spellings plus this page's detections); otherwise the page-local
+        // plan from v0.11.0 is used, exactly as P0-A fixed it.
+        val seriesSheet = runCatching { sheetProvider?.invoke(translatable.map { it.english }) }
+            .getOrNull().orEmpty()
+        val sheet = if (seriesSheet.isNotBlank()) {
+            seriesSheet
+        } else {
+            runCatching {
+                val plan = NameMemory.plan(translatable.map { it.english })
+                if (plan.isEmpty) "" else NameMemory.sheet(plan, limit = 20)
+            }.getOrDefault("")
+        }
         if (sheet.isNotBlank()) {
             PipelineTracer.span("gemini name sheet", 0, sheet.take(160))
         }
