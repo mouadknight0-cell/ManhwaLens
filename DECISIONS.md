@@ -819,3 +819,7 @@ One line per correction.
 - T5. The deferred-recovery warning goes to `PipelineTracer.span("character memory", …)` (the debug-panel trace that already carries the per-page series line), not to the last-error file, which stays reserved for crashes. The store remains Android-free and JVM-testable.
 - T6. Five regression tests pin the new behaviour: no write into the live path on refusal, byte-for-byte preservation of a valid live file, the copy surviving for a later attempt (and a later load restoring every record), no empty-overwrite after a refused promotion, and a truncated copy never being promoted.
 - T7. Verification: 604 test methods in the module; `:app:testDebugUnitTest` + `:app:assembleDebug` run by GitHub Actions on the final commit (no local run is possible in the sandbox and none is claimed).
+
+# Repository report — 2026-11-13
+
+- S5. [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) is the repository-level snapshot (branch and PR state, the per-change work packages with their commits and CI runs, what is verifiable in this environment and what is not, the code map, the open blockers, and the ranked next steps). It is updated in the same push whenever the snapshot changes — a new phase, a changed head/PR state, a new verification run, or a blocker appearing or clearing — while per-change detail stays in the reports indexed by [REPORTS.md](REPORTS.md).

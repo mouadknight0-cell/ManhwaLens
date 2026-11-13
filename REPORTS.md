@@ -36,7 +36,9 @@ stated in the report before the code changes.
 | 2026-11-13 | P0-A Gemini name sheet | [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md) | `b8e37de` → `528d629` | CI 43514068424, 43514608722 |
 | 2026-11-13 | P0 architecture audit (read-only) | [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md) | v0.11.0 `b8e37de` | none (no code changed) |
 
-Supporting documents that are **not** per-change reports: `PLAN.md` (phases and definitions of done),
+Supporting documents that are **not** per-change reports: [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md)
+(the repository-level snapshot — branch state, phases, verification, blockers, what is next),
+`PLAN.md` (phases and definitions of done),
 `DECISIONS.md` (one line per decision, including the standing rules this file operates under),
 `BLOCKERS.md` (environment limits), `MANUAL_TESTS.md` (device checklists), `CHANGELOG.md`,
 `OPEN_SOURCE_RESEARCH.md`, `PRIVACY.md`.
