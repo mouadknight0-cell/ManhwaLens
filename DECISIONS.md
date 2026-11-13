@@ -800,3 +800,10 @@ One line per correction.
 - R6. Series selection has no inference: no package/app-name lookup, no default series, `create()` never selects, and an unassigned session reads and writes nothing. The sticky manual selection is intentional and documented.
 - R7. The active series is now visible where memory is managed: `Series: <title>` (or a red "names are not saved" state) on the Settings card, refreshed on return from the editor, plus one `character memory` trace line per page with the series and record count.
 - R8. Verification: 9 new regression tests (599 test methods in the module), `:app:testDebugUnitTest` + `:app:assembleDebug` green on CI run 43523522645 at `e99dd93`; no local run was possible (no JDK/SDK in the sandbox) and none is claimed.
+
+# Standing rule — a report travels with every change — 2026-11-13
+
+- S1. Every change (code, tests, data model, behaviour, docs that fix a claim) ships in the **same push** as a Markdown report at the repository root, named after its phase (`P0_…`, `P0A_…`, `P1_…`), and indexed in [REPORTS.md](REPORTS.md).
+- S2. The report must contain: scope and what is out of scope, the exact **base commit SHA**, the verified root cause with file:line evidence, the fix and why that shape (including rejected alternatives), files changed with a reason each, tests added with the property each pins, the exact command executed + the CI run that executed it, the `base...final` compare link with `--stat`, and the remaining risks (including "not verified on device" when true).
+- S3. Evidence discipline: no test is reported as passing unless a run actually executed it; a command that cannot run in the authoring sandbox (no JDK/Android SDK) is reported as such, never simulated; a finding that contradicts an existing document is stated in the report **before** the code changes.
+- S4. Chat summaries, commit trailers and PR descriptions are conveniences, never the deliverable: the report in the repository is the record. If a later change alters an earlier report's claim, the earlier report is corrected in the same push that changes the behaviour.
