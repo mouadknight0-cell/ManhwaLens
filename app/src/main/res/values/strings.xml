@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ManhwaLens</string>
+    <string name="app_tagline">Every bubble. In Arabic.</string>
+
+    <string name="phase_m5">M5 · SPEED &amp; SETTINGS</string>
+
+    <string name="perm_title">Overlay permission</string>
+    <string name="perm_body">ManhwaLens draws its floating button and the capture view on top of any app. Android requires your explicit overlay permission for this.</string>
+    <string name="perm_granted">Granted</string>
+    <string name="perm_needed">Needed</string>
+    <string name="perm_grant">Grant overlay access</string>
+
+    <string name="floating_title">Floating button</string>
+    <string name="floating_body">A draggable lens button that stays on top of other apps. Tap it to capture the current frame and view the Arabic translation in place.</string>
+    <string name="floating_needs_perm">Grant the overlay permission first, then flip this switch.</string>
+
+    <string name="settings_entry_title">Settings</string>
+    <string name="settings_entry_summary">Translation engine, Arabic font size, auto-capture, privacy policy</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+    <string name="appearance_title">Appearance</string>
+    <string name="font_size_title">Arabic font size</string>
+    <string name="font_size_note">Applies the next time a capture overlay opens.</string>
+    <string name="font_small">Small</string>
+    <string name="font_medium">Medium</string>
+    <string name="font_large">Large</string>
+
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="debug_mode_title">Debug mode</string>
+    <string name="lens_menu_title">ManhwaLens</string>
+    <string name="lens_menu_state_on">Live ON</string>
+    <string name="lens_menu_state_off">Live OFF</string>
+    <string name="lens_menu_live">Live mode</string>
+    <string name="lens_menu_translate_now">Translate now</string>
+    <string name="lens_menu_patches">Arabic (off = original)</string>
+    <string name="lens_menu_review">Review last capture</string>
+    <string name="lens_menu_clear">Clear translation</string>
+    <string name="lens_menu_settings">Settings…</string>
+    <string name="lens_menu_run_live">تشغيل</string>
+    <string name="lens_menu_stop_live">إيقاف</string>
+    <string name="toast_review_unavailable">No capture to review yet — tap the lens on a page first.</string>
+    <string name="toast_patches_cleared">Translation cleared.</string>
+    <!-- Part C: notification actions -->
+    <string name="notif_action_live_on">Live ON</string>
+    <string name="notif_action_live_off">Live OFF</string>
+    <!-- Part C: Settings → "Tap on the lens" -->
+    <string name="lens_tap_title">Tap on the lens</string>
+    <string name="lens_tap_summary">What a single tap on the floating lens does. Capture permission is always requested first when no session is active.</string>
+    <string name="lens_tap_menu">Menu</string>
+    <string name="lens_tap_translate">Translate now</string>
+
+    <string name="debug_mode_summary">After every tap on the lens, show a small dismissible panel with the status of each pipeline stage (tap, consent, capture, OCR, filter, translate, overlay). The same trace is saved to Last error. Also saves the last frame with the OCR boxes drawn on it.</string>
+    <!-- v0.9.5 Part 2: Live self-check -->
+    <string name="self_check_button">Live self-check</string>
+    <string name="self_check_title">Live self-check</string>
+    <string name="self_check_summary">Twelve stages of the Live pipeline, refreshed every second: PASS / FAIL / WAIT. If Live does not translate, the first FAIL line is where it stopped. "Copy report" adds the last 60 log lines (API keys removed) — paste it in a bug report.</string>
+    <string name="self_check_copy">Copy report</string>
+    <string name="self_check_copied">Live self-check report copied to the clipboard.</string>
+    <string name="self_check_report_title">Live self-check report</string>
+    <string name="self_check_state">State</string>
+    <string name="lens_menu_status_unknown">Live: status unknown (service starting)</string>
+    <string name="self_check_no_data">No data yet — turn the floating lens on, switch Live ON and open a page. This screen fills in within a second.</string>
+    <string name="debug_panel_title">ManhwaLens · pipeline trace (tap to close)</string>
+    <string name="view_last_capture">View last capture</string>
+    <string name="view_last_capture_none">No debug capture saved yet — enable debug mode and tap the lens once.</string>
+    <string name="view_last_capture_title">Last capture (OCR boxes)</string>
+    <string name="close">Close</string>
+    <string name="last_error_note">Written automatically when something crashes, and replaced by the latest pipeline trace after every tap. Copy it and share it when reporting a bug.</string>
+    <string name="automation_title">Automation</string>
+    <string name="auto_capture_title">Auto-capture on scroll</string>
+    <string name="auto_capture_summary">Optional extra trigger — NOT required. Live mode follows the scroll on its own; this switch only pokes a capture the moment you stop scrolling, via the read-only accessibility service (never reads screen content). Needs an armed capture session: tap the lens once first.</string>
+    <string name="auto_capture_open">Open accessibility settings</string>
+    <string name="a11y_service_description">Reports when you finish scrolling so ManhwaLens can capture the visible page. Never reads screen content.</string>
+
+    <string name="about_title">About</string>
+    <string name="last_error_title">Last error</string>
+    <string name="last_error_none">No errors recorded.</string>
+    <string name="copy_error_button">Copy</string>
+    <string name="toast_error_copied">Error copied to clipboard</string>
+    <string name="toast_fgs_failed_reason">ManhwaLens could not stay on top: %1$s</string>
+    <string name="toast_capture_failed_reason">Capture failed: %1$s</string>
+    <string name="toast_consent_invalid">Capture consent was not usable — please try again</string>
+    <string name="gemini_model_label">Gemini model</string>
+    <string name="gemini_model_note">Default: gemini-3.8-flash. If the selected model is retired (HTTP 404), the other one is tried automatically and saved.</string>
+    <string name="check_models">Check available models</string>
+    <string name="check_models_running">Checking…</string>
+    <string name="check_models_title">Models supporting generateContent:</string>
+    <string name="check_models_none">No models supporting generateContent were found for this key.</string>
+    <string name="toast_model_switched">Gemini: now using %1$s</string>
+    <string name="notice_translated_offline">Remote translation unavailable — used the on-device engine.</string>
+    <string name="version_label">Version</string>
+    <string name="privacy_policy_title">Privacy policy</string>
+    <string name="privacy_policy_summary">What ManhwaLens reads, keeps and sends. English and العربية.</string>
+    <string name="privacy_policy_body">Frames are captured and processed on your device for OCR and bubble detection. With ML Kit selected, translation stays on-device.\n\nWith Gemini selected, recognized bubble text is sent to Google using your API key; screenshots are not sent for text translation. The key stays in app-private storage and is sent in an HTTP header.\n\nWith LibreTranslate selected, recognized text is sent in one batch over HTTPS to the server URL you configured; the optional server key is sent in the JSON request body. ManhwaLens does not operate that server. Use an endpoint you trust.\n\nIf experimental AI cleanup is enabled, cropped images of up to three bubbles may be sent to Gemini for image editing.\n\nThe text-only translation cache is stored in app-private memory and storage and can be cleared in Settings. No analytics or telemetry are sent; ManhwaLens has no accounts or translation server.</string>
+
+    <string name="translate_title">Translation</string>
+    <string name="engine_mlkit">ML Kit · on-device (English → Arabic)</string>
+    <string name="engine_mlkit_caption">Free and fully offline after a one-time model download (~30 MB). Nothing leaves your phone.</string>
+    <string name="engine_gemini">Gemini · cloud API</string>
+    <string name="engine_gemini_caption">Much better colloquial Arabic and context across bubbles. Requires your own API key.</string>
+    <string name="engine_libre_translate">LibreTranslate / Argos · self-hosted</string>
+    <string name="engine_libre_translate_caption">Open-source engine you control. One batched request runs beside the on-device draft; configure a trusted HTTPS server.</string>
+    <string name="libre_translate_url_label">LibreTranslate HTTPS URL</string>
+    <string name="libre_translate_url_placeholder">https://translate.example.com</string>
+    <string name="libre_translate_key_label">Server API key (optional)</string>
+    <string name="libre_translate_note">Only OCR text is sent (never screenshots). URL and optional key are stored on this device; use a server you trust. HTTPS is required.</string>
+    <string name="libre_translate_save">Save server</string>
+    <string name="libre_translate_clear">Clear server</string>
+    <string name="libre_translate_saved">Saved ✓</string>
+    <string name="gemini_key_label">Gemini API key</string>
+    <string name="gemini_key_placeholder">AIza…</string>
+    <string name="gemini_key_note">The key is stored only on this device (app-private storage) and sent to Google solely as an HTTP header. It never appears in logs or in the app source.</string>
+    <string name="gemini_save">Save key</string>
+    <string name="gemini_clear">Clear</string>
+    <string name="gemini_key_saved">Saved ✓</string>
+    <string name="test_translate">Test translation</string>
+    <string name="test_running">Translating…</string>
+    <string name="test_note">Translates a sample two-line page with the selected engine and shows the raw result.</string>
+    <string name="cache_clear">Clear translation cache</string>
+    <string name="debug_no_translation">No translation — see metrics/test result above</string>
+    <string name="debug_no_text">No English text detected in this frame</string>
+    <string name="debug_overlay_title">In-place Arabic</string>
+    <string name="debug_toggle_original">Original</string>
+    <string name="debug_toggle_arabic">Arabic</string>
+
+    <string name="notif_capture_title">ManhwaLens</string>
+    <string name="notif_capture_starting">Screen capture starting</string>
+    <string name="notif_capture_ready">Capture ready · tap the lens to grab a frame</string>
+    <string name="notif_capture_button">ManhwaLens running · tap the lens to capture</string>
+    <string name="action_stop">Stop ManhwaLens</string>
+
+    <string name="toast_capture_ready">Screen capture is ready</string>
+    <string name="toast_capture_denied">Screen capture permission denied</string>
+    <string name="toast_capture_failed">Capture failed · check logcat (MLCapture)</string>
+    <string name="toast_fgs_failed">ManhwaLens could not stay on top — check the notification and try again</string>
+
+    <string name="pill_capturing">Capturing…</string>
+    <string name="pill_model_download">Downloading translation model (one time, ~30 MB)…</string>
+    <string name="toast_capture_in_progress">A capture is already running…</string>
+    <string name="notice_gemini_paused">Gemini paused for 5 minutes — translated offline. Tap "Retry Gemini" in Settings to retry now.</string>
+    <string name="gemini_paused_title">Gemini paused</string>
+    <string name="gemini_paused_body">After a failure (%1$s), ML Kit offline translation is used for ~%2$s min, then Gemini resumes automatically.</string>
+    <string name="retry_gemini">Retry Gemini</string>
+    <string name="gemini_retry_toast">Gemini re-enabled — it will be tried on the next capture</string>
+    <string name="live_mode_title">Live mode</string>
+    <string name="live_mode_summary">Watch the screen at ~3 fps. While you scroll, overlays hide; when the page settles it is translated automatically. Auto-armed by your first lens tap. Long-press the floating button to pause/resume.</string>
+    <string name="live_apps_title">Only in these apps (optional)</string>
+    <string name="live_apps_summary">Comma-separated package names, e.g. com.brave.browser,com.android.chrome. Empty = everywhere. Needs usage-access permission to detect the foreground app.</string>
+    <string name="live_apps_hint">e.g. com.brave.browser, com.android.chrome</string>
+    <string name="live_apps_grant">Grant usage access</string>
+    <string name="live_enabled_toast">Live mode ON — long-press the button to turn off</string>
+    <string name="live_disabled_toast">Live mode OFF</string>
+    <string name="live_paused_battery">Live mode paused to save battery (5 min without page changes) — it resumes automatically when the page changes</string>
+    <string name="live_resumed_toast">Live mode resumed</string>
+    <string name="live_needs_capture">Live mode needs screen capture — tap the lens button once to grant it</string>
+    <string name="live_toggle_original">Original (before translation)</string>
+    <string name="live_toggle_arabic">Arabic (translated)</string>
+    <string name="edge_ignore_title">Ignore frame edges</string>
+    <string name="edge_ignore_summary">Blocks fully inside the top / bottom edge bands are never translated — they are usually browser chrome, not manhwa. Default: 8% each.</string>
+    <string name="edge_ignore_top">Ignore top %1$d%%</string>
+    <string name="edge_ignore_bottom">Ignore bottom %1$d%%</string>
+    <string name="pill_capture_failed">Capture failed · see logcat (MLCapture)</string>
+    <string name="pill_translate_failed">Translation failed — details in the window</string>
+
+    <string name="debug_title">ManhwaLens · Capture</string>
+    <string name="debug_tap_to_close">Tap anywhere to close</string>
+    <string name="debug_secure_warn">Frame is nearly black · this app may block capture (FLAG_SECURE)</string>
+
+    <string name="footer_version">v0.10.0 · open-source translation</string>
+    <!-- Live status (Part B) -->
+    <string name="live_status_paused">Paused</string>
+    <string name="live_status_waiting">Watching</string>
+    <string name="live_status_scanning">Scanning</string>
+    <string name="live_status_translating">Translating</string>
+    <string name="live_status_skipped">Same page</string>
+    <string name="live_status_no_session">Tap to start</string>
+    <string name="live_status_no_frames">No frames yet</string>
+    <string name="live_status_error">Live error</string>
+    <string name="live_auto_armed">Live mode armed — translation follows the scroll. Long-press the button to pause.</string>
+
+    <!-- Live settings (Part A) -->
+    <string name="live_stability_title">Stability delay</string>
+    <string name="live_stability_summary">How long the page must be still before it is translated (200–1000 ms, default 400).</string>
+    <string name="live_stability_value">%1$d ms</string>
+    <string name="live_sensitivity_title">Change sensitivity</string>
+    <string name="live_sensitivity_summary">How much the frame must change to count as scrolling/animation. High reacts to subtle changes (e.g. a blinking cursor).</string>
+    <string name="live_sensitivity_low">Low</string>
+    <string name="live_sensitivity_medium">Medium</string>
+    <string name="live_sensitivity_high">High</string>
+
+    <!-- Faster scroll detection (Part B) -->
+    <string name="faster_scroll_title">Faster scroll detection (optional)</string>
+    <string name="faster_scroll_summary">Live mode does NOT need the accessibility service. This switch only adds an extra trigger that pokes a capture the moment you stop scrolling. On sideloaded apps Android blocks the service as a “Restricted setting”, so it stays Off — allow it first, or just leave it off and rely on Live mode.</string>
+    <string name="faster_scroll_hint">Sideloaded app: open App info → three-dot menu (⋮) → “Allow restricted settings”, then Accessibility → ManhwaLens → On.</string>
+    <string name="faster_scroll_appinfo">Open app info</string>
+
+    <!-- Ignore list (Part C) -->
+    <string name="glossary_title">Names &amp; terms</string>
+    <string name="glossary_summary">One line per name: English = عربي. The dictionary already holds ~250 Chinese names and cultivation terms; your lines win over it and are applied before the engine sees the text, so every bubble spells the name the same way.</string>
+    <string name="merge_lines_title">One sentence per bubble</string>
+    <string name="merge_lines_summary">Joins the lines of the same bubble before translating, so a sentence that wraps onto two lines is translated as one sentence (recommended).</string>
+
+    <string name="ignore_list_title">Ignore list (site UI text)</string>
+    <string name="ignore_list_summary">One phrase per line (or comma-separated), case-insensitive. Blocks containing any phrase are skipped before translation. Pre-filled with common site chrome: Subscribe, Get the app, Continue Reading, TOP, Episode, views, coins. Clear the field to disable.</string>
+
+    <!-- Benchmark (Part C) -->
+    <string name="benchmark_button">Benchmark translation</string>
+    <string name="benchmark_summary">Translates the same 20 sentences with the on-device ML Kit engine (offline): one by one, in parallel (2/3/4/6 at once) and as one joined call with 8 different separators. 5 passes each, first one discarded; shows median and worst time and whether every bubble maps back. Takes about a minute. The result is also added to the self-check \"Copy report\".</string>
+    <string name="benchmark_title">Translation benchmark</string>
+    <string name="benchmark_running">Running…</string>
+    <string name="benchmark_close">Close</string>
+    <string name="benchmark_copy">Copy results</string>
+    <string name="benchmark_copied">Benchmark copied</string>
+
+    <string name="safe_mode_title">Safe Mode</string>
+    <string name="safe_mode_body">The app crashed twice at startup, so it launched without the floating button, translation and Live mode. Your settings were left untouched. Tap below to retry normally.</string>
+    <string name="safe_mode_no_log">No crash log was recorded.</string>
+    <string name="safe_mode_copy">Copy crash log</string>
+    <string name="safe_mode_copied">Crash log copied</string>
+    <string name="safe_mode_exit">Exit Safe Mode</string>
+    <string name="safe_mode_blocked_toast">Safe Mode is on — exit it from the red banner first</string>
+
+    <!-- AI cleanup (Part D, experimental, cloud) -->
+    <string name="ai_cleanup_title">AI cleanup (experimental)</string>
+    <string name="ai_cleanup_summary">After a tap-translate, send only the ≤3 largest bubble crops to Gemini and swap in an Arabic-rendered bubble it draws. Local patches remain if anything fails. Cloud-only, one attempt per bubble, 15 s timeout.</string>
+    <string name="ai_cleanup_needs_key">Save a Gemini key above to enable AI cleanup.</string>
+    <string name="ai_cleanup_model_label">Image model</string>
+    <string name="ai_cleanup_model_auto">Auto (first image-capable model)</string>
+    <string name="ai_cleanup_list_models">List image models</string>
+    <string name="ai_cleanup_list_running">Listing…</string>
+    <string name="ai_cleanup_models_none">This account reports no image-capable models. AI cleanup will use the local patch.</string>
+    <string name="ai_cleanup_models_failed">Could not list models: %1$s</string>
+    <string name="ai_cleanup_note">Your bubble image is sent to Google with the translated Arabic. Nothing else leaves the device.</string>
+    <string name="ai_cleanup_switch_toast_on">AI cleanup on — next tap-translate will try Gemini for the largest bubbles</string>
+    <string name="ai_cleanup_switch_toast_off">AI cleanup off</string>
+
+    <!-- Pipeline trace (debug panel content available in-app) -->
+    <string name="pipeline_trace_title">Last pipeline trace</string>
+    <string name="pipeline_trace_none">No pipeline trace recorded yet. Translate a page first.</string>
+    <string name="pipeline_trace_note">This is the same trace that used to appear in the floating debug panel. Copy it to share with support.</string>
+    <string name="copy_trace_button">Copy trace</string>
+    <string name="toast_trace_copied">Trace copied</string>
+    <string name="lens_icon_live_start">Live</string>
+    <string name="lens_icon_live_stop">Stop</string>
+    <string name="lens_icon_capture">Capture</string>
+    <string name="lens_icon_clear">Clear</string>
+    <string name="lens_icon_exit">Exit</string>
+    <string name="live_translate_failed">Translation failed: %1$s</string>
+</resources>
