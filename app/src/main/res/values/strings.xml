@@ -51,7 +51,7 @@
     <string name="lens_tap_menu">Menu</string>
     <string name="lens_tap_translate">Translate now</string>
 
-    <string name="debug_mode_summary">After every tap on the lens, show a small dismissible panel with the status of each pipeline stage (tap, consent, capture, OCR, filter, translate, overlay). The same trace is saved to Last error. Also saves the last frame with the OCR boxes drawn on it.</string>
+    <string name="debug_mode_summary">After each lens tap, show the pipeline trace and save the last frame with OCR boxes. While Debug mode is ON, the Last error report also contains page OCR text, OCR confidence and coordinates, exact ML Kit inputs and raw outputs, and text successfully rendered in the overlay. This report stays in app-private storage; turn Debug mode OFF after collecting a report.</string>
     <!-- v0.9.5 Part 2: Live self-check -->
     <string name="self_check_button">Live self-check</string>
     <string name="self_check_title">Live self-check</string>
