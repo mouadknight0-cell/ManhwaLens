@@ -3804,7 +3804,7 @@ class FloatingButtonService : Service() {
         }
         val diagnostics = activeCaptureDiagnostics
         if (diagnostics != null) {
-            val combined = PipelineTracer.report() + "\n\n" + diagnostics.report()
+            val combined = diagnostics.report() + "\n\n" + PipelineTracer.report()
             ErrorLog.writeRaw(
                 applicationContext,
                 "pipeline+ocr-translation",
