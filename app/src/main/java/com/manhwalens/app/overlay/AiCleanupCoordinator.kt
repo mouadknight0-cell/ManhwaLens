@@ -186,7 +186,7 @@ internal class AiCleanupCoordinator(
                 Log.i(TAG, "ai cleanup: model discovery cancelled — cloud settings changed")
                 return null
             }
-            HttpUrlConnectionGeminiApi(apiKey).listModels()
+            val response = HttpUrlConnectionGeminiApi(apiKey).listModels()
             if (response.code !in 200..299) {
                 Log.w(TAG, "ai cleanup: listModels http ${response.code}")
                 null
