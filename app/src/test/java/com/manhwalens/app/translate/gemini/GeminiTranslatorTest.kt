@@ -277,8 +277,9 @@ class GeminiTranslatorTest {
     fun jsonRetryBodyCarriesThePageNameSheetToo() {
         val sheet = expectedSheet()
         assertTrue("sanity: this page must produce a name sheet", sheet.isNotBlank())
-        // 400 → the translator retries once with the JSON "fast" body (responseMimeType).
-        // That retry used to be the ONLY place the sheet survived; it must keep carrying it.
+        // 400 → the translator retries once. That retry used to be the ONLY place the sheet
+        // survived; it must keep carrying it. P2-17 changed the retry FORMAT (it now drops the
+        // JSON reply mode) but not this guarantee.
         val api = FakeGeminiApi(
             queue = ArrayDeque(
                 listOf(
@@ -291,9 +292,8 @@ class GeminiTranslatorTest {
         assertEquals(2, api.requestBodies.size)
         val retry = api.requestBodies[1]
         sheet.split("; ").forEach { line ->
-            assertTrue("JSON retry body is missing sheet line '$line'", retry.contains(line))
+            assertTrue("retry body is missing sheet line '$line'", retry.contains(line))
         }
-        assertTrue(retry.contains("\"responseMimeType\":\"application/json\""))
         // And the primary request that preceded it carried the sheet as well.
         sheet.split("; ").forEach { line ->
             assertTrue("primary body is missing sheet line '$line'", api.requestBodies[0].contains(line))
@@ -368,6 +368,9 @@ class GeminiTranslatorTest {
 
     @Test
     fun http400RetryStillRunsWithJsonReplyTrue() {
+        // P2-17: the primary request keeps the caller's JSON mode; the retry must NOT. While the
+        // retry reused the same flag it was byte-identical to the request that had just been
+        // rejected with 400, so it could never recover from a 400 caused by `responseMimeType`.
         val api = FakeGeminiApi(
             queue = ArrayDeque(
                 listOf(
@@ -379,8 +382,20 @@ class GeminiTranslatorTest {
         val result = GeminiTranslator(api, jsonReply = true)
             .translatePage(blocks) as PageTranslation.Success
         assertEquals(2, api.requestBodies.size)
-        assertTrue(api.requestBodies[0].contains("responseMimeType"))
-        assertTrue(api.requestBodies[1].contains("responseMimeType"))
+        val primary = api.requestBodies[0]
+        val retry = api.requestBodies[1]
+        // First body: JSON, exactly as the caller asked.
+        assertTrue(primary, primary.contains("\"responseMimeType\":\"application/json\""))
+        assertTrue(primary, primary.contains("\"temperature\":0.2"))
+        // Second body: the fast body without the JSON reply mode — thinkingBudget 0, no
+        // responseMimeType, temperature 0.2, and none of the deep-thinking config.
+        assertTrue("the retry must not ask for a JSON reply again", !retry.contains("responseMimeType"))
+        assertTrue(retry, retry.contains("\"thinkingBudget\":0"))
+        assertTrue(retry, retry.contains("\"temperature\":0.2"))
+        assertTrue(retry, !retry.contains("thinkingLevel"))
+        // The two bodies genuinely differ, so the retry is a new attempt rather than a replay.
+        assertTrue("the 400 retry repeated the failed request verbatim", primary != retry)
+        // And the parser still accepts the retry's own reply shape.
         assertEquals(listOf("مرحبا", "خذ يدي"), result.blocks.map { it.arabic })
     }
 
@@ -402,6 +417,17 @@ class GeminiTranslatorTest {
         assertTrue(!api.requestBodies[1].contains("responseMimeType"))
         assertTrue(api.requestBodies[1].contains("\"thinkingBudget\":0"))
         assertEquals(listOf("مرحبا", "خذ يدي"), result.blocks.map { it.arabic })
+    }
+
+    @Test
+    fun onlyHttp400IsRetriedWithTheLegacyBody() {
+        // P2-17 must not turn the 400 recovery into a general retry policy.
+        for (code in listOf(401, 403, 429, 500, 503)) {
+            val api = FakeGeminiApi(result = GeminiHttpResult(code, "{\"error\":{\"message\":\"nope\"}}"))
+            val result = GeminiTranslator(api, jsonReply = true).translatePage(blocks)
+            assertTrue("HTTP $code must stay a failure", result is PageTranslation.Failure)
+            assertEquals("HTTP $code must not be retried", 1, api.requestBodies.size)
+        }
     }
 
     // ------------------------------------------------------------------

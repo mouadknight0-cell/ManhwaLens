@@ -685,6 +685,8 @@ H3. `translate/BubbleTextRules.kt`: `normalize` heals OCR hyphenation, `oneLine`
 H4. Translociteration fallback: an unknown capitalized pinyin-looking name (x / q / zh / iao /
     iong / uang / uai) is transliterated deterministically; ordinary English words are protected
     by `ENGLISH_WORDS` + `ambiguousShort` (a 3-letter table entry such as "He"/"Ma" is left alone).
+    (P2-19: the caller-less `Glossary.applyToSource`/`replaceWord`/`ambiguousShort` path was removed
+    as dead code; the live rule is `accepts` + `AMBIGUOUS_ENGLISH`.)
 H5. Gemini prompt: glossary hint list appended, plus rules (8) keep glossary spellings and
     (9) one spelling per name across the page.
 H6. Benchmark sample now includes "Wei Wuxian … Lan Wangji" so the dictionary is timed and its

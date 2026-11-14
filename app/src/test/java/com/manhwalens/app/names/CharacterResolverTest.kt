@@ -57,6 +57,22 @@ class CharacterResolverTest {
     }
 
     @Test
+    fun `a remembered name survives the page planner's ambiguity gate`() {
+        val store = FakeStore()
+        // P2-18 stops the planner from OFFERING the bare word "Sun" as a new character.
+        // The reader's own series memory is not a guess, so it must still reach the table.
+        store.add(record(original = "Sun", arabic = "سون", source = NameSource.USER, confidence = 0.9f))
+
+        val table = CharacterResolver(store)
+            .resolve("s1", listOf("The Sun was hot and the road was long."), known = emptyMap())
+
+        val sun = table.names.first { NameForm.normalize(it.original) == "sun" }
+        assertEquals("سون", sun.arabic)
+        assertEquals(NameSource.USER, sun.source)
+        assertEquals("series memory", sun.reason)
+    }
+
+    @Test
     fun `an alias finds the record`() {
         val store = FakeStore()
         store.add(

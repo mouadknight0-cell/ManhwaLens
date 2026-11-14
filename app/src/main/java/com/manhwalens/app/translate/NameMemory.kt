@@ -315,6 +315,13 @@ object NameMemory {
                 !arabic.isNullOrBlank() -> Pinned.Origin.PAGE_AI
                 else -> Pinned.Origin.TRANSLITERATION
             }
+            // P2-18: an everyday English word must not become a page name by accident. The
+            // glossary stopped replacing such words (P2-01); the planner has to stop *planning*
+            // them too, or the word still reaches the model through the name sheet and through
+            // applyPinned. Only automatic guesses are filtered: the reader's own entry (USER) and
+            // a remembered series spelling (which [com.manhwalens.app.names.CharacterResolver]
+            // re-adds from its records) are not guesses.
+            if (isAmbiguousAutomaticName(name, origin)) continue
             // The same person reached through a second spelling ("Han Ji-woo" vs "Ji-woo")
             // keeps ONE Arabic form: drop the fragment when a fuller name already pins it.
             if (pinned.any { it.text.length > name.length && sameArabic(it.arabic, resolved) }) continue
@@ -332,6 +339,23 @@ object NameMemory {
             table[p.text] = p.arabic
         }
         return Plan(pinned.sortedByDescending { it.text.length }, table)
+    }
+
+    /**
+     * P2-18 — would pinning [name] turn an ordinary English word into a character name?
+     *
+     * True only for a **single-token automatic** candidate whose lower-case form is a table key
+     * that is also an everyday English word ([Glossary.isAmbiguousEnglish] — the same
+     * [Glossary.AMBIGUOUS_ENGLISH] list P2-01 uses). Deliberately false for:
+     *  - `Origin.USER`: the reader typed this spelling in Settings, so it is evidence, not a guess;
+     *  - a multi-word or hyphenated spelling ("Song Lan", "Han Ji-woo"), which is unambiguous;
+     *  - a remembered series spelling: [com.manhwalens.app.names.CharacterResolver] re-adds it from
+     *    its records even when the scanner never surfaces it (D1/D3 are unchanged).
+     */
+    private fun isAmbiguousAutomaticName(name: String, origin: Pinned.Origin): Boolean {
+        if (origin == Pinned.Origin.USER) return false
+        if (name.any { it.isWhitespace() }) return false
+        return Glossary.isAmbiguousEnglish(name)
     }
 
     /**

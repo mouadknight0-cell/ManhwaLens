@@ -50,8 +50,9 @@ class GeminiTranslator(
      * the legacy numbered-line format: it is what every already-installed model and every
      * test double answers, and the parser accepts both anyway.
      *
-     * P2-03: this flag now governs the **primary** request; the HTTP-400 retry keeps using
-     * the fast body built from the same flag ([GeminiWire.buildFastBody]).
+     * P2-03: this flag now governs the **primary** request. P2-17: the HTTP-400 retry always
+     * drops it — the retry asks for the legacy body with `responseMimeType` removed, because a
+     * 400 caused by the JSON mode could never be cured by repeating the identical request.
      */
     private val jsonReply: Boolean = false,
     private val maxBlocksPerRequest: Int = 18,
@@ -254,9 +255,15 @@ class GeminiTranslator(
 
         // 400 → the model rejected thinkingConfig/responseMimeType. Retry once with the
         // minimal fast body (thinkingBudget 0) before giving up.
+        // P2-17: the retry must differ from the request that just failed. While it reused the
+        // caller's flag, `jsonReply = true` made the "retry" byte-identical to the primary body
+        // (both went through [GeminiWire.buildFastBody] with JSON mode on), so a 400 caused by
+        // `responseMimeType` was repeated verbatim and could only fail again. The retry now
+        // always sends the legacy body: one request, no JSON mode, no second retry — the error
+        // policy is untouched.
         if (result.code == 400 && !result.body.contains("API key", ignoreCase = true)) {
             val tPlain = System.currentTimeMillis()
-            body = GeminiWire.buildFastBody(chunk, sheet, jsonReply = jsonReply)
+            body = GeminiWire.buildFastBody(chunk, sheet, jsonReply = false)
             val plain = try {
                 api.generate(body, model).also {
                     PipelineTracer.span("gemini 400 retry", System.currentTimeMillis() - tPlain, "fast body http=${it.code}")

@@ -83,19 +83,6 @@ object Glossary {
     /** Same as [prepare]: the cache must key on what the engine was actually shown. */
     fun cacheText(text: String): String = prepare(text)
 
-    /**
-     * Replace table keys (longest first, case-insensitive, whole words) whose source token is
-     * capitalized or at least 4 chars long — so "he"/"ma" never eat a normal English word.
-     */
-    fun applyToSource(text: String, table: Map<String, String>): String {
-        if (table.isEmpty() || text.isEmpty()) return text
-        var out = text
-        for ((key, arabic) in table.entries.sortedByDescending { it.key.length }) {
-            out = replaceWord(out, key, arabic)
-        }
-        return transliterateUnknown(out, table)
-    }
-
     private fun applyCompiled(text: String, c: Compiled): String {
         if (text.isEmpty()) return text
         var out = text
@@ -104,6 +91,19 @@ object Glossary {
             out = rule.pattern.replace(out) { m -> if (accepts(m.value, rule)) rule.arabic else m.value }
         }
         return transliterateUnknown(out, c.map)
+    }
+
+    /**
+     * P2-18 — is this one word ambiguous on its own: a table key that is also an everyday English
+     * word ("Long", "Sun", "Song", "Pan", "Tan", "Ding")? The name planner asks this before it lets
+     * a one-word candidate become a page name, so both layers consult the SAME list
+     * ([AMBIGUOUS_ENGLISH]) instead of each growing its own. A multi-word or hyphenated spelling
+     * ("Sun Lan", "Mobei-Jun") is never ambiguous here.
+     */
+    fun isAmbiguousEnglish(word: String): Boolean {
+        val trimmed = word.trim()
+        if (trimmed.isEmpty() || trimmed.any { it.isWhitespace() }) return false
+        return trimmed.lowercase() in AMBIGUOUS_ENGLISH
     }
 
     /**
@@ -134,8 +134,10 @@ object Glossary {
      * hatch stays open and needs no code change: the reader's own Settings line (explicit pin →
      * rule 1), a multi-word spelling ("Long Wei"), and the series name memory the model builds
      * ([SceneNames], which runs after [prepare] and never sees a name the glossary already
-     * converted). Nothing here can be made both deterministic and context-aware without a
-     * model, and this object is pure Kotlin by design.
+     * converted). P2-18 extends the same rule to the page planner, which no longer offers such a
+     * word as a new character name ([com.manhwalens.app.translate.NameMemory]). Nothing here can be
+     * made both deterministic and context-aware without a model, and this object is pure Kotlin by
+     * design.
      */
     private fun accepts(matched: String, rule: Rule): Boolean {
         if (rule.arabic.isBlank()) return false
@@ -149,21 +151,7 @@ object Glossary {
         return lower !in AMBIGUOUS_ENGLISH
     }
 
-    private fun replaceWord(text: String, key: String, arabic: String): String {
-        if (key.length < 4 && !key.contains(' ') && key.length < 3) return text
-        val pattern = StringBuilder("(?i)").append("(?<![\\p{L}])").append(Regex.escape(key)).append("(?![\\p{L}])").toString()
-        return Regex(pattern).replace(text) { m -> if (ambiguousShort(m.value)) m.value else arabic }
-    }
-
     /** Capitalized Latin tokens that are pure pinyin and unknown to the table → Arabic. */
-    /**
-     * A 3-letter table entry ("He", "Ma", "Yu") also reads as an ordinary English word, and a
-     * sentence often starts with one ("He will come…"). Those are left alone; real name hits are
-     * multiword or longer.
-     */
-    private fun ambiguousShort(token: String): Boolean =
-        token.length <= 3 && token.lowercase() in ENGLISH_WORDS
-
     private fun transliterateUnknown(text: String, table: Map<String, String>): String {
         if (text.none { it.code in 65..122 }) return text
         return Regex("\\p{L}{3,}").replace(text) { m ->

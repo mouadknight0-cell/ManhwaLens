@@ -177,8 +177,10 @@ class GlossaryTest {
     @Test
     fun theTableStillCarriesTheNameForTheMemory() {
         Glossary.refresh("", true)
-        // P2-01 only refuses the replacement, it does not forget the name: the memory planner
-        // (SceneNames.pin / NameMemory) reads effective(), so "Long" is still offerable.
+        // P2-01 only refuses the replacement, it does not forget the name: the table still
+        // carries "Long"/"Song" for multi-word spellings, the reader's own entries and the
+        // series memory. P2-18 only stops the page planner from *offering* the bare word as a
+        // new character name (see thePlannerSharesTheGlossaryAmbiguityRule below).
         assertEquals("لونغ", Glossary.effective()["Long"])
         assertEquals("سونغ", Glossary.effective()["Song"])
         // …and the memory path still converts a name the glossary now leaves alone.
@@ -193,5 +195,29 @@ class GlossaryTest {
         Glossary.refresh("", true)
         val plain = TranslationCache.normalize(Glossary.cacheText("Wei Wuxian\nis here"))
         assertTrue(plain, plain.contains("وي ووشيان"))
+    }
+
+    // ------------------------------------------------------------------
+    // P2-18: the name planner must reuse this ambiguity rule, not invent a
+    // second list that drifts away from it.
+    // ------------------------------------------------------------------
+
+    @Test
+    fun thePlannerSharesTheGlossaryAmbiguityRule() {
+        Glossary.refresh("", true)
+        for (word in listOf("Sun", "Long", "Song", "Pan", "Tan", "Ding")) {
+            assertTrue("$word is ambiguous", Glossary.isAmbiguousEnglish(word))
+            assertTrue("$word in lower case too", Glossary.isAmbiguousEnglish(word.lowercase()))
+            // The glossary refuses the bare word …
+            assertEquals("The $word was there.", Glossary.prepare("The $word was there."))
+            // … a multi-word spelling is not ambiguous, so a real name still goes through.
+            assertFalse("$word Lan", Glossary.isAmbiguousEnglish("$word Lan"))
+        }
+        // Unambiguous one-word names keep working on both paths.
+        assertFalse(Glossary.isAmbiguousEnglish("Wei"))
+        assertTrue(Glossary.prepare("Wei is here.").contains("وي"))
+        // Blank input is not ambiguous (defensive: the planner feeds trimmed tokens).
+        assertFalse(Glossary.isAmbiguousEnglish(""))
+        assertFalse(Glossary.isAmbiguousEnglish("   "))
     }
 }

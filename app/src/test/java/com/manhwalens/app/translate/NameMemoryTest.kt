@@ -166,6 +166,83 @@ class NameMemoryTest {
         assertFalse("ordinary dialogue must not be pinned", table.keys.any { it.equals("Anyway", true) })
     }
 
+    // ------------------------------------------------------------------
+    // P2-18: an everyday English word must not become a character name by
+    // accident — the same rule the glossary already applies (P2-01), reused.
+    // ------------------------------------------------------------------
+
+    /** The planner's ambiguity gate must not fire on a candidate the scanner never made. */
+    @Test
+    fun theAmbiguityGateOnlySilencesRealCandidates() {
+        // Both words are ordinary English *and* built-in table keys …
+        assertTrue(Glossary.isAmbiguousEnglish("Sun"))
+        assertTrue(Glossary.isAmbiguousEnglish("Long"))
+        // … and the scanner really would offer them, so the gate is what removes them:
+        // "Sun" sits mid-sentence, "Long" opens one (KNOWN_SENTENCE_NAMES).
+        assertTrue(NameMemory.looksLikeName("Sun", midSentence = true))
+        assertTrue(NameMemory.looksLikeName("Long", midSentence = false))
+    }
+
+    @Test
+    fun ambiguousEnglishWordsAreNotAutoPinnedAsNames() {
+        Glossary.refresh("", true)
+        val plan = NameMemory.plan(
+            listOf(
+                "The Sun was hot and the road was long.",
+                "Long ago, the road was long."
+            )
+        )
+        val keys = plan.table.keys.map { NameMemory.looseKey(it) }
+        assertFalse("Sun must not be pinned: ${plan.table}", "sun" in keys)
+        assertFalse("Long must not be pinned: ${plan.table}", "long" in keys)
+        assertTrue(
+            "no candidate may carry those words: ${plan.pinned.map { it.text }}",
+            plan.pinned.none { NameMemory.looseKey(it.text) in setOf("sun", "long") }
+        )
+        // The name sheet is what the model is told, so it must stay silent as well.
+        val sheet = NameMemory.sheet(plan)
+        assertFalse(sheet, sheet.contains("سون"))
+        assertFalse(sheet, sheet.contains("لونغ"))
+    }
+
+    @Test
+    fun aUserEntryForAnAmbiguousWordIsStillPinned() {
+        // The reader's own Settings line is evidence, not a guess: it must survive the gate.
+        Glossary.refresh("Sun = شمسي", true)
+        val plan = NameMemory.plan(listOf("The Sun was hot and the road was long."))
+        val pinned = plan.pinned.firstOrNull { NameMemory.looseKey(it.text) == "sun" }
+        assertNotNull("the reader's ambiguous name must still be pinned", pinned)
+        assertEquals("شمسي", pinned!!.arabic)
+        assertEquals(NameMemory.Pinned.Origin.USER, pinned.origin)
+        assertTrue(NameMemory.sheet(plan), NameMemory.sheet(plan).contains("Sun = شمسي"))
+    }
+
+    @Test
+    fun multiWordNamesWithAnAmbiguousWordStillPin() {
+        Glossary.refresh("", true)
+        val plan = NameMemory.plan(
+            listOf("Song Lan drew his sword.", "Song Lan said nothing.")
+        )
+        val pinned = plan.pinned.firstOrNull { it.text.equals("Song Lan", ignoreCase = true) }
+        assertNotNull("a multi-word name must not be filtered: ${plan.pinned.map { it.text }}", pinned)
+        assertEquals("سونغ لان", pinned!!.arabic)
+        // And the bare noun on its own is still refused.
+        assertTrue(
+            "no bare Song",
+            plan.pinned.none { NameMemory.looseKey(it.text) == "song" }
+        )
+    }
+
+    @Test
+    fun unambiguousSingleWordNamesAreUnaffected() {
+        Glossary.refresh("", true)
+        val plan = NameMemory.plan(listOf("Ming is here.", "Ming left."))
+        val pinned = plan.pinned.firstOrNull { NameMemory.looseKey(it.text) == "ming" }
+        assertNotNull("an unambiguous one-word name must still pin", pinned)
+        assertEquals("مينغ", pinned!!.arabic)
+        assertEquals(NameMemory.Pinned.Origin.BUILT_IN, pinned.origin)
+    }
+
     @Test
     fun sceneNamesNeverOverrideTheGlossary() {
         Glossary.refresh("", true)
