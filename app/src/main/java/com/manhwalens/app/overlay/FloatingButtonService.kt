@@ -395,7 +395,7 @@ class FloatingButtonService : Service() {
             // 1) OCR recognizer (bundled model — first run loads it)
             val warmBmp = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
             try {
-                val lines = com.manhwalens.app.ocr.TextRecognizerClient().recognize(warmBmp)
+                val lines = com.manhwalens.app.ocr.TextRecognizerClient(applicationContext).recognize(warmBmp)
                 Log.i(TAG, "pre-warm: OCR ready in ${SystemClock.elapsedRealtime() - t0} ms (${lines.lines.size} lines)")
             } finally {
                 warmBmp.recycle()
