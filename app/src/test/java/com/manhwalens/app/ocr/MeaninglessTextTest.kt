@@ -83,6 +83,24 @@ class MeaninglessTextTest {
     }
 
     @Test
+    fun ocrDamagedManhuaPlusWatermarkIsDroppedBeforeTranslation() {
+        for (t in listOf("a MĂNHUAPLUS.[OM", "MĂNHUAPLUS.COM", "manhuaplus")) {
+            val verdict = drop(t)
+            assertTrue("text=$t should be a watermark", !verdict.keep)
+            assertEquals(MeaninglessText.Reason.WATERMARK, verdict.reason)
+        }
+
+        val result = BlockFilter.apply(
+            listOf(
+                block(1, "a MĂNHUAPLUS.[OM"),
+                block(2, "I'LL SEE YOU TOMORROW.")
+            )
+        )
+        assertEquals(listOf(2), result.kept.map { it.id })
+        assertEquals("watermark", result.removed.first().reason)
+    }
+
+    @Test
     fun ourOwnOverlayCaptionIsDropped() {
         // "Same page" / "Scanning" are burned into the screenshot the OCR reads.
         val own = setOf("same page", "scanning", "translating", "watching")
