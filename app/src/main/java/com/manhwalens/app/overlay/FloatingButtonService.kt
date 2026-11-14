@@ -680,6 +680,9 @@ class FloatingButtonService : Service() {
         val reader = ImageReader.newInstance(screen.x, screen.y, PixelFormat.RGBA_8888, 3)
         sessionReader = reader
         reader.setOnImageAvailableListener({ onFrameAvailable() }, captureHandler)
+        // Reserve this projection token BEFORE the platform call. If creation throws,
+        // never retry createVirtualDisplay() with the same token: request fresh consent.
+        displayCreatedForProjection = true
         val virtualDisplay = projection.createVirtualDisplay(
             "manhwalens-mirror",
             screen.x,
@@ -691,7 +694,6 @@ class FloatingButtonService : Service() {
             captureHandler
         ) ?: throw CaptureException("createVirtualDisplay returned null")
         sessionVirtualDisplay = virtualDisplay
-        displayCreatedForProjection = true
         virtualDisplayRecreated = false
         com.manhwalens.app.util.PipelineTracer.span(
             "capture session",
@@ -1917,31 +1919,64 @@ class FloatingButtonService : Service() {
         gate("noFrames", "none in ${elapsedMs}ms", "creating the first VirtualDisplay for this projection")
         captureExecutor.execute {
             try {
+                // The initial arm and this watchdog share captureExecutor, but the
+                // watchdog may have queued while the first create was still in flight.
+                // Re-read every session field AFTER dequeue; never trust the stale
+                // display/surface snapshot taken on the live thread.
+                if (mediaProjection !== projection) {
+                    com.manhwalens.app.util.LiveLog.w(TAG, "live: stale no-frame recovery ignored (projection changed)")
+                    return@execute
+                }
+                val currentDisplay = sessionVirtualDisplay
+                val currentSurface = sessionReader?.surface
+                if (currentDisplay != null && currentSurface != null) {
+                    val screen = screenSize()
+                    val dpi = resources.displayMetrics.densityDpi
+                    currentDisplay.resize(screen.x, screen.y, dpi)
+                    currentDisplay.setSurface(null)
+                    currentDisplay.setSurface(currentSurface)
+                    firstFrameLatch = CountDownLatch(1)
+                    firstFrameAtMs = -1L
+                    sessionCreatedAtMs = SystemClock.elapsedRealtime()
+                    liveDriver.startSession(SystemClock.elapsedRealtime())
+                    com.manhwalens.app.util.LiveLog.i(TAG, "live: watchdog re-attached the display created by the queued session arm")
+                    return@execute
+                }
+                if (displayCreatedForProjection) {
+                    requestFreshProjection("VirtualDisplay missing after token was already used")
+                    return@execute
+                }
+                val activeSurface = currentSurface
+                if (activeSurface == null) {
+                    com.manhwalens.app.util.LiveLog.w(TAG, "live: no-frame recovery found no active ImageReader surface")
+                    return@execute
+                }
                 val screen = screenSize()
                 val dpi = resources.displayMetrics.densityDpi
+                // Reserve before calling Android: this token must never be used for a
+                // second createVirtualDisplay attempt, including after an exception.
+                displayCreatedForProjection = true
                 val created = projection.createVirtualDisplay(
                     "manhwalens-mirror",
                     screen.x, screen.y, dpi,
                     android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                    surface, null, captureHandler
+                    activeSurface, null, captureHandler
                 )
                 if (created == null) {
-                    com.manhwalens.app.util.LiveLog.e(TAG, "live: createVirtualDisplay returned null on retry")
+                    requestFreshProjection("createVirtualDisplay returned null")
                     return@execute
                 }
                 sessionVirtualDisplay = created
-                displayCreatedForProjection = true
                 firstFrameLatch = CountDownLatch(1)
                 sessionCreatedAtMs = SystemClock.elapsedRealtime()
                 firstFrameAtMs = -1L
                 liveDriver.startSession(SystemClock.elapsedRealtime())
-                // Part 1c: every path that creates the session must (re)start the loop.
                 ensureLiveLoopStarted("virtual display created by the no-frame watchdog")
                 com.manhwalens.app.util.LiveLog.i(TAG, "live: VirtualDisplay created (${screen.x}x${screen.y}) — waiting for frames")
             } catch (e: Exception) {
-                com.manhwalens.app.util.LiveLog.e(TAG, "live: VirtualDisplay create failed — requesting fresh consent", e)
+                com.manhwalens.app.util.LiveLog.e(TAG, "live: VirtualDisplay create/re-attach failed — requesting fresh consent", e)
                 ErrorLog.write(this, "live-display", e)
-                requestFreshProjection("createVirtualDisplay failed")
+                requestFreshProjection("createVirtualDisplay/re-attach failed")
             }
         }
     }
@@ -2319,6 +2354,12 @@ class FloatingButtonService : Service() {
 
             val callback = object : android.media.projection.MediaProjection.Callback() {
                 override fun onStop() {
+                    // A delayed callback from a released projection must not tear down a
+                    // newer consent session or reset its one-display bookkeeping.
+                    if (mediaProjection !== projection) {
+                        com.manhwalens.app.util.LiveLog.w(TAG, "live: stale projection onStop ignored")
+                        return
+                    }
                     com.manhwalens.app.util.LiveLog.w(TAG, "live: projection stopped (system chip or revoke)")
                     mediaProjection = null
                     prefs.captureReady = false
