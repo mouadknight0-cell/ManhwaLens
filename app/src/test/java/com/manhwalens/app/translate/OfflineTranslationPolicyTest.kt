@@ -25,6 +25,12 @@ class OfflineTranslationPolicyTest {
     }
 
     @Test
+    fun offlineModeBlocksAllOptionalCloudServices() {
+        assertFalse(OfflineTranslationPolicy.canUseCloudServices(true))
+        assertTrue(OfflineTranslationPolicy.canUseCloudServices(false))
+    }
+
+    @Test
     fun remoteUpgradeRequiresRemoteEngineAndOnlineMode() {
         assertFalse(OfflineTranslationPolicy.canUseRemoteUpgrade(false, TranslationEngine.ML_KIT))
         assertTrue(OfflineTranslationPolicy.canUseRemoteUpgrade(false, TranslationEngine.GEMINI))

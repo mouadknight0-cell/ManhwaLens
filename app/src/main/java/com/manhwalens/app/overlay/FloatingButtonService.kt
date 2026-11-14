@@ -4248,6 +4248,11 @@ class FloatingButtonService : Service() {
         val settings = com.manhwalens.app.data.SettingsPrefs(applicationContext)
         if (!settings.aiCleanupEnabled) return
         val prefsT = com.manhwalens.app.data.TranslationPrefs(applicationContext)
+        if (!com.manhwalens.app.translate.OfflineTranslationPolicy.canUseCloudServices(prefsT.offlineMode)) {
+            Log.i(TAG, "ai cleanup: skipped — offline mode is enabled")
+            PipelineTracer.span("ai cleanup", 0, "skipped — offline mode")
+            return
+        }
         if (!prefsT.hasGeminiKey) {
             Log.i(TAG, "ai cleanup: enabled but no Gemini key — kept local patches")
             return
@@ -4269,6 +4274,13 @@ class FloatingButtonService : Service() {
             box to android.graphics.Rect(l, t, r, b)
         }
         ioExecutor.execute {
+            // Settings may change while this task waits in the executor queue.
+            val currentPrefs = com.manhwalens.app.data.TranslationPrefs(applicationContext)
+            if (!com.manhwalens.app.translate.OfflineTranslationPolicy.canUseCloudServices(currentPrefs.offlineMode)) {
+                Log.i(TAG, "ai cleanup: queued request cancelled — offline mode is enabled")
+                PipelineTracer.span("ai cleanup", 0, "cancelled before network — offline mode")
+                return@execute
+            }
             val t0 = SystemClock.elapsedRealtime()
             val model = settings.aiCleanupModelId.takeIf { it.isNotBlank() }
                 ?: resolveImageCapableModelId(prefsT.geminiKey)

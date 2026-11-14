@@ -9,6 +9,9 @@ package com.manhwalens.app.translate
 internal object OfflineTranslationPolicy {
     fun mustUseLocal(offlineMode: Boolean): Boolean = offlineMode
 
+    /** Every optional Gemini/Libre cloud feature must consult this boundary. */
+    fun canUseCloudServices(offlineMode: Boolean): Boolean = !offlineMode
+
     fun canUseRemoteUpgrade(
         offlineMode: Boolean,
         engine: TranslationEngine
