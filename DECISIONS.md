@@ -803,7 +803,7 @@ One line per correction.
 
 # Standing rule — a report travels with every change — 2026-11-13
 
-- S1. Every change (code, tests, data model, behaviour, docs that fix a claim) ships in the **same push** as an update to [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md), which since report revision 2.0 is the **only** report in the repository (no per-phase report files; a new work package adds a §5 subsection and, if it is a P2 finding, a §6 row).
+- S1. Every change (code, tests, data model, behaviour, docs that fix a claim) ships in the **same push** as an update to [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md), which since report revision 2.0 is the **only** report in the repository (no per-phase report files; a new work package extends §5 and the status tables in §6/§8).
 - S2. The report must contain: scope and what is out of scope, the exact **base commit SHA**, the verified root cause with file:line evidence, the fix and why that shape (including rejected alternatives), files changed with a reason each, tests added with the property each pins, the exact command executed + the CI run that executed it, the `base...final` compare link with `--stat`, and the remaining risks (including "not verified on device" when true).
 - S3. Evidence discipline: no test is reported as passing unless a run actually executed it; a command that cannot run in the authoring sandbox (no JDK/Android SDK) is reported as such, never simulated; a finding that contradicts an existing document is stated in the report **before** the code changes.
 - S4. Chat summaries, commit trailers and PR descriptions are conveniences, never the deliverable: the report in the repository is the record. If a later change alters an earlier report's claim, the earlier report is corrected in the same push that changes the behaviour.
@@ -822,7 +822,7 @@ One line per correction.
 
 # Repository report — 2026-11-13
 
-- S5. [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) is both the repository-level snapshot **and** the per-change record (identity, architecture, roadmap M0–M6, engineering phases P0–P6, work history, the P2 findings register, verification and CI runs, blockers, next steps). `PLAN.md` stays the forward-looking roadmap, `DECISIONS.md` this log, `BLOCKERS.md` the environment register, `MANUAL_TESTS.md` the device checklist; none of them is a report.
+- S5. [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) is both the repository-level snapshot **and** the per-change record (identity, branch/HEAD, the engineering phases P0–P6 with their fixed definitions, the product milestones M0–M6, work history, verified per-phase status, tests and CI runs, defects and risks, next action). `PLAN.md` stays the product roadmap, `DECISIONS.md` this log, `BLOCKERS.md` the environment register, `MANUAL_TESTS.md` the device checklist; none of them is a report.
 - S6. **A report refresh after every prompt.** Every prompt — including one that only asks for a rule, a question or a direction, with no code change — ends with the repository updated in the same push: [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) always reflects the latest head, PR state, verification and next steps, and and any earlier claim the prompt touches is corrected in the same place. The chat summary is never the only record of a prompt: if the repository does not show it, it did not happen. Doc-only refreshes state plainly that no code changed and claim no test run.
 
 # P1.1 strict staging validation — 2026-11-13
@@ -863,3 +863,10 @@ One line per correction.
 - Deleted after transfer: `REPORTS.md`, `P0_MANHWALENS_AUDIT.md`, `P0A_GEMINI_NAME_SHEET.md`, `P0B_MLKIT_ENGLISH_ECHO.md`, `P1_CHARACTER_MEMORY.md`, `P1_SERIES_NAME_MEMORY.md`, `P1_REVIEW_CORRECTIONS.md`, `P1_PERSISTENCE_SAFETY_FIX.md`, `P1_1_STRICT_STAGING_VALIDATION.md`, `P2_TRANSLATION_CONTEXT_AUDIT.md`. Every surviving link to them now points at the consolidated report.
 - Kept, with roles that are **not** "report": `PLAN.md` (roadmap M0–M6, definitions of done), `README.md`, `PRIVACY.md`, `CHANGELOG.md` (version history as written), `BLOCKERS.md`, `DECISIONS.md` (this log), `MANUAL_TESTS.md`, `OPEN_SOURCE_RESEARCH.md`, `V096_PLAN.md` (earlier plan, kept for provenance).
 - Reason: the per-report index had drifted from the phase table three times (wrong run ids, stale heads, conflicting statuses). A single file cannot disagree with itself.
+
+# Canonical documentation audit — phase definitions and status vocabulary — 2026-11-13
+
+- D9. The engineering phases are fixed as: **P0** initial architecture audit and foundational fixes · **P1** series-specific character-name memory and persistence safety · **P2** translation quality and context management · **P3** performance and caching · **P4** OCR improvements · **P5** text cleanup and Arabic rendering · **P6** final integration and release. They are engineering phases and must never be confused with the product milestones M0–M6 in `PLAN.md`.
+- D10. Status is reported with the fixed vocabulary Proposed → Audited → Implemented → Tested → CI-verified → Device-verified → Completed. Because no device test has ever been performed, **no phase or task in this repository is "Completed"**; "CI-verified" means the JVM suites and the debug build pass.
+- D11. The previous report (revision 2.0) had invented subjects for P3–P6 (orchestration seams, cache context, resilience, performance). Those subjects are not phases; they are candidate work items, now listed as open items under the phase they belong to (P3–P5) and in the risk register.
+- Verification: HEAD `81919f9`, PR #2 OPEN/CLEAN, 31 CI runs (27 success, 4 failure), 644 discovered `@Test` — all re-checked with git and the GitHub API for report revision 3.0. Documentation only; no source, test, dependency or PR change.

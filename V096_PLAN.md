@@ -1,5 +1,12 @@
 # v0.9.6 implementation plan (focused, per-part, commit after each part)
 
+> **Label note (added by the 2026-11-13 documentation audit):** the `P1`…`P8` numbers below are
+> **task labels of this v0.9.6 plan**, not the engineering phases `P0`–`P6` defined in
+> [`REPOSITORY_REPORT.md`](REPOSITORY_REPORT.md) §3 (P0 audit/foundations, P1 series name memory,
+> P2 translation quality, P3 performance/caching, P4 OCR, P5 text cleanup/rendering, P6 release).
+> The plan was never started and is kept for provenance only; it describes work that v0.11.0 later
+> covered differently.
+
 Goal: stop translating ourselves, stop ghost text, stop UI chrome, make one-shot as clean as Live.
 
 Device evidence to fix:
