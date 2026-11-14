@@ -4,6 +4,7 @@ import com.manhwalens.app.translate.ArabicValidator
 import com.manhwalens.app.translate.FailureReason
 import com.manhwalens.app.translate.Glossary
 import com.manhwalens.app.translate.PageTranslation
+import com.manhwalens.app.translate.SceneNames
 import com.manhwalens.app.translate.TranslatedBlock
 import com.manhwalens.app.translate.TranslationBlock
 import com.manhwalens.app.translate.Translator
