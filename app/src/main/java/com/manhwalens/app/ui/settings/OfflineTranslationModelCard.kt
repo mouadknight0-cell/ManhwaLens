@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.common.model.DownloadConditions
@@ -40,13 +41,14 @@ import java.util.concurrent.TimeUnit
  */
 @Composable
 fun OfflineTranslationModelCard() {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val manager = remember { RemoteModelManager.getInstance() }
     val model = remember {
         TranslateRemoteModel.Builder(TranslateLanguage.ARABIC).build()
     }
     var ready by remember { mutableStateOf<Boolean?>(null) }
-    var offlineMode by remember { mutableStateOf(com.manhwalens.app.data.TranslationPrefs(androidx.compose.ui.platform.LocalContext.current).offlineMode) }
+    var offlineMode by remember { mutableStateOf(com.manhwalens.app.data.TranslationPrefs(context).offlineMode) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("جارٍ التحقق من نموذج الترجمة…") }
 
@@ -93,9 +95,7 @@ fun OfflineTranslationModelCard() {
                     checked = offlineMode,
                     onCheckedChange = { enabled ->
                         offlineMode = enabled
-                        com.manhwalens.app.data.TranslationPrefs(
-                            androidx.compose.ui.platform.LocalContext.current
-                        ).offlineMode = enabled
+                        com.manhwalens.app.data.TranslationPrefs(context).offlineMode = enabled
                     }
                 )
             }
