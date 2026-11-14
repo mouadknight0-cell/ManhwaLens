@@ -220,6 +220,36 @@ class CachingTranslatorTest {
     }
 
     @Test
+    fun rejectedIncompleteBubbleStaysEmptyWhileValidSiblingIsKept() {
+        val source = "I remember the night when you came to this village and told everyone that the old king had returned from the northern mountains after many years away."
+        val remote = object : Translator {
+            override val engineId = "gemini"
+            override fun translatePage(blocks: List<TranslationBlock>): PageTranslation.Success =
+                PageTranslation.Success(
+                    blocks = blocks.map { block ->
+                        TranslatedBlock(
+                            block.id,
+                            block.english,
+                            if (block.id == 1) "نعم" else "مرحبًا"
+                        )
+                    },
+                    engineId = engineId,
+                    elapsedMs = 1,
+                    cacheHits = 0,
+                    cacheMisses = blocks.size
+                )
+        }
+        val cache = TranslationCache()
+        val result = CachingTranslator(remote, cache)
+            .translatePage(blocks(1 to source, 2 to "Hello!")) as PageTranslation.Success
+
+        assertEquals(listOf("", "مرحبًا"), result.blocks.map { it.arabic })
+        assertEquals(1, cache.size())
+        assertEquals(null, cache.get("gemini", source))
+        assertEquals("مرحبًا", cache.get("gemini", "Hello!"))
+    }
+
+    @Test
     fun emptyInputReturnsEmptyInputFailure() {
         val fake = FakeTranslator()
         val caching = CachingTranslator(fake, TranslationCache())
