@@ -4,6 +4,7 @@ import android.util.Log
 import com.manhwalens.app.translate.ArabicValidator
 import com.manhwalens.app.translate.FailureReason
 import com.manhwalens.app.translate.NameMemory
+import com.manhwalens.app.translate.NameSheet
 import com.manhwalens.app.translate.PageTranslation
 import com.manhwalens.app.translate.Translator
 import com.manhwalens.app.translate.TranslatedBlock
@@ -59,12 +60,16 @@ class GeminiTranslator(
     /** Hard cap on parallel requests (mobile radio + quota friendly). */
     private val maxParallelRequests: Int = 3,
     /**
-     * P1: the authoritative page name sheet from the persistent series memory
-     * ([com.manhwalens.app.data.NameSession]). Non-blank wins over the page-local sheet
-     * computed below, so a locked series spelling reaches the model unchanged. Null keeps the
-     * v0.11.0 / P0-A behaviour.
+     * P1 → P2-05: the authoritative page names from the persistent series memory
+     * ([com.manhwalens.app.data.NameSession]) — the sheet text **and** the table it came from,
+     * as one [com.manhwalens.app.translate.NameSheet].
+     *
+     * The same value does both jobs: its `sheet` goes into the prompt and its `table` drives the
+     * post-processing repair, so the model cannot be told one spelling and have another enforced
+     * afterwards (the P2-05 defect). A non-empty value wins over the page-local computation
+     * below; `null` keeps the v0.11.0 / P0-A behaviour.
      */
-    private val sheetProvider: ((List<String>) -> String)? = null
+    private val nameSheetProvider: ((List<String>) -> NameSheet)? = null
 ) : Translator {
 
     override val engineId = "gemini"
@@ -85,20 +90,22 @@ class GeminiTranslator(
             )
         }
 
-        // One name sheet for the page: the model is told exactly how to spell each name.
-        // P1: the series memory supplies it when a series is selected (it already contains the
-        // locked/user/built-in spellings plus this page's detections); otherwise the page-local
-        // plan from v0.11.0 is used, exactly as P0-A fixed it.
-        val seriesSheet = runCatching { sheetProvider?.invoke(translatable.map { it.english }) }
-            .getOrNull().orEmpty()
-        val sheet = if (seriesSheet.isNotBlank()) {
-            seriesSheet
+        // One name table for the page (P2-05, decision C′): the series memory supplies BOTH the
+        // text the model is told and the map the repair applies, so they cannot disagree. The
+        // page-local plan is computed only when the provider has nothing (no series selected, or
+        // no names on the page) — and it then supplies both halves exactly as v0.11.0 / P0-A did.
+        val provided = runCatching { nameSheetProvider?.invoke(translatable.map { it.english }) }
+            .getOrNull()
+        val nameSheet = if (provided != null && !provided.isEmpty) {
+            provided
         } else {
             runCatching {
                 val plan = NameMemory.plan(translatable.map { it.english })
-                if (plan.isEmpty) "" else NameMemory.sheet(plan, limit = 20)
-            }.getOrDefault("")
+                if (plan.isEmpty) NameSheet.EMPTY
+                else NameSheet(NameMemory.sheet(plan, limit = 20), plan.table)
+            }.getOrDefault(NameSheet.EMPTY)
         }
+        val sheet = nameSheet.sheet
         if (sheet.isNotBlank()) {
             PipelineTracer.span("gemini name sheet", 0, sheet.take(160))
         }
@@ -129,10 +136,10 @@ class GeminiTranslator(
             )
         }
 
-        // Names: enforce the pinned spelling the sheet promised.
-        val pinned = runCatching {
-            NameMemory.plan(translatable.map { it.english }).table
-        }.getOrDefault(emptyMap())
+        // Names: enforce the pinned spelling the sheet promised — with the SAME table the prompt
+        // was built from (P2-05). Recomputing NameMemory.plan here was the defect: it ignored the
+        // series memory, so a locked spelling could be replaced by a page-local transliteration.
+        val pinned = nameSheet.table
 
         var rejected = 0
         val ordered = blocks.map { b ->

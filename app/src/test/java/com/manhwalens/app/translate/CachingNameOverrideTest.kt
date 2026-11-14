@@ -60,6 +60,21 @@ class CachingNameOverrideTest {
     }
 
     @Test
+    fun `a cache hit is still repaired after the engine switched to the resolved table`() {
+        // P2-05 moved the FRESH-output repair to the resolved table inside the engine; the
+        // decorator's override remains the last word for text that pre-dates a correction.
+        val cache = TranslationCache()
+        cache.put(ENGINE, english, "هان جي وو غادر.")
+        val caching = CachingTranslator(RecordingEngine("unused"), cache, pinnedOverride = correct)
+
+        val hit = caching.translatePage(page()) as PageTranslation.Success
+
+        assertEquals("هان جيو غادر.", hit.blocks.single().arabic)
+        // …and applying the same override to an already-correct reply changes nothing.
+        assertEquals("هان جيو غادر.", correct(english, "هان جيو غادر."))
+    }
+
+    @Test
     fun `without an override the cached text is served unchanged`() {
         val cache = TranslationCache()
         cache.put(ENGINE, english, "هان جي وو غادر.")

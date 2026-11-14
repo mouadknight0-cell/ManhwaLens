@@ -106,8 +106,12 @@ object TranslatorFactory {
                 HttpUrlConnectionGeminiApi(prefs.geminiKey),
                 modelProvider = { prefs.geminiModel },
                 modelSaver = { prefs.geminiModel = it },
-                // P1: the series sheet wins; the page-local one still fills in when unassigned.
-                sheetProvider = { texts -> session.tableFor(texts).sheet }
+                // P1 / P2-05: one resolved table per page supplies BOTH halves — the sheet text
+                // for the prompt and the map for the repair — so the two cannot disagree.
+                nameSheetProvider = { texts ->
+                    val table = session.tableFor(texts)
+                    NameSheet(table.sheet, table.table)
+                }
             ),
             sharedCache,
             disk(context),

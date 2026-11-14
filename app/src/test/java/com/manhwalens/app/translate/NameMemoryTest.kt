@@ -244,6 +244,23 @@ class NameMemoryTest {
     }
 
     @Test
+    fun theRepairNeverRewritesCorrectArabic() {
+        val table = mapOf("Han Ji-woo" to "هان جي وو")
+        // P2-05 keeps applyPinned's contract: it repairs LATIN remnants only.
+        assertEquals(
+            "correct Arabic of the same name must survive",
+            "انتظر يا هان جيو من فضلك",
+            NameMemory.applyPinned("انتظر يا هان جيو من فضلك", "Wait, Han Ji-woo.", table)
+        )
+        // A different Arabic spelling is NOT rewritten by the engine pass (that is the decorator's
+        // previousArabic repair, and P2-14/P2-15 territory) — no blind Arabic substitution.
+        assertEquals(
+            "قال هان جيو ذلك",
+            NameMemory.applyPinned("قال هان جيو ذلك", "Han Ji-woo said that.", table)
+        )
+    }
+
+    @Test
     fun sceneNamesNeverOverrideTheGlossary() {
         Glossary.refresh("", true)
         // Lan Wangji is already in the built-in table → Glossary.prepare handles it.

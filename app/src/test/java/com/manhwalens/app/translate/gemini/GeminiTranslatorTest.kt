@@ -1,9 +1,13 @@
 package com.manhwalens.app.translate.gemini
 
 import com.manhwalens.app.translate.FailureReason
+import com.manhwalens.app.translate.Glossary
+import com.manhwalens.app.translate.NameMemory
+import com.manhwalens.app.translate.NameSheet
 import com.manhwalens.app.translate.PageTranslation
 import com.manhwalens.app.translate.TranslationBlock
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.SocketTimeoutException
@@ -428,6 +432,165 @@ class GeminiTranslatorTest {
             assertTrue("HTTP $code must stay a failure", result is PageTranslation.Failure)
             assertEquals("HTTP $code must not be retried", 1, api.requestBodies.size)
         }
+    }
+
+
+    // ------------------------------------------------------------------
+    // P2-05 (decision C′): ONE resolved table supplies both halves of the
+    // name pipeline — the sheet text in the prompt AND the map the repair
+    // applies. These tests fail on the pre-C′ wiring, where the engine
+    // rebuilt its own table from NameMemory.plan (chains D-A/D-B, §5.14.2).
+    // ------------------------------------------------------------------
+
+    private val hanBlocks = listOf(
+        TranslationBlock(1, "Han Ji-woo drew his sword."),
+        TranslationBlock(2, "Wei Wuxian said nothing.")
+    )
+
+    @Test
+    fun theSheetAndTheRepairComeFromTheSameTable() {
+        Glossary.refresh("", true)
+        val resolved = NameSheet("Han Ji-woo = هان جيو", mapOf("Han Ji-woo" to "هان جيو"))
+        val api = FakeGeminiApi(
+            result = GeminiHttpResult(200, okBody(1 to "Han Ji-woo سحب سيفه.", 2 to "وي ووشيان لم يقل شيئا."))
+        )
+
+        val result = GeminiTranslator(api, nameSheetProvider = { resolved })
+            .translatePage(hanBlocks) as PageTranslation.Success
+
+        // The prompt carries exactly the provided sheet …
+        assertEquals(1, api.requestBodies.size)
+        val body = api.requestBodies.single()
+        assertTrue(body, body.contains("Han Ji-woo = هان جيو"))
+        // … and the repair applies the table that produced it.
+        assertEquals("هان جيو سحب سيفه.", result.blocks.first { it.id == 1 }.arabic)
+    }
+
+    @Test
+    fun aSeriesSpellingWinsOverThePagePlanner() {
+        Glossary.refresh("", true)
+        // Premise (chain D-A): the page planner ALONE spells this name differently, so the two
+        // authorities really can disagree.
+        val pageLocal = NameMemory.plan(hanBlocks.map { it.english }).table
+            .entries.first { NameMemory.looseKey(it.key) == "hanjiwoo" }.value
+        assertEquals("هان جي وو", pageLocal)
+
+        val resolved = NameSheet("Han Ji-woo = هان جيو", mapOf("Han Ji-woo" to "هان جيو"))
+        val api = FakeGeminiApi(
+            result = GeminiHttpResult(200, okBody(1 to "Han Ji-woo سحب سيفه.", 2 to "لم يقل شيئا."))
+        )
+
+        val result = GeminiTranslator(api, nameSheetProvider = { resolved })
+            .translatePage(hanBlocks) as PageTranslation.Success
+        val arabic = result.blocks.first { it.id == 1 }.arabic
+
+        assertEquals("the resolved series spelling must win", "هان جيو سحب سيفه.", arabic)
+        assertFalse("the page-local transliteration must not appear", arabic.contains("هان جي وو"))
+    }
+
+    @Test
+    fun aLockedSpellingIsNeverReplacedByAPageDetection() {
+        Glossary.refresh("", true)
+        val songBlocks = listOf(
+            TranslationBlock(1, "Song Lan drew his sword."),
+            TranslationBlock(2, "Xiao Xingchen said nothing.")
+        )
+        // The page planner would use the built-in spelling; the reader locked a different one.
+        val builtIn = NameMemory.plan(songBlocks.map { it.english }).table
+            .entries.first { NameMemory.looseKey(it.key) == "songlan" }.value
+        assertEquals("سونغ لان", builtIn)
+        val resolved = NameSheet("Song Lan = سونغ لآن", mapOf("Song Lan" to "سونغ لآن"))
+        val api = FakeGeminiApi(
+            result = GeminiHttpResult(200, okBody(1 to "Song Lan سحب سيفه.", 2 to "لم يقل شيئا."))
+        )
+
+        val result = GeminiTranslator(api, nameSheetProvider = { resolved })
+            .translatePage(songBlocks) as PageTranslation.Success
+        val arabic = result.blocks.first { it.id == 1 }.arabic
+
+        assertEquals("سونغ لآن سحب سيفه.", arabic)
+        assertFalse("the built-in spelling must not displace the locked one", arabic.contains("سونغ لان"))
+    }
+
+    @Test
+    fun aPageNameThatTheSeriesDoesNotKnowIsStillNamed() {
+        Glossary.refresh("", true)
+        val page = listOf(
+            TranslationBlock(1, "Baek Seol drew his sword."),
+            TranslationBlock(2, "Wei Wuxian said nothing.")
+        )
+        // The series memory does not know this character; the resolved table still carries the
+        // page's own detection, and both halves must use it.
+        val resolved = NameSheet("Baek Seol = بيك سول", mapOf("Baek Seol" to "بيك سول"))
+        val api = FakeGeminiApi(
+            result = GeminiHttpResult(200, okBody(1 to "Baek Seol سحب سيفه.", 2 to "لم يقل شيئا."))
+        )
+
+        val result = GeminiTranslator(api, nameSheetProvider = { resolved })
+            .translatePage(page) as PageTranslation.Success
+
+        val body = api.requestBodies.single()
+        assertTrue(body, body.contains("Baek Seol = بيك سول"))
+        assertEquals("بيك سول سحب سيفه.", result.blocks.first { it.id == 1 }.arabic)
+    }
+
+    @Test
+    fun noSeriesSelectedKeepsThePageLocalBehaviour() {
+        Glossary.refresh("", true)
+        val reply = GeminiHttpResult(200, okBody(1 to "Han Ji-woo سحب سيفه.", 2 to "لم يقل شيئا."))
+
+        // (a) The pre-P1 wiring: no provider at all → the page-local plan does both jobs.
+        val withoutProvider = FakeGeminiApi(result = reply)
+        val a = GeminiTranslator(withoutProvider).translatePage(hanBlocks) as PageTranslation.Success
+        assertEquals("هان جي وو سحب سيفه.", a.blocks.first { it.id == 1 }.arabic)
+        assertTrue(
+            withoutProvider.requestBodies.single(),
+            withoutProvider.requestBodies.single().contains("Han Ji-woo = هان جي وو")
+        )
+
+        // (b) An unassigned session resolves nothing on this page → identical request and output.
+        val withEmptyProvider = FakeGeminiApi(result = reply)
+        val b = GeminiTranslator(withEmptyProvider, nameSheetProvider = { NameSheet.EMPTY })
+            .translatePage(hanBlocks) as PageTranslation.Success
+        assertEquals("هان جي وو سحب سيفه.", b.blocks.first { it.id == 1 }.arabic)
+        assertEquals(
+            "an empty resolved sheet must fall back to exactly the old page-local path",
+            withoutProvider.requestBodies.single(),
+            withEmptyProvider.requestBodies.single()
+        )
+    }
+
+    @Test
+    fun p2FixesStillHoldAfterTheSeamChange() {
+        Glossary.refresh("", true)
+        // P2-18 — an everyday English word is still not a name, through the new seam either.
+        val page = listOf(
+            TranslationBlock(1, "The Sun was hot and the road was long."),
+            TranslationBlock(2, "Long ago, the road was long.")
+        )
+        val plan = NameMemory.plan(page.map { it.english })
+        assertTrue(
+            "no Sun/Long may be pinned: ${plan.table}",
+            plan.table.keys.none { it.equals("Sun", true) || it.equals("Long", true) }
+        )
+        val resolvedByPage = NameSheet(NameMemory.sheet(plan, limit = 20), plan.table)
+        assertFalse(resolvedByPage.sheet.contains("Sun ="))
+        assertFalse(resolvedByPage.sheet.contains("Long ="))
+
+        val api = FakeGeminiApi(
+            result = GeminiHttpResult(200, okBody(1 to "كانت الشمس حارة والطريق طويلا.", 2 to "منذ زمن بعيد."))
+        )
+        GeminiTranslator(api).translatePage(page)
+        val body = api.requestBodies.single()
+        assertFalse("no ambiguous word may reach the prompt", body.contains("Sun = "))
+        assertFalse("no ambiguous word may reach the prompt", body.contains("Long = "))
+
+        // P2-19 — the live glossary rule is `accepts`: a bare ambiguous word is left alone …
+        assertEquals(
+            "Sun was in his eyes and the road was long.",
+            Glossary.prepare("Sun was in his eyes and the road was long.")
+        )
+        // … while P2-17's retry format is asserted by the 400 tests above in this class.
     }
 
     // ------------------------------------------------------------------

@@ -164,6 +164,39 @@ class NameSessionTest {
         assertEquals("انتظر هنا", session.rewrite("Wait here.", "انتظر هنا"))
     }
 
+    @Test
+    fun `two pages of one series share spellings and leak nothing`() {
+        store.upsert(locked("Han Ji-woo", "هان جيو"))
+        val session = NameSession(seriesId = "s1", seriesTitle = "Solo", store = store)
+
+        val pageOne = session.tableFor(listOf("Han Ji-woo left.", "Baek Seol waited here."))
+        val pageTwo = session.tableFor(listOf("Han Ji-woo returned."))
+
+        // P2-05: both pages resolve the character to the ONE stored spelling …
+        val first = pageOne.table.entries.first { NameForm.normalize(it.key) == "hanjiwoo" }.value
+        val second = pageTwo.table.entries.first { NameForm.normalize(it.key) == "hanjiwoo" }.value
+        assertEquals("هان جيو", first)
+        assertEquals("هان جيو", second)
+        // … and a name that only page one carried never leaks into page two.
+        assertFalse(pageTwo.table.keys.any { NameForm.normalize(it) == "baekseol" })
+        assertFalse(pageTwo.names.any { NameForm.normalize(it.original) == "baekseol" })
+    }
+
+    @Test
+    fun `an alias in the page is repaired by the record`() {
+        // Chain D-B: the page spells the name differently from the stored original. The record
+        // knows both spellings, so the repair still finds it — this is the decorator's job, and
+        // it must survive the P2-05 seam change untouched.
+        correct("Han Ji-woo", from = "هان جي وو", to = "هان جيو")
+        val id = store.find("s1", NameForm.normalize("Han Ji-woo"))!!.id
+        store.addAlias(id, "Han Ji Woo", 300L)
+        val session = NameSession(seriesId = "s1", seriesTitle = "Solo", store = store)
+
+        assertEquals("غادر هان جيو", session.rewrite("Han Ji Woo left.", "غادر Han Ji Woo"))
+        // The canonical spelling keeps working too (same record, one answer).
+        assertEquals("غادر هان جيو", session.rewrite("Han Ji-woo left.", "غادر Han Ji-woo"))
+    }
+
     /** Store a spelling the way the pipeline does, then lock the reader's correction over it. */
     private fun correct(original: String, from: String, to: String) {
         val record = store.upsert(
