@@ -1,10 +1,10 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 4.9  
+**الإصدار:** 5.0  
 **تاريخ التحديث:** 2026-11-14  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `arena/8a718184-manhwalens`  
 **طلب الدمج:** [PR #2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — مفتوح، غير مدمج  
-**آخر commit للكود:** `fd08ca6105ed591306c16ecbf243fb443473f695` (تنفيذ P2-14).  
+**آخر commit للكود:** `957e4936125275328127b9538ea620ac107688e5` (رفع رقم النسخة التجريبية إلى v0.11.1).  
 **آخر CI ناجح مكتمل:** [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) على `fd08ca6105ed591306c16ecbf243fb443473f695`  
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). لا يزال اختبار الجهاز الفعلي غير منفذ؛ ولا يعني نجاح CI إجراء طلب Gemini حقيقي.
 
@@ -70,7 +70,7 @@ ManhwaLens تطبيق Android عائم لترجمة نصوص المانهوا و
 | لغة التطوير | Kotlin |
 | الواجهة | Jetpack Compose + Material 3 |
 | البنية | وحدة `:app` واحدة |
-| إصدار خط الأساس | v0.11.0 |
+| إصدار خط الأساس الهندسي السابق | v0.11.0 |
 | commit خط الأساس | `b8e37de` |
 
 ### 1.1 الوظيفة الأساسية
@@ -798,3 +798,23 @@ Tap / Live scan
 **أعمال لا تبدأ تلقائياً:** Performance Benchmark، P3–P6، اختبار الجهاز، الدمج، وإصدار جديد.
 
 **قبل أي تعديل لاحق:** اقرأ هذا التقرير كاملاً، ثم تحقق من HEAD والفرع وPR وCI والملفات ذات الصلة على GitHub. إذا تعارضت حالة GitHub الحالية مع هذه اللقطة التاريخية، حدّث التقرير بالدليل الجديد مع الاحتفاظ بالسجل التاريخي.
+
+
+---
+
+## 12. النسخة التجريبية v0.11.1 — 2026-11-14
+
+**الهدف:** إصدار APK تجريبي أحدث يحمل رقماً مستقلاً حتى لا يختلط مع v0.11.0 السابق.
+
+- **الإصدار:** `0.11.1`
+- **versionCode:** `31` (السابق 30).
+- **الفرع:** `arena/8a718184-manhwalens`
+- **تغيير Gradle:** `app/build.gradle.kts` — تحديث versionName وversionCode فقط؛ لا تغيير في سلوك التطبيق.
+- **تغيير CI:** `.github/workflows/android.yml` — إضافة فرع العمل الحالي إلى push triggers، وتسمية artifact باسم يتضمن رقم النسخة: `ManhwaLens-v0.11.1-debug-apk`. هذا يعالج عدم تشغيل workflow تلقائياً على فرع العمل الحالي ويسهّل تمييز ملف التحميل.
+- **Commits:** تحديث workflow: `47e5b79473fbeb71f8b22f6fe45168571bee2c64`؛ رفع النسخة: `957e4936125275328127b9538ea620ac107688e5`.
+- **التقرير:** هذا التحديث هو الإصدار 5.0 من التقرير الموحد.
+- **حالة CI عند كتابة هذا التحديث:** لم يتم التحقق بعد من تشغيل جديد مكتمل على commit النسخة. لا يُعلن وجود APK v0.11.1 قبل نجاح Unit tests وBuild debug APK ورفع artifact.
+- **نوع البناء المقصود:** Debug APK للتجربة فقط، وليس إصداراً رسمياً ولا Release APK موقعاً.
+- **PR #2:** يبقى مفتوحاً وغير مدمج؛ لم يتم دمجه أو تغيير حالته.
+
+**الخطوة التالية:** التحقق من تشغيل GitHub Actions على آخر commit. بعد نجاحه، تنزيل artifact `ManhwaLens-v0.11.1-debug-apk` وتثبيت ملف `ManhwaLens-v0.11.1-debug.apk` على الهاتف.
