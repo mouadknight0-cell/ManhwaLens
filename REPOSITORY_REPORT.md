@@ -246,8 +246,8 @@ from the documents themselves.
 
 ## 10. What is next (from the audit ranking, §10)
 
-| Priority | Item | Status |
-| --- | --- | --- |
+| Item (priority from the audit) | Status |
+| --- | --- |
 | P0 / C1 — name sheet in the primary Gemini body | **done** (P0-A) |
 | P0 / C2 — ML Kit English echo can reach the screen | **done** (P0/C2, `c008f62`) |
 | P1 / C4 — AI cleanup queued on the live thread | **open** |
