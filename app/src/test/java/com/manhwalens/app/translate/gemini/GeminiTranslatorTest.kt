@@ -81,6 +81,30 @@ class GeminiTranslatorTest {
     }
 
     @Test
+    fun maxTokensRetrySplitsMissingBubblesAtTheSmallerFourBlockLimit() {
+        val many = (1..6).map { TranslationBlock(it, "Bubble $it needs translation") }
+        val api = FakeGeminiApi(
+            queue = ArrayDeque(
+                listOf(
+                    GeminiHttpResult(200, finishedBody("MAX_TOKENS", 1 to "فقاعة واحد")),
+                    GeminiHttpResult(200, okBody(2 to "فقاعة اثنان", 3 to "فقاعة ثلاثة", 4 to "فقاعة أربعة", 5 to "فقاعة خمسة")),
+                    GeminiHttpResult(200, okBody(6 to "فقاعة ستة"))
+                )
+            )
+        )
+
+        val result = translatorWith(api).translatePage(many) as PageTranslation.Success
+
+        assertEquals(6, result.blocks.size)
+        assertEquals(3, api.requestBodies.size)
+        assertTrue(api.requestBodies[1].contains("[2] Bubble 2 needs translation"))
+        assertTrue(api.requestBodies[1].contains("[5] Bubble 5 needs translation"))
+        assertFalse(api.requestBodies[1].contains("[6] Bubble 6 needs translation"))
+        assertTrue(api.requestBodies[2].contains("[6] Bubble 6 needs translation"))
+        assertFalse(api.requestBodies[1].contains("[1] Bubble 1 needs translation"))
+    }
+
+    @Test
     fun maxTokensWithNoUsableTextStillRetriesTheEntireMissingChunk() {
         val api = FakeGeminiApi(
             queue = ArrayDeque(
