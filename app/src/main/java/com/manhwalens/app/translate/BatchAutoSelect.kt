@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
  * [RUNS] times. A strategy qualifies only when EVERY run maps 100 % ([BatchSplitter.validate]).
  * The fastest qualifying strategy wins — unless plain parallel per-block calls are at least
  * as fast on the same strings, in which case parallel stays (joined would buy nothing).
- * Before a separator is adopted it must also survive ONE page-sized call ([CONFIRM], 10
+ * Before a separator is adopted it must also survive ONE full benchmark-page call ([CONFIRM], 20
  * bubbles): on the test device "@@@" lost its markers at exactly that size, and a 4-string
  * pass alone would have sent the first real page into a failed joined attempt.
  * No qualifying strategy ⇒ parallel.
@@ -24,8 +24,8 @@ object BatchAutoSelect {
         "Thank you for everything."
     )
 
-    /** Page-sized confirmation sample (the first 10 benchmark bubbles). */
-    val CONFIRM: List<String> get() = BenchmarkRunner.SAMPLE.take(10).map { it.english }
+    /** Full-page confirmation sample (all 20 benchmark bubbles used by the device benchmark). */
+    val CONFIRM: List<String> get() = BenchmarkRunner.SAMPLE.map { it.english }
 
     const val RUNS = 2
     const val PARALLEL_LIMIT = 2
