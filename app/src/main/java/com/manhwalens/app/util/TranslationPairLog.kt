@@ -2,7 +2,6 @@ package com.manhwalens.app.util
 
 import android.content.Context
 import android.util.Base64
-import com.manhwalens.app.data.SettingsPrefs
 import com.manhwalens.app.translate.TranslationPairTrace
 import java.io.File
 import java.nio.charset.StandardCharsets
@@ -15,12 +14,12 @@ object TranslationPairLog {
     private const val FILE_NAME = "manhwalens-translation-pairs.log"
     private const val MAX_ENTRIES = 200
     private const val MAX_FIELD_CHARS = 700
+    private const val MAX_FILE_BYTES = 900_000
     const val MAX_REPORT_CHARS = 160_000
 
     fun record(context: Context, trace: TranslationPairTrace) {
         try {
             val app = context.applicationContext
-            if (!SettingsPrefs(app).debugMode) return
             val file = File(app.filesDir, FILE_NAME)
             val line = listOf(
                 timestamp(), trace.engineId.take(60), trace.blockId.toString(),
@@ -31,8 +30,11 @@ object TranslationPairLog {
                 trace.finalArabic.take(MAX_FIELD_CHARS)
             ).joinToString("\t") { encode(it) }
             synchronized(this) {
-                val previous = if (file.exists()) file.readLines().filter { it.isNotBlank() } else emptyList()
-                file.writeText((previous + line).takeLast(MAX_ENTRIES).joinToString("\n", postfix = "\n"))
+                file.appendText(line + "\n")
+                if (file.length() > MAX_FILE_BYTES) {
+                    val recent = file.readLines().filter { it.isNotBlank() }.takeLast(MAX_ENTRIES)
+                    file.writeText(recent.joinToString("\n", postfix = "\n"))
+                }
             }
         } catch (_: Throwable) {
             // Diagnostics must never interrupt translation.
@@ -47,8 +49,7 @@ object TranslationPairLog {
 
     fun readReport(context: Context): String? = try {
         val lines = readLines(context)
-        if (lines.isEmpty()) return null
-        buildString {
+        if (lines.isEmpty()) null else buildString {
             appendLine("ManhwaLens translation pair diagnostics")
             appendLine("entries=${lines.size} · local only · Debug mode capture")
             appendLine("EN = original OCR source · CANDIDATE AR = engine output · FINAL AR = post-processed result")
