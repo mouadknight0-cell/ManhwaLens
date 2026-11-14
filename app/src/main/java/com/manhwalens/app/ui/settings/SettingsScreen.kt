@@ -668,7 +668,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         // ---------- Last error ----------
         Section(stringResource(R.string.last_error_title)) {
-            val lastError = remember { ErrorLog.read(context) }
+            val lastError = remember { ErrorLog.readLastError(context) }
             if (lastError == null) {
                 Text(
                     text = stringResource(R.string.last_error_none),
