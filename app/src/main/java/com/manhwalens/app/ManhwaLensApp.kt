@@ -21,6 +21,7 @@ class ManhwaLensApp : Application() {
         // other initialization can crash. Best-effort — never lets a failure escape.
         try {
             ErrorLog.install(base)
+            ErrorLog.record(base, "startup", "Application.attachBaseContext entered")
         } catch (t: Throwable) {
             Log.e("ManhwaLens", "failed to install crash handler", t)
         }
@@ -29,6 +30,7 @@ class ManhwaLensApp : Application() {
                 (base.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
             )
         } catch (t: Throwable) {
+            ErrorLog.write(base, "startup.main_thread_init", t)
             Log.e("ManhwaLens", "MainThread init failed", t)
         }
         // Debug builds only: log (never crash on) threading/main-thread and VM strictness violations.
@@ -41,6 +43,7 @@ class ManhwaLensApp : Application() {
                     android.os.StrictMode.VmPolicy.Builder().detectAll().penaltyLog().build()
                 )
             } catch (t: Throwable) {
+                ErrorLog.write(base, "startup.strict_mode", t)
                 Log.e("ManhwaLens", "StrictMode setup failed", t)
             }
         }
@@ -51,14 +54,17 @@ class ManhwaLensApp : Application() {
             val consecutive = guard.registerStart()
             SafeMode.active = StartupGuard.isSafeMode(consecutive)
             Log.i("ManhwaLens", "startup #$consecutive${if (SafeMode.active) " — SAFE MODE (no services/live)" else ""}")
+            ErrorLog.record(base, "startup", "startup_guard consecutive=$consecutive safe_mode=${SafeMode.active}")
         } catch (t: Throwable) {
             SafeMode.active = false
+            ErrorLog.write(base, "startup.guard", t)
             Log.e("ManhwaLens", "startup guard failed — continuing normally", t)
         }
     }
 
     override fun onCreate() {
         super.onCreate()
+        ErrorLog.record(this, "startup", "Application.onCreate entered")
         // Idempotent re-install (no-op once attachBaseContext installed it).
         try {
             ErrorLog.install(this)
@@ -69,11 +75,13 @@ class ManhwaLensApp : Application() {
         try {
             com.manhwalens.app.data.SettingsPrefs(this)
         } catch (t: Throwable) {
+            ErrorLog.write(this, "startup.settings_migration", t)
             Log.e("ManhwaLens", "settings migration failed — defaults will be used", t)
         }
         try {
             createNotificationChannels()
         } catch (t: Throwable) {
+            ErrorLog.write(this, "startup.notification_channels", t)
             Log.e("ManhwaLens", "notification channels failed — capture FGS will re-create them", t)
         }
         // The process survived 5 s → the crash streak is over. Best-effort; fine to do in Safe Mode too.
@@ -81,6 +89,7 @@ class ManhwaLensApp : Application() {
             try {
                 StartupGuard(File(filesDir, StartupGuard.FILE_NAME)).markHealthy()
             } catch (t: Throwable) {
+                ErrorLog.write(this, "startup.healthy_marker", t)
                 Log.e("ManhwaLens", "healthy-marker failed", t)
             }
         }, 5_000L)
@@ -88,6 +97,7 @@ class ManhwaLensApp : Application() {
         try {
             com.manhwalens.app.util.AppVisibilityTracker.register(this)
         } catch (t: Throwable) {
+            ErrorLog.write(this, "startup.visibility_tracker", t)
             Log.e("ManhwaLens", "activity visibility tracker failed — Live will not auto-pause", t)
         }
     }
