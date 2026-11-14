@@ -1,16 +1,15 @@
 # ManhwaLens — repository report
 
-**Report revision:** 3.1 · **Updated:** 2026-11-13 (session date; commit clock 2026-11-14 UTC)
+**Report revision:** 3.2 · **Updated:** 2026-11-13 (session date; commit clock 2026-11-14 UTC)
 **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — **OPEN**, not draft, not merged
 **Base:** `main` @ `560705d55012f1549449ca3230184b4b5beda991` (the PR branch carries the whole app; `main` holds the initial commit)
-**HEAD at this revision:** `a2882f16` — *fix(gemini): jsonReply reaches the primary request; positional
-reply mapping can no longer shift (P2-03, P2-04)*
-(verified by run 43573847121; the documentation refresh that publishes this paragraph is itself commit-tip
-`docs`-only and its run is **not claimed** here)
-**Latest verified CI run:** [43573847121](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43573847121), workflow *Android build*,
-**success** at `a2882f16` (2026-11-14 08:01:57 → 08:05:29 UTC), steps *Unit tests* ✅ and *Build debug APK* ✅.
-Earlier green runs behind it: `e0e6c7d` → 43572172053, `2f3ad07` → 43571824620, `328e0a9` → 43571410420,
-`81919f9` → 43570156833.
+**HEAD at this revision:** `de77ef1a` — *docs: record P2-B (P2-03 + P2-04) in the repository report, revision 3.1*
+(verified by run 43574339617; this review revision adds one `docs`-only commit on top of it, and **its own run
+is not claimed** here)
+**Latest verified CI run:** [43574339617](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43574339617), workflow *Android build*,
+**success** at `de77ef1a` (2026-11-14 08:08:03 → 08:12:12 UTC), steps *Unit tests* ✅ and *Build debug APK* ✅.
+Earlier green runs behind it: `a2882f16` → 43573847121 (P2-B code), `e0e6c7d` → 43572172053,
+`2f3ad07` → 43571824620, `328e0a9` → 43571410420, `81919f9` → 43570156833.
 
 > **This is the only official engineering report in this repository.** The per-change reports that existed
 > until 2026-11-13 (`REPORTS.md`, `P0_*`, `P0A_*`, `P0B_*`, `P1_*`, `P1_1_*`, `P2_TRANSLATION_CONTEXT_AUDIT.md`)
@@ -24,11 +23,11 @@ Earlier green runs behind it: `e0e6c7d` → 43572172053, `2f3ad07` → 435718246
 >
 > **Clock note:** the session date is 2026-11-13; commit timestamps run 2026-11-13 16:21 → 2026-11-14 08:01 UTC.
 > A date below is the commit clock where a commit or run is cited, the session date otherwise.
-> **Publication note:** the commit that publishes this revision is documentation-only (the code tree is
-> byte-identical to `a2882f16`, so nothing in `app/` changes with it); its own CI run was still pending when
-> this file was written and is therefore **not claimed** here. The three commits behind it —
-> the P2-B code commit `a2882f16` (run 43573847121), the audit close `e0e6c7d` (run 43572172053) and the
-> state-record commit `2f3ad07` (run 43571824620) — **are** verified green.
+> **Publication note:** the commit that publishes this revision is documentation-only — the code tree is
+> byte-identical to `de77ef1a`, so nothing in `app/` or `.github/` changes with it. Its own CI run was still
+> pending when this file was written and is therefore **not claimed** here. Every commit behind it **is**
+> verified green, most recently `de77ef1a` (run 43574339617), `a2882f16` (43573847121), `e0e6c7d`
+> (43572172053) and `2f3ad07` (43571824620).
 
 ---
 
@@ -82,8 +81,8 @@ unambiguous; otherwise the reply is treated as unparsable and the caller re-asks
 
 | Metric | Value | Command |
 | --- | --- | --- |
-| Commits ahead of `origin/main` | **42** | `git rev-list --count origin/main..HEAD` |
-| Branch diff vs `main` | `220 files changed, 36 302 insertions(+)` (all files are new on the branch, so 0 deletions vs `main`) | `git diff --shortstat origin/main...HEAD` |
+| Commits ahead of `origin/main` | **43** through `de77ef1a`, 44 with this review commit | `git rev-list --count origin/main..HEAD` |
+| Branch diff vs `main` | `220 files changed, 36 462 insertions(+)` at `de77ef1a` (all files are new on the branch, so 0 deletions vs `main`) | `git diff --shortstat origin/main...de77ef1a` |
 | Kotlin sources | **113** files under `app/src/main` | `find app/src/main -name '*.kt' \| wc -l` |
 | Test sources | **70** files under `app/src/test` (one JVM source set; no instrumented source set) | `find app/src/test -name '*.kt' \| wc -l` |
 | Test methods (`@Test`) | **668** | `grep -rn '@Test' app/src/test \| wc -l` |
@@ -115,12 +114,12 @@ unambiguous; otherwise the reply is treated as unparsable and the caller re-asks
 | Check | Command | Result |
 | --- | --- | --- |
 | Branch | `git rev-parse --abbrev-ref HEAD` | `arena/8a718184-manhwalens` |
-| HEAD | `git log -1 --format='%H %s'` | `a2882f160ec8780106a65c3aed770f6b1080d3c4` — *fix(gemini): jsonReply reaches the primary request; positional reply mapping can no longer shift (P2-03, P2-04)* |
+| HEAD | `git log -1 --format='%H %s'` | `de77ef1aef107f2f3a62fb894bf5a56550d9d624` — *docs: record P2-B (P2-03 + P2-04) in the repository report, revision 3.1* |
 | Working tree | `git status --porcelain` | empty (clean) before this revision's edit |
 | Remote sync | `git fetch origin && git status -sb` | in sync with `origin/arena/8a718184-manhwalens` |
-| PR #2 | `gh pr view 2 --json …` | `OPEN`, `isDraft=false`, `headRefName=arena/8a718184-manhwalens`, `headRefOid=a2882f16…`, `baseRefName=main`, `mergeStateStatus=CLEAN`, `reviewDecision` empty (0 reviews), 220 files, +36 302/−0 |
+| PR #2 | `gh pr view 2 --json …` | `OPEN`, `isDraft=false`, `headRefName=arena/8a718184-manhwalens`, `headRefOid=de77ef1a…`, `baseRefName=main`, `mergeStateStatus=CLEAN`, `reviewDecision` empty — **0 reviews, 0 review comments, 0 issue comments** (re-checked for this revision), 43 commits, 220 files, +36 462/−0 |
 | Workflow | `.github/workflows/android.yml` | one workflow, *Android build*, events `pull_request` (all), `push` to `main`/`master`/`arena/cebceb7a-manhwalens` and `v*` tags, `workflow_dispatch`; one job `build` |
-| Runs on this branch | `gh run list --branch … --limit 100` | **35 runs: 31 success, 4 failure** (§7.4); newest `43573847121` at `a2882f16` ✅ |
+| Runs on this branch | `gh run list --branch … --limit 100` | **36 runs: 32 success, 4 failure** (§7.4); newest `43574339617` at `de77ef1a` ✅ |
 
 ### 2.2 Commits this revision describes
 
@@ -136,6 +135,8 @@ unambiguous; otherwise the reply is treated as unparsable and the caller re-asks
 | `2f3ad07` | docs | run 43571410420 recorded (close of the audit refresh) |
 | `e0e6c7d` | docs | final state of the documentation audit (`2f3ad07` corrected to the verified `328e0a9`) |
 | `a2882f16` | **code + tests** | **P2-B**: P2-03 (`jsonReply` now reaches the primary request) and P2-04 (safe, non-misaligning reply parsing) + 24 tests (§5.11) |
+| `de77ef1a` | docs | report revision 3.1: P2-B recorded (§5.11) |
+| *this commit* | docs | report revision 3.2: independent review of P2-01…P2-04 (§5.12), three new findings (§8.1), report corrections (§5.0, §5.9, §8.2, §7.4) |
 
 ### 2.3 Verification limits (stated, not papered over)
 
@@ -200,7 +201,7 @@ phase. "CI-verified" means *the JVM suites and the debug build pass*, nothing mo
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | **P0** | — | ✅ `0e6d5ff` | ✅ P0-A `fba87c6`/`1940487`; C2 `c008f62` | ✅ 8 + 10 tests | ✅ 43514608722, 43563394305…43564884208 | ❌ | ❌ (open items C3/C4/C5, RTL, offline, perf) |
 | **P1** | — | ✅ design + review | ✅ `6a71f77`…`fee9d9e` | ✅ +102 tests (517→619 cumulative: 73 + 9 + 5 + 11 + 4) | ✅ 43518604612…43561668957 | ❌ | ❌ (series UI never exercised on a device) |
-| **P2** | ✅ P2-C…P2-D | ✅ `01e12a6` | ◐ **P2-A** `25b15c2` + **P2-B** `a2882f16` | ◐ 39 new tests (15 + 24) | ◐ 43569302435 (`a7b276f`), 43573847121 (`a2882f16`) | ❌ | ❌ (P2-A/P2-B awaiting review; P2-C/P2-D open) |
+| **P2** | ✅ P2-C…P2-D | ✅ `01e12a6` | ◐ **P2-A** `25b15c2` + **P2-B** `a2882f16` | ◐ 39 new tests (15 + 24) | ◐ 43569302435 (`a7b276f`), 43573847121 (`a2882f16`) | ❌ | ❌ (P2-A/P2-B reviewed in §5.12 — **not approved**, 3 findings open; P2-C/P2-D untouched) |
 | **P3** | ✅ candidates only | — | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **P4** | ✅ candidates only | — | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **P5** | ✅ candidates only | — | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -249,6 +250,24 @@ Condensed from the deleted per-change reports; nothing was dropped silently (§5
 re-derived for this revision as `git diff --shortstat <base> <final> -- app` (code + tests only); where an
 earlier report quoted a larger figure it had counted the Markdown report shipped in the same push, and the
 verified number is used here.
+
+### 5.0 Branch history before P0 (verified for this revision)
+
+The branch does not begin at the P0 audit; it begins with the v0.11.0 import. Comparing every commit on the
+branch against this file (§10.3 row 6 of revision 3.2) found that three of these early commits had **never been recorded**.
+They are listed here — not re-graded, just documented, since this review is not allowed to change code.
+
+| Commit | Date (UTC) | What it is | Size (`git show --stat`) |
+| --- | --- | --- | --- |
+| `ec59e7e` | 2026-11-13 20:08:58 | v0.11.0 — opaque one-patch-per-bubble rendering, name consistency, noise removal, faster page plan; the import of the whole app, the workflow and the root docs | 198 files, +30 312 |
+| `6296f80` | 2026-11-13 20:13:01 | CI: surface Kotlin compile/test errors as annotations — the `grep … echo "::error::…"` step in `.github/workflows/android.yml:52-56` that §7.6 depends on | 1 file, +14/−1 |
+| `f28f56c` | 2026-11-13 20:15:39 | one-line compile fix: import `SceneNames` in `translate/mlkit/MlKitTranslator.kt` | 1 file, +1 |
+| `b8e37de` | 2026-11-13 20:19:29 | docs: README 0.11.0 summary (already used as the test-count baseline in §7.3) | 1 file, +19/−1 |
+
+**None of `ec59e7e`, `6296f80` or `f28f56c` has a CI run of its own:** the first run on this branch is
+43513473811 at `0e6d5ff` (§7.4), so those three are covered only *transitively* (§3.2 allows this — the run's
+commit is an ancestor of this HEAD). Their content is therefore **build-verified only as part of a later
+tree**, and, for `6296f80`, only as a change to CI tooling that this sandbox cannot execute locally.
 
 ### 5.1 P0 — architecture audit (2026-11-13, `0e6d5ff`)
 
@@ -363,14 +382,17 @@ sequentially while the prompt states *"Consecutive blocks belong to the same pag
 remote engine); `PagePlan.progressiveOrder(plan, rankById)` = visual priority (progressive ML Kit, `createOffline`,
 ML Kit fallback). Live path untouched (it already used `engineBlocks`, i.e. page order).
 
-**Files (5, +348/−13):** `translate/Glossary.kt`, `translate/PagePlan.kt`, `overlay/FloatingButtonService.kt`,
+**Files (5, +347/−13 — re-measured for this revision as `git diff --shortstat 533ae90 25b15c2 -- app`; the
+earlier "+348" was off by one):** `translate/Glossary.kt`, `translate/PagePlan.kt`, `overlay/FloatingButtonService.kt`,
 `translate/GlossaryTest.kt` (+8 tests), `translate/TranslationOrderingTest.kt` (new, 7 tests).
 **Tests:** 15 new (629 → 644 discovered), listed in §6.4.
 **CI:** 43568984747 ❌ at `25b15c2` — verified annotation: *644 tests completed, 1 failed ·
 `GlossaryTest > shortCollisionsStayEnglish FAILED`* (the expectation ignored that the term `sect` in the same
 bubble legitimately translates) → fixed in `a7b276f` → **43569302435 ✅**.
-**Status:** **Implemented, tested, CI-verified — awaiting review. Not "completed": no review approval, no
-device verification.** (P2-03/P2-04 were still open at this point; they were closed later by P2-B, §5.11.)
+**Status:** **Implemented, tested, CI-verified.** Reviewed on 2026-11-13 (§5.12): the fix is correct and the
+tests pin the intended behaviour, but the review is **not an approval** — two residual findings were raised
+(P2-18, P2-19) and nothing is device-verified. (P2-03/P2-04 were still open at this point; they were closed
+later by P2-B, §5.11.)
 
 ### 5.10 Documentation consolidation and decisions
 
@@ -408,7 +430,7 @@ caller constructed with `jsonReply = true` still sent the **legacy numbered-line
 only the HTTP-400 retry (`buildFastBody(chunk, sheet, jsonReply = jsonReply)`) honoured the field. The JSON
 reply mode was therefore unreachable in production for any caller that asked for it.
 *Fix:* the field is passed through (`GeminiTranslator.kt:239-241`). Nothing else changed: the constructor
-default stays `false` (`TranslatorFactory.kt:105` passes no flag, so the shipped request is byte-identical to
+default stays `false` (`TranslatorFactory.kt:107-113` passes no flag, so the shipped request is byte-identical to
 before), the 400-retry body still comes from `buildFastBody`, and each body keeps its own settings — legacy:
 `temperature 0.3` + `thinkingLevel low`; JSON: `temperature 0.2` + `thinkingBudget 0` + `responseMimeType`.
 *Rejected alternative:* flipping the default to `true` — that is a product/behaviour decision (the flag's KDoc
@@ -480,8 +502,130 @@ test run). The authoritative execution is CI:
 (2026-11-14 08:01:57 → 08:05:29 UTC). Executed/skipped counts remain unverifiable for a green run (§2.3):
 the annotation API returns nothing for a green run and the `test-reports` artifact download fails with `EOF`.
 
-**Status:** **Implemented · tested · CI-verified — awaiting review. Not "completed"**: no review approval, no
-device verification, and P2-05…P2-16 (P2-C/P2-D) are untouched.
+**Status:** **Implemented · tested · CI-verified.** Reviewed on 2026-11-13 (§5.12): propagation is correct and
+the default is preserved, but the review is **not an approval** — one new finding was raised (P2-17) and
+nothing is device-verified. P2-05…P2-16 (P2-C/P2-D) remain untouched.
+
+### 5.12 Independent technical review of P2-01…P2-04 (read-only, this revision)
+
+**Method and limits.** Every item was re-read at `de77ef1a` in the source *and* in its tests, then re-checked
+against the GitHub API (commits, diffs, runs, PR). **Nothing was executed here** — there is no JDK, Gradle,
+`kotlinc` or Android SDK in this sandbox (§7.2) — so every "verified" below means *verified by reading the code
+and the CI record*, never *verified by running it*. No source file and no test was modified by this review, and
+no fix was applied (§8.2 lists the minimal fix each finding needs).
+
+#### 5.12.1 Verdicts
+
+| Item | Verdict | Reviewer's summary |
+| --- | --- | --- |
+| **P2-01** — glossary no longer rewrites ordinary English | **Correct as implemented · 2 residual findings (P2-18, P2-19)** | the gate is real, narrowly scoped and well pinned by tests; the *planner* was not gated (P2-18) and a dead sibling function still bypasses the gate (P2-19) |
+| **P2-02** — remote engines get page order | **Correct · report scope correction on P2-11** | page order reaches the relay and the chunker, visual priority stays on the local pass, Live is untouched; but `preprocess` is missing at **both** capture call sites, not only Live |
+| **P2-03** — `jsonReply` reaches the primary request | **Correct · 1 new finding (P2-17)** | the flag is propagated without changing the default; the HTTP-400 ladder is now a duplicate request when the flag is `true` |
+| **P2-04** — positional reply parsing | **Correct · 1 documented limitation** | labels/artifacts/exact-count/numbering are all handled and the failure path is the existing safe one; a *JSON* renumbering is still not recovered (safe failure, not a mispaint) |
+
+#### 5.12.2 P2-01 — glossary correctness
+
+*Verified in code:* `Glossary.accepts` (`Glossary.kt:140-150`) is the only gate on the compiled table and it
+runs for **every** match in `applyCompiled` (`:99-108`); rule order is pin → multi-word/hyphen → `TERMS`
+(`:338`) → capitalised and not ALL CAPS → not in `AMBIGUOUS_ENGLISH` (`:350`). Keys are replaced
+case-insensitively as whole words (`compiled()` `:62-70`), longest key first, so `Song Lan` still wins over
+`Song`; `refresh()` drops the compiled cache, so a Settings change re-scopes the pins immediately.
+*Verified in tests:* the 8 new `GlossaryTest` cases assert the **complete output string** — ordinary lowercase
+(`How long until the sun sets?`), sentence-initial capitalised (`Long ago, …`), the short collisions
+`pan/tan/ding/Song`, `TERMS` in any case, genuine two-word names, an explicit pin, the pin's scope, and that
+`effective()` still offers every name for the memory layer. The mixed expectation in
+`shortCollisionsStayEnglish` (`He sang a Song for the طائفة.`) is the honest one: the noun stays English, the
+genre term still translates.
+*Edge cases checked by reading:* `length < 2` guard; ALL-CAPS rejection (SFX); multi-word/hyphen keys bypass the
+ambiguity list deliberately; a blank Arabic entry can never replace anything; `TERMS` are replaced in any case
+**by design**, so an ordinary sentence containing `spirit`, `core` or `pill` can still be altered — the same
+behaviour as before the fix, recorded as a residual risk, not a defect of it.
+*Residual (P2-18):* the planner is not gated by the same rule (details in §8.2).
+*Residual (P2-19):* `applyToSource`/`replaceWord` (`Glossary.kt:90-98`, `:152-156`) keep a weaker filter and
+have **no caller** in `app/` (verified with `grep -rn "applyToSource" app/`).
+
+#### 5.12.3 P2-02 — translation ordering
+
+*Verified in code:* `PagePlan.remoteOrder(plan) = engineBlocks(plan)` (`PagePlan.kt:130`) and `engineBlocks`
+maps `plan.items` in first-appearance order (LinkedHashMap, `prepare` `:65-94`), i.e. page order;
+`progressiveOrder` (`:138-139`) sorts by rank with unranked last (`sortedBy` is stable, so ties keep page
+order). Tap path: `remoteBlocks = remoteOrder(...)` is what `relayRemoteTranslation(..., unique)` sends
+(`FloatingButtonService.kt:2784`, `:3706`), while `blocksToSend = progressiveOrder(...)` feeds only the local
+ML Kit pass (`:2837`, `:2852`, `:2861`, `:2897`). Live path is unchanged: `engineBlocks(pagePlan)` at `:3298`
+→ `startLiveRemote(..., unique)` at `:3316` → `remote.translatePage(unique)` at `:3575`.
+*Verified in tests:* 7 new tests pin page order, priority order, unranked-last, chunk boundaries across
+requests (flattened order equals the page, each chunk ascending, no id twice), the old scrambled behaviour as a
+negative test, dedupe fan-out (`id 3` and `id 17` receive the same Arabic) and `remoteOrder == engineBlocks`.
+*No text loss or misattribution:* `engineBlocks` is 1:1 with `plan.items`, `expand`/`arabicById` return an entry
+for every `idToKey` id and fan the answer out to every duplicate id; the relay paints per id
+(`painter.onRemote(tb)`), so a request order can never paint the wrong bubble.
+*Report scope correction (P2-11):* `PagePlan.prepare(..., preprocess = Glossary::prepare)` is documented
+(`PagePlan.kt:61-63`) as what the pipeline passes, but **neither** production call site passes it (tap
+`:2747-2750`, Live `:3282-3286`). Effect: `MeaninglessText.classify` and the dedupe key run on unprepared
+text while each engine applies `Glossary.prepare` afterwards — a key/classification mismatch, not an ordering
+or data-loss problem. P2-11 stays open with a corrected description (§8.2).
+
+#### 5.12.4 P2-03 — `jsonReply` propagation
+
+*Verified in code:* the primary body is built with the caller's flag (`GeminiTranslator.kt:239-241`), the
+constructor default is still `false` (`:56`) and `TranslatorFactory.kt:107-113` passes no flag, so the shipped
+request is unchanged; the HTTP-400 retry still runs (`:258-262`) and the 404 switch still reuses the same body.
+*Verified in tests (5 new):* `true` → `responseMimeType` + `temperature 0.2` + `thinkingBudget 0` on the
+**primary** body and a JSON reply parsed into the right bubbles; `false` → `thinkingLevel low` +
+`temperature 0.3` and no `responseMimeType`; the default constructor stays legacy; the retry runs twice for
+both flag values; the JSON reply shape is parsed.
+*New finding (P2-17):* when `jsonReply = true` the primary body and the 400-retry body are **identical**
+(`buildRequestBody(..., jsonReply = true)` routes to `buildFastBody(..., jsonReply = true)`, and the retry is
+`buildFastBody(..., jsonReply = true)` again), so the retry cannot recover from a 400 caused by JSON mode — it
+re-sends the same request. The existing test `http400RetryStillRunsWithJsonReplyTrue` pins that fact rather
+than catching it. Also noted: `GeminiWire.buildRequestBody(..., jsonReply: Boolean = true)` (`:227`) defaults to
+JSON while the translator's field defaults to legacy — an invitation to a future misuse. Severity **Low**
+(the shipped default is `false`); the fix must not change the default (§8.2).
+
+#### 5.12.5 P2-04 — positional reply parsing
+
+*Verified in code:* `parseJsonTranslations` keeps the precedence JSON object → `[id] text` lines →
+`positionalMap` (`GeminiWire.kt:323-343`); `replyLines` (`:378-407`) strips bullets/rules/quotes/list markers and
+label prefixes, drops standalone labels (`:344`), colon-tail captions (`:412-418`) and lines without an Arabic
+letter (`:358`); `positionalMap` (`:429-443`) requires an **exact** line count, accepts numbering only when it
+equals the expected ids or is a clean `1..N`, and refuses mixed numbering. Every rejection path returns `null`,
+which the translator already maps to "re-ask the missing ids, then `PARSE_ERROR`" — so the on-device draft stays
+visible (Offline First unchanged, D4).
+*Verified in tests (17 wire + 2 translator):* the wire cases assert the **whole id → Arabic map** for the exact,
+label, prefix, artifact and numbering cases and `null` for the extra/missing/ambiguous ones; the two translator
+cases assert per-bubble Arabic end to end (id 1 → first line, id 2 → second line) and the failure path with
+**exactly one** request and nothing painted.
+*Edge cases checked by reading:* `\r\n` (each line is trimmed), em-dash/bullet quote markers (stripped, meaning
+kept), `«»`, rule lines `---`/`***`/`___`, `1.`/`2)`/`3-` markers, a label used as a prefix (`الترجمة: مرحبا`),
+Arabic-Indic colons (`：`), a reply of labels only (nothing parses), and a single-bubble page (one line is
+still unambiguous).
+*Documented limitation (not a defect):* a **JSON** reply that renumbers its keys from 1 (`{"1":…}` for ids
+19…27) is not recovered positionally, although the same renumbering in plain lines is — `jsonMap` wins
+unconditionally. The outcome is a safe page failure plus the local draft, never a mispaint. Likewise a reply
+that both adds an Arabic caption and merges two bubbles keeps the exact count and stays undetectable without a
+protocol change (§8.5 item 4).
+*Test gaps found (no test added — this task may not edit tests):* reversed numbering (`2,1`) has no explicit
+case (it is rejected by construction); nothing asserts that the primary and retry bodies **differ** (that is
+P2-17's future regression test); `\r\n` and `«»` are handled but untested.
+
+#### 5.12.6 Evidence re-verified for this review
+
+| Claim | How it was checked | Result |
+| --- | --- | --- |
+| P2-A introduced 5 files, 15 tests | `git diff --numstat 533ae90 25b15c2 -- app`, `git diff -U0 … \| grep -c '^+    fun '` | 5 files, **+347/−13** (the report said +348 → corrected in §5.9), 15 new `fun`s, `@Test` 629 → 644 |
+| P2-B introduced 4 files, 24 tests | `git diff --numstat e0e6c7d a2882f16 -- app` | 4 files, +385/−11, 24 new tests (17 + 7), `@Test` 644 → 668 |
+| Every commit on the branch is recorded | `git log origin/main..HEAD` vs a scan of this file | 43 commits before this one; **3 were missing** (`ec59e7e`, `6296f80`, `f28f56c`) → now documented in §5.0 |
+| Every cited run exists and is green | `gh run list` + SHA match per run id | 36 runs: 32 ✅ / 4 ❌; every cited id matches its commit |
+| 7 commits have no run of their own | set difference runs↔commits | `ec59e7e`, `6296f80`, `f28f56c`, `b8e37de`, `fba87c6`, `c008f62`, `fee9d9e` — each contained in a later verified commit (§7.4 note) |
+| PR #2 state | `gh pr view 2`, `gh api …/pulls/2` | OPEN, not draft, CLEAN, 0 reviews, 0 review comments, 0 issue comments, 43 commits, +36 462/−0 |
+| Working tree | `git status --porcelain` | clean before this revision's edit (docs only) |
+
+#### 5.12.7 What this review does **not** claim
+
+No test was executed here, no build was produced here, no device was used, no review approval exists on
+GitHub (0 reviews) and **P2-A and P2-B are not approved**. The green run 43574339617 proves that the 668
+discovered `@Test` compile and that none failed on `de77ef1a`; it does not prove that any of the reviewed
+behaviour is right on a real page. The three findings P2-17/P2-18/P2-19 are **open and unfixed** by design.
 
 ---
 
@@ -522,10 +666,10 @@ Levels follow §3.2; **no phase reaches "Completed"** because device verificatio
 | Item | Level reached | Evidence at `a2882f16` |
 | --- | --- | --- |
 | Translation-path audit (P2-01…P2-16) | **Audited** | `01e12a6`, run 43567398304 ✅; content in §5.8 and §8 |
-| **P2-A / P2-01** — glossary no longer rewrites ordinary English | Implemented · Tested · CI-verified · **awaiting review** | `Glossary.accepts` (`Glossary.kt:140-150`), `TERMS` (`:338`), `AMBIGUOUS_ENGLISH` (`:350`); 8 new tests in `GlossaryTest`; run 43569302435 ✅ |
-| **P2-A / P2-02** — remote engines get page/reading order | Implemented · Tested · CI-verified · **awaiting review** | `PagePlan.remoteOrder` (`:130`), `PagePlan.progressiveOrder` (`:138`); `FloatingButtonService.kt:2784-2785, 2819, 2848, 2858, 2863`; 7 new tests in `TranslationOrderingTest`; run 43569302435 ✅ |
-| **P2-B / P2-03** — `jsonReply` never reaches the primary request | Implemented · Tested · CI-verified · **awaiting review** | `GeminiTranslator.kt:239-241` now passes the field to `GeminiWire.buildRequestBody`; 5 new tests in `GeminiTranslatorTest`; run 43573847121 ✅ (§5.11) |
-| **P2-B / P2-04** — positional reply parsing can misalign bubbles | Implemented · Tested · CI-verified · **awaiting review** | `GeminiWire.parseJsonTranslations` → `positionalMap` (`GeminiWire.kt:323-443`): label/artifact stripping, exact count match, numbering check; 17 new tests in `GeminiWireTest` + 2 end-to-end in `GeminiTranslatorTest`; run 43573847121 ✅ (§5.11) |
+| **P2-A / P2-01** — glossary no longer rewrites ordinary English | Implemented · Tested · CI-verified · **reviewed (§5.12), not approved — P2-18/P2-19 open** | `Glossary.accepts` (`Glossary.kt:140-150`), `TERMS` (`:338`), `AMBIGUOUS_ENGLISH` (`:350`); 8 new tests in `GlossaryTest`; run 43569302435 ✅; review says the fix is correct and the gate is only in the glossary |
+| **P2-A / P2-02** — remote engines get page/reading order | Implemented · Tested · CI-verified · **reviewed (§5.12), not approved** | `PagePlan.remoteOrder` (`:130`), `PagePlan.progressiveOrder` (`:138`); `FloatingButtonService.kt:2784-2785, 2819, 2848, 2858, 2863`; 7 new tests in `TranslationOrderingTest`; run 43569302435 ✅; review says page order is correct end to end and Live is untouched (P2-11 scope corrected in §8.2) |
+| **P2-B / P2-03** — `jsonReply` never reaches the primary request | Implemented · Tested · CI-verified · **reviewed (§5.12), not approved — P2-17 open** | `GeminiTranslator.kt:239-241` now passes the field to `GeminiWire.buildRequestBody`; 5 new tests in `GeminiTranslatorTest`; run 43573847121 ✅ (§5.11); review confirms the propagation and the preserved default, and finds the 400 ladder degenerate when the flag is `true` |
+| **P2-B / P2-04** — positional reply parsing can misalign bubbles | Implemented · Tested · CI-verified · **reviewed (§5.12), not approved** | `GeminiWire.parseJsonTranslations` → `positionalMap` (`GeminiWire.kt:323-443`): label/artifact stripping, exact count match, numbering check; 17 new tests in `GeminiWireTest` + 2 end-to-end in `GeminiTranslatorTest`; run 43573847121 ✅ (§5.11); review found no misalignment path, one documented limitation (JSON renumbering) and three test gaps |
 | P2-C (P2-05 name authority) | **Proposed** | `GeminiTranslator.kt:87-99` vs `:128-136` |
 | P2-D (P2-06, P2-08, P2-14, P2-16) | **Proposed** | §8.2 |
 
@@ -564,7 +708,7 @@ attributing pre-existing v0.11.0 features to them — would be invented progress
 | --- | --- | --- |
 | P0 | CI-verified (C1, C2) | C3/C4/C5, RTL, offline, perf; device validation |
 | P1 | CI-verified | device validation of the series UI |
-| P2 | CI-verified for P2-A and P2-B | review approval, P2-C/P2-D, device validation |
+| P2 | CI-verified + reviewed (P2-A, P2-B); 3 findings open (P2-17, P2-18, P2-19) | approval, the three findings, P2-C/P2-D, device validation |
 | P3–P6 | Proposed only | not started |
 
 ---
@@ -611,11 +755,12 @@ readable executed count is `25b15c2` (*"644 tests completed, 1 failed"*, §7.6),
 size. **Skipped = UNVERIFIED everywhere** (a skipped test does not fail the task, and no annotation reports
 skips).
 
-### 7.4 Every CI run on this branch (35 runs: 31 success, 4 failure)
+### 7.4 Every CI run on this branch (36 runs: 32 success, 4 failure)
 
 | Run | Commit | Created (UTC) | Result |
 | --- | --- | --- | --- |
-| [43573847121](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43573847121) | `a2882f16` | 2026-11-14 08:01:57 → 08:05:29 | ✅ **current head — P2-B verified** |
+| [43574339617](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43574339617) | `de77ef1a` | 2026-11-14 08:08:03 → 08:12:12 | ✅ **current head — docs revision 3.1** |
+| [43573847121](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43573847121) | `a2882f16` | 2026-11-14 08:01:57 → 08:05:29 | ✅ P2-B code (§5.11) |
 | [43572172053](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43572172053) | `e0e6c7d` | 2026-11-14 07:40:11 | ✅ documentation audit close |
 | [43571824620](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43571824620) | `2f3ad07` | 2026-11-14 07:35:33 → 07:39:29 | ✅ **current head** |
 | [43571410420](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43571410420) | `328e0a9` | 2026-11-14 07:30:30 → 07:34:42 | ✅ audit commit |
@@ -652,11 +797,19 @@ skips).
 | [43513473811](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43513473811) | `0e6d5ff` | 2026-11-13 21:45:14 | ❌ 1 failed test (§5.2) |
 
 All four failures are pre-fix states of later-green commits and are analysed in §5; none is open. Every commit
-listed above is an ancestor of `a2882f16` (checked with `git merge-base --is-ancestor`).
+listed above is an ancestor of `de77ef1a` (checked with `git merge-base --is-ancestor`).
+
+**Seven of the 43 commits before this revision have no run of their own** — `ec59e7e`, `6296f80`, `f28f56c`
+(pre-P0, §5.0), `b8e37de` (README), and three code commits: `fba87c6` (P0-A fix), `c008f62` (C2 fix),
+`fee9d9e` (P1.1-A fix). A run is created per pushed head, so an intermediate commit of a multi-commit push is
+executed only as part of the next verified tree that contains it (that is exactly what §3.2's "ancestor" wording
+allows). Each of the three code commits is contained in a later green run — `1940487` (43514068424), `08004c4`
+(43563394305) and `e546470` (43561318751) respectively — so none of them is unverified, but **no run was ever
+executed at those exact trees**.
 
 ### 7.5 What a green run proves — and what it does not
 
-**Proves:** the JVM test sources of that commit (668 `@Test` at `a2882f16`) compile and none failed; `:app:assembleDebug` produced a debug APK;
+**Proves:** the JVM test sources of that commit (668 `@Test` at `a2882f16` and at the identical tree `de77ef1a`) compile and none failed; `:app:assembleDebug` produced a debug APK;
 the tree compiled with Kotlin 2.4.21 / AGP 8.13.2 on JDK 17.
 
 **Does not prove:** that the app behaves correctly on a device; that OCR/translation quality is acceptable on
@@ -690,10 +843,10 @@ only**.
 
 | ID | Type | Priority | Finding | Status |
 | --- | --- | --- | --- | --- |
-| **P2-01** | Bug | High | `Glossary` rewrote ordinary English words before translation | **Implemented · tested · CI-verified (P2-A) — awaiting review** |
-| **P2-02** | Bug | High | Remote chunks built from visual-priority order while the prompt claims page order | **Implemented · tested · CI-verified (P2-A) — awaiting review** |
-| **P2-03** | Bug | Medium | `jsonReply` never reached the primary request (`GeminiTranslator.kt:232` at the audit baseline) | **Fixed in P2-B (`a2882f16`) · tested · CI-verified — awaiting review** |
-| **P2-04** | Bug | Medium | Positional "one line per id" parse could misalign bubbles (`GeminiWire.kt:325` at the audit baseline) | **Fixed in P2-B (`a2882f16`) · tested · CI-verified — awaiting review** |
+| **P2-01** | Bug | High | `Glossary` rewrote ordinary English words before translation | **Implemented · tested · CI-verified (P2-A) · reviewed (§5.12): correct — P2-18/P2-19 open, not approved** |
+| **P2-02** | Bug | High | Remote chunks built from visual-priority order while the prompt claims page order | **Implemented · tested · CI-verified (P2-A) · reviewed (§5.12): correct — not approved** |
+| **P2-03** | Bug | Medium | `jsonReply` never reached the primary request (`GeminiTranslator.kt:232` at the audit baseline) | **Fixed in P2-B (`a2882f16`) · tested · CI-verified · reviewed (§5.12): correct — P2-17 open, not approved** |
+| **P2-04** | Bug | Medium | Positional "one line per id" parse could misalign bubbles (`GeminiWire.kt:325` at the audit baseline) | **Fixed in P2-B (`a2882f16`) · tested · CI-verified · reviewed (§5.12): correct, one limitation — not approved** |
 | **P2-05** | Risk | High | Two name authorities on the Gemini path (series sheet vs page-local `applyPinned`) | **Open (needs a decision — P2-C)** |
 | **P2-06** | Risk | Medium | One failing long-block chunk aborts the whole ML Kit page | **Open** |
 | **P2-07** | Risk | Medium | `pageNames` survives early returns (audit C3) | **Open** |
@@ -706,6 +859,9 @@ only**.
 | **P2-14** | Improvement | Low | Validator cannot detect a truncated short answer or a 1–2 word English remnant | **Open** |
 | **P2-15** | Improvement | Low | Post-processing order differs between engine and decorator | **Open** |
 | **P2-16** | Improvement | Low | `MAX_TOKENS`-truncated reply is traced, not treated | **Open** |
+| **P2-17** | Bug (review) | Low | With `jsonReply = true` the HTTP-400 retry re-sends a **byte-identical** body (`GeminiTranslator.kt:239-241` vs `:259`) | **Open — found by the §5.12 review, not fixed** |
+| **P2-18** | Risk (review) | Medium | The name planner/sheet still treats ambiguous capitalised words (`Long`, `Sun`, `Song`, `Pan`…) as names; P2-01 gated only the glossary | **Open — found by the §5.12 review, not fixed** |
+| **P2-19** | Risk (review) | Low | `Glossary.applyToSource`/`replaceWord` bypass `accepts` and have no caller (dead code that would reintroduce P2-01 if reused) | **Open — found by the §5.12 review, not fixed** |
 | **P2-N1…N5** | Not a problem | — | Idempotent `prepare`; per-bubble triage; pinned override vs stale cache; offline independence; names survive chunking | **verified correct** |
 
 ### 8.2 Open findings — evidence anchors and the minimal fix each needs
@@ -723,12 +879,15 @@ findings fixed by P2-B (`a2882f16`, §5.11); every other row is still open.
 | P2-08 | `LibreTranslateTranslator.kt:57-58`, `:80-100` | per-bubble triage like ML Kit; attach the sheet | one rejected bubble does not fail the page |
 | P2-09 | `FloatingButtonService.kt:3705-3711` | do not replace a local patch with a worse remote one | arbitration test on the relay path |
 | P2-10 | `TranslationCache.kt:18-30`, `CachingTranslator.kt:224-232`, `TranslationMemo.kt` | document the choice; a context-bearing key only with evidence | none today (documented trade-off) |
-| P2-11 | `PagePlan.kt:59-68` + Live call site | pass `Glossary::prepare` where the contract says so | `Wei Lin` / `wei lin` dedupe to one item on the Live path |
+| P2-11 | `PagePlan.kt:61-63` (KDoc) + **both** capture call sites: `FloatingButtonService.kt:2747-2750` (tap) and `:3282-3286` (Live) — scope corrected by this review, the report previously said "Live path" only | pass `preprocess = Glossary::prepare` at both sites | `Wei Lin` / `wei lin` dedupe to one item on both capture paths |
 | P2-12 | `MeaninglessText.kt:163-177`, `PagePlan.kt:74-84` | make the prompt and the planner agree about SFX | SFX kept, or the prompt claim removed |
 | P2-13 | `NameMemory.kt:259`, `:287` | index by id, not by position | latent — no caller passes `pageArabic` today |
 | P2-14 | `ArabicValidator.kt:59-90`, `:144-166` | detect a truncated short answer and a 1–2 word English remnant | guard tests for both |
 | P2-15 | `GeminiTranslator.kt:133-142` vs the decorator path | unify post-processing order | same text judged on both paths |
 | P2-16 | `GeminiTranslator.kt:321-337`, `GeminiWire.kt:303` | treat `MAX_TOKENS` truncation (empty the cut bubble) | a truncated reply leaves no half sentence |
+| **P2-17** (review) | `GeminiTranslator.kt:239-241` (primary) vs `:256-262` (400 retry); `GeminiWire.kt:227` (router default `jsonReply = true`) | on HTTP 400 retry with `jsonReply = false` so the second request is a genuinely different body; keep the constructor default `false` | with `jsonReply = true` a 400 produces two **different** bodies, the retry has no `responseMimeType`, and the reply still parses |
+| **P2-18** (review) | `NameMemory.kt:161-172` (`KNOWN_SENTENCE_NAMES`), `NameScript.kt:208-216` (`PINYIN_SYLLABLES`), `NameMemory.plan` `:251-335` with its pinning loop at `:289-330` (no ambiguity gate), consumed by `NameMemory.sheet` `:413-416` and `GeminiTranslator.kt:132-141` (`applyPinned`) | expose the ambiguity test (`Glossary.AMBIGUOUS_ENGLISH`/`accepts`) and skip a single-token candidate whose lower-case form is ambiguous unless it is a USER entry or comes from the series memory | a page containing `The Sun was hot and the road was long.` produces **no** name-sheet line and no pinned entry for `Sun`/`Long` |
+| **P2-19** (review) | `Glossary.kt:90-98` (`applyToSource`) and `:152-156` (`replaceWord` / `ambiguousShort`) | delete the dead path, or route it through `accepts` | no production caller today; if it is kept, a case proving it obeys the same five rules as `prepare` |
 
 ### 8.3 Other open items (audit findings outside P2)
 
@@ -766,6 +925,13 @@ findings fixed by P2-B (`a2882f16`, §5.11); every other row is still open.
    two bubbles keeps the line count and remains undetectable without a protocol change (out of scope).
 5. **This is CI-verified only**: no real Gemini traffic exists in this environment (no key, no network) and no
    device has run the app, so the new parse path has never seen a real model reply.
+6. **Renumbering is only recovered in plain lines, not in JSON** (§5.12.5): a `{"1":…}` object for a chunk whose
+   ids are 19…27 maps nothing, fails the page safely and falls back to the on-device draft. Closing that
+   asymmetry means teaching `jsonMap` a positional interpretation — deliberately not done here.
+7. **Every run on this branch comes from the `pull_request` event.** The workflow's `push` allowlist names
+   `main`, `master`, `arena/cebceb7a-manhwalens` and `v*` tags (`.github/workflows/android.yml:5-6`), i.e. a
+   *different* arena branch, so a push to this branch is verified only because PR #2 is open. Closing the PR
+   would silently stop CI verification of this branch.
 
 ### 8.6 Environment blockers (`BLOCKERS.md` remains the register)
 
@@ -778,28 +944,34 @@ Gemini/Libre traffic (no key, no network); executed/skipped test counts unreadab
 
 ### 9.1 Current active phase
 
-**P2 — translation quality and context management.** Two sub-steps are delivered:
+**P2 — translation quality and context management.** Two sub-steps are delivered and now **reviewed**:
 **P2-A** = P2-01 + P2-02 (`25b15c2`, test fix `a7b276f`, 15 tests, run 43569302435 ✅) and
-**P2-B** = P2-03 + P2-04 (`a2882f16`, 24 tests, run 43573847121 ✅). Both are **CI-verified only** and neither
-has been reviewed, approved or device-verified, so **P2 is not complete and no phase is "Completed"** (§3.2).
+**P2-B** = P2-03 + P2-04 (`a2882f16`, 24 tests, run 43573847121 ✅). The independent review of 2026-11-13
+(§5.12) found the four fixes **correct as implemented** and raised **three open findings** — P2-18 (Medium:
+the name planner/sheet is still not ambiguity-gated), P2-17 (Low: the 400 retry is a duplicate request when
+`jsonReply = true`) and P2-19 (Low: a dead glossary path bypasses the new gate). Nothing is approved: GitHub
+holds **0 reviews**, and nothing is device-verified. **P2 is not complete and no phase is "Completed"** (§3.2).
 P2-C (P2-05, needs a decision), P2-D (P2-06/P2-08/P2-14/P2-16) and P3–P6 remain untouched.
 
 ### 9.2 Exact next action
 
-1. **Review P2-B** (evidence: §5.11, §6.4, §8.5, run 43573847121 at `a2882f16`) together with the still-open
-   **P2-A** review (§5.9, runs 43568984747 ❌ and 43569302435 ✅). No further engineering work is authorised
-   before those reviews.
-2. **Only after explicit approval:** P2-C = P2-05 — one name authority on the Gemini path (series sheet vs
-   page-local `applyPinned`). It needs a design decision first (which authority wins on conflict), so it must
-   open with that decision, not with code.
-3. P2-D (P2-06, P2-08, P2-14, P2-16) and P3–P6 stay unstarted; each needs its own scope approval.
+1. **Decide the three review findings, in this order: P2-18 → P2-17 → P2-19.** Each has a minimal fix and the
+   regression test it must ship in §8.2. P2-18 is a translation-quality risk and lands naturally with the
+   P2-05 "one name authority" decision, so it may be scoped as the opening item of P2-C.
+2. **Obtain the human approval that does not exist yet** for P2-A and P2-B (evidence: §5.9, §5.11, §5.12,
+   §6.4, runs 43568984747 ❌, 43569302435 ✅, 43573847121 ✅). A green run is not an approval.
+3. **Only then** P2-C = P2-05 (series sheet vs page-local `applyPinned`): open with the decision, not with code.
+4. **Device validation** of P2-A (ordering, glossary output on a real page) and P2-B (reply parsing against a
+   real model) is still outstanding for both; `MANUAL_TESTS.md` is the only checklist.
+5. P2-D (P2-06, P2-08, P2-14, P2-16) and P3–P6 stay unstarted; each needs its own scope approval.
 
 ### 9.3 Explicitly not done by this task
 
-No prompt, model-default, OCR, persistence, UI, dependency, workflow or PR change. `Glossary.kt`,
-`PagePlan.kt` and `FloatingButtonService.kt` were not edited, so every P2-A fix is intact (verified with
-`git diff --stat e0e6c7d a2882f16`, which lists exactly the four Gemini files of §5.11). PR #2 was not merged,
-closed, renamed or re-drafted. P2-C/P2-D were not started, and no device claim is implied by the green run.
+Documentation only: no application source, test, dependency, Gradle or CI change, and **no fix applied** — the
+three findings are recorded, not closed. `git status --porcelain` before the edit was empty and the only file
+this revision writes is this report, so every P2-A and P2-B file is byte-identical to its verified commit.
+PR #2 was not merged, closed, renamed or re-drafted (it still has 0 reviews). P2-C/P2-D were not started, and
+no device claim is implied by any green run.
 
 ---
 
@@ -833,7 +1005,27 @@ closed, renamed or re-drafted. P2-C/P2-D were not started, and no device claim i
    in the report, not a detail.
 4. Deleting a document requires prior transfer of its content into this file and a link check afterwards.
 
-### 10.3 Validation performed for revision 3.1 (commands and exact outcomes)
+### 10.3 Validation performed for revision 3.2 (commands and exact outcomes)
+
+| # | Check | Command | Outcome |
+| --- | --- | --- | --- |
+| 1 | Branch / HEAD / tree | `git rev-parse --abbrev-ref HEAD`, `git log -1`, `git status --porcelain` | `arena/8a718184-manhwalens`, `de77ef1a`, tree clean before the edit |
+| 2 | Remote sync | `git fetch origin && git status -sb` | in sync with origin at the start of the task |
+| 3 | PR state and reviews | `gh pr view 2 --json …`, `gh api repos/…/pulls/2` | `open`, `isDraft=false`, `CLEAN`, **0 reviews / 0 review comments / 0 issue comments**, 43 commits, 220 files, +36 462/−0 |
+| 4 | CI runs | `gh run list --branch … --limit 100` (36 ids) + per-id SHA match | 36 runs, 32 ✅ / 4 ❌; every cited id matches its commit; newest 43574339617 ✅ at `de77ef1a` |
+| 5 | Commits without a run | set difference runs↔commits | 7 of 43 (`ec59e7e`, `6296f80`, `f28f56c`, `b8e37de`, `fba87c6`, `c008f62`, `fee9d9e`) — documented in §7.4 with the run that contains each |
+| 6 | Commit coverage of this report | `git log origin/main..HEAD` vs a scan of this file | 3 commits were **undocumented** (`ec59e7e`, `6296f80`, `f28f56c`) → added to §5.0; the rest match |
+| 7 | P2-A scope and size | `git diff --numstat 533ae90 25b15c2 -- app`, `git diff -U0 … \| grep -c '^+    fun '` | 5 files, **+347/−13** (report said +348 → corrected), 15 new tests, `@Test` 629 → 644 |
+| 8 | P2-B scope and size | `git diff --numstat e0e6c7d a2882f16 -- app` | 4 files, +385/−11, 24 new tests (17 + 7), `@Test` 644 → 668 |
+| 9 | Reviewed source anchors | `grep -n` at `de77ef1a` | `Glossary.kt:90/100-108/140-150/152-156/338/350`; `PagePlan.kt:61-63/82-95/118/130/138-139`; `NameMemory.kt:161-172/289`; `NameScript.kt:208-216`; `GeminiTranslator.kt:56/129-141/239-241/256-262`; `GeminiWire.kt:227/323-443`; `FloatingButtonService.kt:2747-2750/2784-2785/2837/2852/2861/2897/3298/3316/3575/3706` — all present |
+| 10 | Dead-code claim (P2-19) | `grep -rn "applyToSource" app/` | only the definition at `Glossary.kt:90`; no caller |
+| 11 | Missing-`preprocess` claim (P2-11) | `grep -n "PagePlan.prepare(" app/src/main` | two production call sites (`:2747`, `:3282`), **neither** passes `preprocess` |
+| 12 | Algorithm/behaviour claims | read-only review of code + tests (§5.12); no execution | the review is static by construction; the only executable evidence is run 43574339617 (job `build` success, *Unit tests* ✅, *Build debug APK* ✅) |
+| 13 | Markdown link / table integrity | Python scan of every `*.md` for local link targets (inline code spans ignored); backslash-aware pipe/cell count per table | run **after** this revision's edits: 0 broken links, 0 table-cell mismatches, all ten top-level sections in order |
+| 14 | Scope of this revision | `git status --porcelain`, `git diff --stat` | **one file**: `REPOSITORY_REPORT.md`; no `app/`, `.github/`, `.kts`, `gradle/` or dependency change |
+| 15 | Build/test execution here | `which java javac gradle`, `$ANDROID_HOME` | absent/unset — no local run possible, none claimed; CI remains the only executor |
+
+### 10.3a Validation performed for revision 3.1 (kept for provenance)
 
 | # | Check | Command | Outcome |
 | --- | --- | --- | --- |
@@ -849,10 +1041,10 @@ closed, renamed or re-drafted. P2-C/P2-D were not started, and no device claim i
 | 10 | Syntax sanity of the edited Kotlin | Python brace/paren/string scan of the 4 files | balanced, no unterminated literal (in CI the Kotlin compiler is authoritative) |
 | 11 | Algorithm design check | Python transliteration of `replyLines` + `positionalMap` over the 14 mapping cases in the new tests | 14/14 matched the expected id → translation maps (**not** a test run) |
 | 12 | Ancestry of every cited commit | `git merge-base --is-ancestor <sha> HEAD` | YES for all 8 cited commits (`01e12a6`…`e0e6c7d`) and for `a2882f16` = HEAD |
-| 13 | Local Markdown link check / table integrity | Python scan of every `*.md` for local link targets; backslash-aware pipe/cell count per table | see the outcome recorded at the end of this revision's publish step |
+| 13 | Local Markdown link check / table integrity | Python scan of every `*.md` for local link targets (inline code spans ignored); backslash-aware pipe/cell count per table | **re-run and passed**: 0 broken links, 0 table-cell mismatches |
 | 14 | Build/test execution here | `which java javac gradle`, `$ANDROID_HOME` | absent/unset — no local run possible, none claimed; CI run 43573847121 is the executor |
 
-### 10.3a Validation performed for revision 3.0 (kept for provenance)
+### 10.3b Validation performed for revision 3.0 (kept for provenance)
 
 | # | Check | Command | Outcome |
 | --- | --- | --- | --- |
@@ -875,6 +1067,7 @@ closed, renamed or re-drafted. P2-C/P2-D were not started, and no device claim i
 
 | Revision | Date | Head | What changed |
 | --- | --- | --- | --- |
+| **3.2** | 2026-11-13 (UTC 2026-11-14) | `de77ef1a` (run 43574339617 ✅) + this doc-only refresh | **Independent technical review of P2-01…P2-04** (§5.12): all four fixes judged correct as implemented, **not approved**; three new findings recorded and left unfixed — P2-17 (degenerate 400 retry when `jsonReply = true`), P2-18 (the name planner/sheet is still not ambiguity-gated), P2-19 (dead glossary path bypasses the gate). Corrections: §5.0 documents three previously unrecorded pre-P0 commits (`ec59e7e`, `6296f80`, `f28f56c`); P2-A's diff is +347/−13 not +348/−13; P2-11's scope is both capture call sites, not only Live; §7.4 adds the 36th run and the seven commits with no run of their own; §8.5 gained the JSON-renumbering limitation and the PR-dependent CI trigger; §9 and §10.3 rewritten. **Documentation only** — no source, test, dependency, workflow or PR change. |
 | **3.1** | 2026-11-13 (UTC 2026-11-14) | `a2882f16` (run 43573847121 ✅) + this doc-only refresh | **P2-B** recorded: P2-03 (`jsonReply` reaches the primary request) and P2-04 (safe positional parsing) implemented with 24 new tests; new §5.11, §8.5 risks, §9 rewritten, §6.4/§8.1/§8.2/§7.3/§7.4 re-graded and re-verified (35 runs, 668 `@Test`), §10.3 re-run for this revision. Application source changed in exactly four Gemini files (+385/−11); no dependency, workflow or PR change. |
 | **3.0** | 2026-11-13 (UTC 2026-11-14) | `328e0a9` (run 43571410420 ✅) and `2f3ad07` (run 43571824620 ✅) + this doc-only refresh | Documentation audit and canonical correction: replaced the invented P3–P6 subjects with the agreed definitions (P3 performance/caching, P4 OCR, P5 text cleanup/rendering, P6 final integration/release); added the explicit status vocabulary and re-graded every phase (no phase is "Completed"); re-verified HEAD, PR, all 31 CI runs, all test counts and the P2-A source anchors against git/GitHub; added the milestone-vs-phase rule, the decision register, the per-phase status tables and the maintenance rules; restructured to the mandated ten sections. **Documentation only** — no source, test, dependency or PR change. |
 | 2.0 | 2026-11-13 (UTC 2026-11-14) | `94cf2f5` | Consolidation: the nine per-change reports and `REPORTS.md` folded in and deleted; phase table, P2 register, open-finding anchors, rewritten rules. |
