@@ -279,6 +279,18 @@ class FloatingButtonService : Service() {
     private val projectionCallbackHandler = Handler(Looper.getMainLooper())
     private var projectionCallback: android.media.projection.MediaProjection.Callback? = null
     private var patchOverlay: com.manhwalens.app.overlay.PatchOverlayWindow? = null
+    /** Cloud-only image cleanup is isolated from capture, OCR and translation orchestration. */
+    private val aiCleanupCoordinator by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        AiCleanupCoordinator(
+            applicationContext,
+            ioExecutor,
+            patchRect = { id -> patchOverlay?.patchRect(id) },
+            replaceBitmap = { id, bitmap ->
+                if (patchOverlay != null) patchOverlay?.replaceBitmap(id, bitmap)
+                else runCatching { bitmap.recycle() }
+            }
+        )
+    }
     private var lensMenuWindow: com.manhwalens.app.overlay.LensMenuWindow? = null
     private var reviewWindow: CaptureDebugWindow? = null
     /** Last tap-capture frame kept ONLY for Review mode (never populated by Live). */
@@ -4245,128 +4257,7 @@ class FloatingButtonService : Service() {
      * and swapped in place.
      */
     private fun maybeScheduleAiCleanup(frame: Bitmap, boxes: List<com.manhwalens.app.render.BubbleRenderBox>) {
-        val settings = com.manhwalens.app.data.SettingsPrefs(applicationContext)
-        if (!settings.aiCleanupEnabled) return
-        val prefsT = com.manhwalens.app.data.TranslationPrefs(applicationContext)
-        if (!com.manhwalens.app.translate.OfflineTranslationPolicy.canUseCloudServices(prefsT.offlineMode)) {
-            Log.i(TAG, "ai cleanup: skipped — offline mode is enabled")
-            PipelineTracer.span("ai cleanup", 0, "skipped — offline mode")
-            return
-        }
-        if (!prefsT.hasGeminiKey) {
-            Log.i(TAG, "ai cleanup: enabled but no Gemini key — kept local patches")
-            return
-        }
-        if (prefsT.geminiCircuit.isOpen()) {
-            Log.i(TAG, "ai cleanup: Gemini circuit open (paused) — kept local patches")
-            return
-        }
-        val candidates = com.manhwalens.app.render.LargestBoxes.select(
-            boxes.filter { it.arabic.isNotBlank() }, 3
-        )
-        if (candidates.isEmpty()) return
-        // Copy the crop plans now (frame pixels may vanish on the next capture).
-        val plans = candidates.map { box ->
-            val l = (box.left - 10).coerceIn(0, frame.width - 1)
-            val t = (box.top - 10).coerceIn(0, frame.height - 1)
-            val r = (box.right + 10).coerceIn(l + 1, frame.width)
-            val b = (box.bottom + 10).coerceIn(t + 1, frame.height)
-            box to android.graphics.Rect(l, t, r, b)
-        }
-        ioExecutor.execute {
-            // Settings may change while this task waits in the executor queue.
-            val currentPrefs = com.manhwalens.app.data.TranslationPrefs(applicationContext)
-            if (!com.manhwalens.app.translate.OfflineTranslationPolicy.canUseCloudServices(currentPrefs.offlineMode)) {
-                Log.i(TAG, "ai cleanup: queued request cancelled — offline mode is enabled")
-                PipelineTracer.span("ai cleanup", 0, "cancelled before network — offline mode")
-                return@execute
-            }
-            val t0 = SystemClock.elapsedRealtime()
-            val model = settings.aiCleanupModelId.takeIf { it.isNotBlank() }
-                ?: resolveImageCapableModelId(prefsT.geminiKey)
-            if (model == null) {
-                Log.w(TAG, "ai cleanup: no image-capable model for this key — kept local patches")
-                PipelineTracer.span("ai cleanup", 0, "skipped — no image-capable model in account list (cloud)")
-                return@execute
-            }
-            val api = com.manhwalens.app.translate.gemini.HttpUrlConnectionGeminiApi(
-                prefsT.geminiKey, AI_CLEANUP_READ_TIMEOUT_MS
-            )
-            var replaced = 0
-            for ((box, rect) in plans) {
-                val cropped = try {
-                    Bitmap.createBitmap(frame, rect.left, rect.top, rect.width(), rect.height())
-                } catch (e: Exception) {
-                    Log.i(TAG, "ai cleanup: crop failed for #${box.id} — kept local patch (${e.javaClass.simpleName})")
-                    null
-                } ?: continue
-                val jpeg = try {
-                    java.io.ByteArrayOutputStream().use { out ->
-                        cropped.compress(Bitmap.CompressFormat.JPEG, 92, out)
-                        out.toByteArray()
-                    }
-                } catch (e: Exception) {
-                    null
-                } finally {
-                    runCatching { cropped.recycle() }
-                }
-                if (jpeg == null) continue
-                when (val result = com.manhwalens.app.translate.gemini.GeminiImageEditor.editBubble(api, model, jpeg, box.arabic)) {
-                    is com.manhwalens.app.translate.gemini.ImageEditResult.Success -> {
-                        val decoded = android.graphics.BitmapFactory.decodeByteArray(result.imageBytes, 0, result.imageBytes.size)
-                        val target = patchOverlay?.patchRect(box.id)
-                        if (decoded != null && target != null) {
-                            val tw = (target.right - target.left).toInt().coerceAtLeast(1)
-                            val th = (target.bottom - target.top).toInt().coerceAtLeast(1)
-                            val scaled = if (decoded.width == tw && decoded.height == th) decoded
-                                else Bitmap.createScaledBitmap(decoded, tw, th, true)
-                            patchOverlay?.replaceBitmap(box.id, scaled)
-                            if (scaled !== decoded) decoded.recycle()
-                            replaced++
-                        } else {
-                            decoded?.let { runCatching { it.recycle() } }
-                            Log.i(TAG, "ai cleanup: bubble #${box.id} — patch gone already, result discarded")
-                        }
-                    }
-                    is com.manhwalens.app.translate.gemini.ImageEditResult.Failure -> {
-                        Log.i(TAG, "ai cleanup: bubble #${box.id} kept local patch (${result.reason})")
-                    }
-                }
-            }
-            val ms = SystemClock.elapsedRealtime() - t0
-            Log.i(TAG, "ai cleanup used (cloud) · replaced $replaced/${plans.size} bubble(s) · model=$model · ${ms} ms")
-            PipelineTracer.span("ai cleanup", ms, "AI cleanup used (cloud) · replaced $replaced/${plans.size} · model=$model")
-        }
-    }
-
-    /** In-memory cache for the auto-picked image-capable model (avoids a listModels round-trip per page). */
-    @Volatile private var imageModelCache: Pair<String, String>? = null // apiKey → modelId
-    @Volatile private var imageModelCacheAtMs: Long = 0L
-
-    /** Pick the first image-capable model from the account's live models list (never hardcoded). Cached 30 min per key. */
-    private fun resolveImageCapableModelId(apiKey: String): String? {
-        val now = SystemClock.elapsedRealtime()
-        imageModelCache?.let { (k, id) -> if (k == apiKey && now - imageModelCacheAtMs < 30 * 60_000L) return id }
-        return try {
-            val resp = com.manhwalens.app.translate.gemini.HttpUrlConnectionGeminiApi(apiKey).listModels()
-            if (resp.code !in 200..299) {
-                Log.w(TAG, "ai cleanup: listModels http ${resp.code}")
-                null
-            } else {
-                val list = com.manhwalens.app.translate.gemini.GeminiWire.imageCapableModels(
-                    com.manhwalens.app.translate.gemini.GeminiWire.parseModelsBody(resp.body)
-                )
-                val picked = list.firstOrNull()?.let { com.manhwalens.app.translate.gemini.GeminiWire.shortModelId(it.name) }
-                if (picked != null) {
-                    imageModelCache = apiKey to picked
-                    imageModelCacheAtMs = now
-                }
-                picked
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "ai cleanup: listModels failed — ${e.javaClass.name}: ${e.message}")
-            null
-        }
+        aiCleanupCoordinator.schedule(frame, boxes)
     }
 
     /** Keep the tap-capture frame ONLY for Review mode (Live captures never retain frames). */
