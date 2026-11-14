@@ -3,8 +3,11 @@
 **Report revision:** 3.0 · **Updated:** 2026-11-13 (session date; commit clock 2026-11-14 UTC)
 **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — **OPEN**, not draft, not merged
 **Base:** `main` @ `560705d55012f1549449ca3230184b4b5beda991` (the PR branch carries the whole app; `main` holds the initial commit)
-**HEAD at this revision:** `81919f9` — *docs: record the consolidation run in the repository report*
-**Latest verified CI run:** [43570156833](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43570156833), workflow *Android build*, **success** at `81919f9` (2026-11-14 07:14:31 → 07:18:57 UTC), steps *Unit tests* ✅ and *Build debug APK* ✅
+**HEAD at this revision:** `328e0a9` — *docs: canonical documentation audit and phase-definition correction*
+(the commit that publishes this file is the documentation refresh described in §10.4)
+**Latest verified CI run:** [43571410420](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43571410420), workflow *Android build*,
+**success** at `328e0a9` (2026-11-14 UTC), steps *Unit tests* ✅ and *Build debug APK* ✅ — the audit commit itself.
+Previous head `81919f9` was verified by run 43570156833.
 
 > **This is the only official engineering report in this repository.** The per-change reports that existed
 > until 2026-11-13 (`REPORTS.md`, `P0_*`, `P0A_*`, `P0B_*`, `P1_*`, `P1_1_*`, `P2_TRANSLATION_CONTEXT_AUDIT.md`)
@@ -19,7 +22,8 @@
 > **Clock note:** the session date is 2026-11-13; commit timestamps run 2026-11-13 16:21 → 2026-11-14 07:20 UTC.
 > A date below is the commit clock where a commit or run is cited, the session date otherwise.
 > **Publication note:** the commit that publishes this revision is documentation-only; its own CI run was
-> still pending when this file was written and is therefore **not claimed** here.
+> still pending when this file was written and is therefore **not claimed** here. The audit commit
+> `328e0a9`, which carries the same content minus this final state note, **is** verified (run 43571410420).
 
 ---
 
@@ -101,12 +105,12 @@ tap or Live scan
 | Check | Command | Result |
 | --- | --- | --- |
 | Branch | `git rev-parse --abbrev-ref HEAD` | `arena/8a718184-manhwalens` |
-| HEAD | `git log -1 --format='%H %s'` | `81919f90e70b4f57ea137676e2501b97ff473d1a` — *docs: record the consolidation run in the repository report* |
+| HEAD | `git log -1 --format='%H %s'` | `328e0a948fc3dd001a07b71b92dfb1347983652d` — *docs: canonical documentation audit and phase-definition correction* |
 | Working tree | `git status --porcelain` | empty (clean) before this revision's edit |
 | Remote sync | `git fetch origin && git status -sb` | in sync with `origin/arena/8a718184-manhwalens` |
 | PR #2 | `gh pr view 2 --json …` | `OPEN`, `isDraft=false`, `headRefName=arena/8a718184-manhwalens`, `headRefOid=81919f9…`, `baseRefName=main`, `mergeStateStatus=CLEAN`, `reviewDecision` empty (0 reviews), 220 files, +35 764/−0 |
 | Workflow | `.github/workflows/android.yml` | one workflow, *Android build*, events `pull_request` (all), `push` to `main`/`master`/`arena/cebceb7a-manhwalens` and `v*` tags, `workflow_dispatch`; one job `build` |
-| Runs on this branch | `gh run list --branch … --limit 100` | **31 runs: 27 success, 4 failure** (§7.4); newest `43570156833` at `81919f9` ✅ |
+| Runs on this branch | `gh run list --branch … --limit 100` | **32 runs: 28 success, 4 failure** (§7.4); newest `43571410420` at `328e0a9` ✅ |
 
 ### 2.2 Commits this revision describes
 
@@ -118,6 +122,7 @@ tap or Live scan
 | `a7b276f` | **test fix** | one wrong expectation in the new glossary test (§5.9) |
 | `94cf2f5` | docs | report revision 2.0: single report, superseded reports deleted, one doc-pointer comment |
 | `81919f9` | docs | run 43569844274 recorded |
+| `328e0a9` | docs | **this audit**: canonical correction of the phase definitions, status vocabulary, restructure to the ten mandated sections, evidence re-verification, `V096_PLAN.md` label note, `DECISIONS.md` S1/S5 + D9–D11 |
 
 ### 2.3 Verification limits (stated, not papered over)
 
@@ -489,11 +494,12 @@ Earlier boundaries have the same kind of proof where a run failed (517 at `0e6d5
 green-only commits the executed number is **UNVERIFIED**. **Skipped = UNVERIFIED everywhere** (a skipped test
 does not fail the task, and no annotation reports skips).
 
-### 7.4 Every CI run on this branch (31 runs: 27 success, 4 failure)
+### 7.4 Every CI run on this branch (32 runs: 28 success, 4 failure)
 
 | Run | Commit | Created (UTC) | Result |
 | --- | --- | --- | --- |
-| [43570156833](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43570156833) | `81919f9` | 2026-11-14 07:14:31 | ✅ **current head** |
+| [43571410420](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43571410420) | `328e0a9` | 2026-11-14 07:30:30 → 07:34:42 | ✅ **audit commit** |
+| [43570156833](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43570156833) | `81919f9` | 2026-11-14 07:14:31 | ✅ |
 | [43569844274](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569844274) | `94cf2f5` | 2026-11-14 07:10:40 | ✅ |
 | [43569302435](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569302435) | `a7b276f` | 2026-11-14 07:03:52 | ✅ **P2-A verified** |
 | [43568984747](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43568984747) | `25b15c2` | 2026-11-14 07:00:03 | ❌ test expectation (§5.9) |
@@ -684,10 +690,29 @@ closed, renamed or re-drafted; P2-A was not re-implemented and P2-B was not star
    in the report, not a detail.
 4. Deleting a document requires prior transfer of its content into this file and a link check afterwards.
 
-### 10.3 Revision history
+### 10.3 Validation performed for revision 3.0 (commands and exact outcomes)
+
+| # | Check | Command | Outcome |
+| --- | --- | --- | --- |
+| 1 | Branch / HEAD / tree | `git rev-parse --abbrev-ref HEAD`, `git log -1`, `git status --porcelain` | `arena/8a718184-manhwalens`, `328e0a9`, tree clean before the edit |
+| 2 | Remote sync | `git fetch origin && git status -sb` | in sync at every push |
+| 3 | PR state | `gh pr view 2 --json …` | OPEN, not draft, CLEAN, base `main`, head `328e0a9`, 0 reviews |
+| 4 | CI runs | `gh run list --branch … --limit 100` | 32 runs, 28 success / 4 failure |
+| 5 | Failing-run detail | `gh api repos/…/check-runs/<job>/annotations` | 517/1, compile error, 590/4, 644/1 — test names recorded in §7.6 |
+| 6 | Test counts per commit | `git grep -c '@Test' <sha> -- app/src/test` (summed) | 509 / 517 / 590 / 599 / 604 / 615 / 619 / 629 / 644 |
+| 7 | Ancestry of every cited commit | `git merge-base --is-ancestor <sha> HEAD` | YES for all 15 cited commits |
+| 8 | Diff sizes cited for historical packages | `git diff --shortstat <base> <final> -- app` | corrected where old reports had counted their own Markdown (§5) |
+| 9 | Source anchors cited in §5–§8 | `grep -n` on the cited files at HEAD | `Glossary.kt:140/338/350`, `PagePlan.kt:130/138`, `FloatingButtonService.kt:2784-2785,2819,2848,2858,2863`, `GeminiTranslator.kt:232/250`, `GeminiWire.kt:325/187-206/223-226`, `CachingTranslator.kt:58`, `JsonCharacterStore.kt:464/283-345` — all present |
+| 10 | Local Markdown link check | Python scan of every `*.md` for `](path)` targets | all resolve (0 broken) |
+| 11 | Deleted-file link check | scan for links to the ten removed reports | none |
+| 12 | Table integrity | per-file pipe/cell-count scan (escaped `\|` respected) | all tables consistent |
+| 13 | Scope | `git status --porcelain`, `git diff --stat` | Markdown only: `REPOSITORY_REPORT.md`, `DECISIONS.md`, `V096_PLAN.md`; no `app/`, `.github/`, `.kts` or `gradle/` change |
+| 14 | Build/test execution | `java`, `javac`, `gradle`, `kotlinc`, `ANDROID_HOME` | absent/unset — no local run possible, none claimed; CI run 43571410420 at `328e0a9` ✅ |
+
+### 10.4 Revision history
 
 | Revision | Date | Head | What changed |
 | --- | --- | --- | --- |
-| **3.0** | 2026-11-13 (UTC 2026-11-14) | `81919f9` + this docs commit | Documentation audit and canonical correction: replaced the invented P3–P6 subjects with the agreed definitions (P3 performance/caching, P4 OCR, P5 text cleanup/rendering, P6 final integration/release); added the explicit status vocabulary and re-graded every phase (no phase is "Completed"); re-verified HEAD, PR, all 31 CI runs, all test counts and the P2-A source anchors against git/GitHub; added the milestone-vs-phase rule, the decision register, the per-phase status tables and the maintenance rules; restructured to the mandated ten sections. **Documentation only** — no source, test, dependency or PR change. |
+| **3.0** | 2026-11-13 (UTC 2026-11-14) | `328e0a9` (run 43571410420 ✅) + this doc-only refresh | Documentation audit and canonical correction: replaced the invented P3–P6 subjects with the agreed definitions (P3 performance/caching, P4 OCR, P5 text cleanup/rendering, P6 final integration/release); added the explicit status vocabulary and re-graded every phase (no phase is "Completed"); re-verified HEAD, PR, all 31 CI runs, all test counts and the P2-A source anchors against git/GitHub; added the milestone-vs-phase rule, the decision register, the per-phase status tables and the maintenance rules; restructured to the mandated ten sections. **Documentation only** — no source, test, dependency or PR change. |
 | 2.0 | 2026-11-13 (UTC 2026-11-14) | `94cf2f5` | Consolidation: the nine per-change reports and `REPORTS.md` folded in and deleted; phase table, P2 register, open-finding anchors, rewritten rules. |
 | 1.x | 2026-11-13/14 | `01e12a6`, `05fa1ab`, `3674ebf`, `b82fb6f`, `e546470`, `723f101`, `8140a4b`, `a7b276f` | Incremental snapshots superseded by revision 2.0; their content is carried in §5–§7. |
