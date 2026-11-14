@@ -20,6 +20,7 @@ import com.manhwalens.app.translate.Translator
 import com.manhwalens.app.translate.TranslatedBlock
 import com.manhwalens.app.translate.TranslationBlock
 import com.manhwalens.app.util.PipelineTracer
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -156,29 +157,42 @@ class MlKitTranslator(
         val answered = HashMap<Int, TranslatedBlock>()
         if (longBlocks.isNotEmpty()) {
             val tLong = System.currentTimeMillis()
+            var droppedLong = 0
             for (b in longBlocks) {
                 val chunks = TextChunker.chunk(b.english)
-                val joined = StringBuilder()
-                var ok = true
-                for (c in chunks) {
-                    try {
-                        val out = Tasks.await(client.translate(src(c)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
-                        if (joined.isNotEmpty()) joined.append(' ')
-                        joined.append(out.trim())
-                    } catch (e: Exception) {
-                        Log.e(TAG, "mlkit chunk failed (block #${b.id}) — ${e.javaClass.name}: ${e.message}", e)
-                        ok = false
+                val parts = arrayOfNulls<String>(chunks.size)
+                var failedChunk = -1
+                for ((index, c) in chunks.withIndex()) {
+                    // P2-06: one chunk failure used to abort the whole page. Now the chunk is
+                    // retried once, and if it still fails only THIS bubble is left empty.
+                    var out = translateChunkText(b.id, index, c)
+                    if (out == null) out = translateChunkText(b.id, index, c)
+                    if (out == null) {
+                        failedChunk = index
                         break
                     }
+                    parts[index] = out
                 }
-                if (!ok) {
-                    return PageTranslation.Failure(FailureReason.UNKNOWN, "On-device translation failed (long block #${b.id})", engineId)
+                // A half-answered narration is never returned as a complete bubble (see
+                // MlKitPageAssembly.joinChunks): the block stays empty instead.
+                val joined = if (failedChunk >= 0) null else MlKitPageAssembly.joinChunks(parts.toList())
+                if (joined == null) {
+                    droppedLong++
+                    PipelineTracer.span(
+                        "mlkit long block left empty", 0,
+                        "block #${b.id}: chunk ${failedChunk + 1}/${chunks.size} unanswered — bubble empty, rest of the page kept"
+                    )
+                    continue
                 }
-                val tb = TranslatedBlock(b.id, b.english, joined.toString())
+                val tb = TranslatedBlock(b.id, b.english, joined)
                 answered[b.id] = tb
                 emitReady(tb)
             }
-            PipelineTracer.span("mlkit translate long-block chunks", System.currentTimeMillis() - tLong, "${longBlocks.size} long block(s)")
+            PipelineTracer.span(
+                "mlkit translate long-block chunks",
+                System.currentTimeMillis() - tLong,
+                "${longBlocks.size} long block(s)" + if (droppedLong > 0) ", $droppedLong left empty" else ""
+            )
         }
 
         // 3) Main strategy for the rest.
@@ -218,22 +232,39 @@ class MlKitTranslator(
                 // Release default: per block, ≤ 3 in flight (progressive listener fed per completion).
                 val tParallel = System.currentTimeMillis()
                 val parallel = translateParallel(normal)
-                if (parallel != null) {
-                    PipelineTracer.span(
-                        if (onBlockReady != null) "mlkit translate progressive" else "mlkit translate parallel",
-                        System.currentTimeMillis() - tParallel,
-                        "${normal.size} blocks, ${parallelLevel()} in flight · strategy=${policy?.describe() ?: "parallel (policy not attached)"}"
+                PipelineTracer.span(
+                    if (onBlockReady != null) "mlkit translate progressive" else "mlkit translate parallel",
+                    System.currentTimeMillis() - tParallel,
+                    "${normal.size} blocks, ${parallelLevel()} in flight · strategy=${policy?.describe() ?: "parallel (policy not attached)"}"
+                )
+                parallel.forEach { answered[it.id] = it }
+                // P2-06: the sequential pass is a RETRY of the unanswered ids only — it never
+                // re-sends a bubble that already has an answer, and a bubble that still fails is
+                // left empty instead of failing the whole page.
+                val unanswered = normal.filter { block ->
+                    val done = answered[block.id]
+                    done == null || done.arabic.isBlank()
+                }
+                if (unanswered.isNotEmpty()) {
+                    PipelineTracer.span("mlkit retry", 0, "re-asking ${unanswered.size} unanswered block(s) one by one")
+                    val recovered = MlKitPageAssembly.retryMissing(
+                        unanswered,
+                        answered.mapValues { it.value.arabic },
+                        ::attemptBlock
                     )
-                    parallel.forEach { answered[it.id] = it }
-                } else {
-                    Log.w(TAG, "parallel per-block failed; retrying sequentially")
-                    PipelineTracer.span("mlkit parallel failed", System.currentTimeMillis() - tParallel, "retrying one block at a time")
-                    val perBlock = perBlock(normal) ?: return PageTranslation.Failure(
-                        FailureReason.UNKNOWN,
-                        "On-device translation failed",
-                        engineId
-                    )
-                    perBlock.forEach { answered[it.id] = it; emitReady(it) }
+                    for (b in unanswered) {
+                        val text = recovered[b.id]
+                        if (text.isNullOrBlank()) {
+                            PipelineTracer.span(
+                                "mlkit block left empty", 0,
+                                "block #${b.id} produced no Arabic after retry — left empty (never the English source)"
+                            )
+                        } else {
+                            val tb = TranslatedBlock(b.id, b.english, text)
+                            answered[b.id] = tb
+                            emitReady(tb)
+                        }
+                    }
                 }
             }
             // First use on this device: prove (or rule out) a joined separator in the background.
@@ -242,13 +273,30 @@ class MlKitTranslator(
 
         // Preserve original page order and blanks. P0/C2: a block without an answer stays
         // EMPTY — the English source is never substituted (see MlKitPageAssembly.ordered).
+        // P2-06: the page is a SUCCESS as long as one bubble came back; only a page with
+        // nothing usable at all is a failure.
         val arabicById = answered.mapValues { it.value.arabic }
         pageNames = emptyMap()
-        val ordered = MlKitPageAssembly.ordered(blocks, arabicById)
+        val assembly = MlKitPageAssembly.assemble(blocks, arabicById)
         val elapsed = System.currentTimeMillis() - start
-        Log.i(TAG, "ML Kit batch done: ${ordered.size} blocks in $elapsed ms")
+        if (MlKitPageAssembly.mustFail(assembly, translatable.size)) {
+            Log.e("ManhwaLens", "ML Kit page failed: 0 of ${translatable.size} block(s) usable")
+            PipelineTracer.span("mlkit page failed", elapsed, "0 of ${translatable.size} block(s) usable")
+            return PageTranslation.Failure(
+                FailureReason.UNKNOWN,
+                "On-device translation failed",
+                engineId
+            )
+        }
+        if (assembly.unansweredIds.isNotEmpty()) {
+            PipelineTracer.span(
+                "mlkit page partial", elapsed,
+                "${assembly.translated}/${translatable.size} block(s) translated · empty: ${assembly.unansweredIds}"
+            )
+        }
+        Log.i(TAG, "ML Kit batch done: ${assembly.blocks.size} blocks in $elapsed ms (${assembly.translated} translated)")
         return PageTranslation.Success(
-            blocks = ordered,
+            blocks = assembly.blocks,
             engineId = engineId,
             elapsedMs = elapsed,
             cacheHits = 0,
@@ -296,32 +344,36 @@ class MlKitTranslator(
 
     /**
      * Translate each block as one string, at most 3 concurrent ML Kit calls.
-     * Returns null (never throws) when any block fails — caller falls back.
+     *
+     * P2-06: a failing bubble no longer discards the pass. Every answer that did arrive is
+     * returned — [MlKitPageAssembly.assemble] restores page order — and the caller retries only
+     * the ids that are still missing, one at a time. Cancellation is collected from the worker
+     * threads and rethrown on this thread: it must never be reported as a translation failure.
      * Emits each finished block to the progressive listener as it lands.
      */
-    private fun translateParallel(blocks: List<TranslationBlock>): List<TranslatedBlock>? {
+    private fun translateParallel(blocks: List<TranslationBlock>): List<TranslatedBlock> {
         if (blocks.size <= 1) {
             val b = blocks.firstOrNull() ?: return emptyList()
-            return try {
-                val out = Tasks.await(client.translate(src(b.english)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
-                val tb = TranslatedBlock(b.id, b.english, out.trim())
-                emitReady(tb)
-                listOf(tb)
-            } catch (e: Exception) {
-                Log.e(TAG, "mlkit parallel single-block failed — ${e.javaClass.name}: ${e.message}", e)
-                null
-            }
+            val out = attemptBlock(b) ?: return emptyList()
+            val tb = TranslatedBlock(b.id, b.english, out)
+            emitReady(tb)
+            return listOf(tb)
         }
         val pool = java.util.concurrent.Executors.newFixedThreadPool(parallelLevel())
         val results = arrayOfNulls<String>(blocks.size)
+        val cancelled = java.util.concurrent.atomic.AtomicReference<CancellationException?>(null)
         val latch = java.util.concurrent.CountDownLatch(blocks.size)
         try {
             blocks.forEachIndexed { i, b ->
                 pool.execute {
                     try {
                         val out = Tasks.await(client.translate(src(b.english)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS).trim()
-                        results[i] = out
-                        emitReady(TranslatedBlock(b.id, b.english, out))
+                        if (out.isNotBlank()) {
+                            results[i] = out
+                            emitReady(TranslatedBlock(b.id, b.english, out))
+                        }
+                    } catch (e: CancellationException) {
+                        cancelled.compareAndSet(null, e)
                     } catch (e: Exception) {
                         Log.e(TAG, "mlkit parallel block #${b.id} failed — ${e.javaClass.name}: ${e.message}", e)
                     } finally {
@@ -331,33 +383,40 @@ class MlKitTranslator(
             }
             val finished = latch.await((TRANSLATE_TIMEOUT_SEC + 5) * 1000L, TimeUnit.MILLISECONDS)
             if (!finished) {
-                Log.e(TAG, "mlkit parallel timed out waiting for ${blocks.size} blocks")
-                return null
+                Log.e(TAG, "mlkit parallel timed out waiting for ${blocks.size} blocks — keeping the answers that arrived")
             }
-            if (results.any { it == null }) return null
-            return blocks.mapIndexed { i, b -> TranslatedBlock(b.id, b.english, results.getOrNull(i) ?: "") }
-        } catch (e: Exception) {
-            Log.e(TAG, "mlkit parallel failed — ${e.javaClass.name}: ${e.message}", e)
-            return null
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Log.e(TAG, "mlkit parallel interrupted — keeping the answers that arrived")
         } finally {
             pool.shutdownNow()
         }
+        cancelled.get()?.let { throw it }
+        return blocks.mapIndexedNotNull { i, b ->
+            results[i]?.let { TranslatedBlock(b.id, b.english, it) }
+        }
     }
 
-    private fun perBlock(blocks: List<TranslationBlock>): List<TranslatedBlock>? {
-        val tPerBlock = System.currentTimeMillis()
-        val out = ArrayList<TranslatedBlock>(blocks.size)
-        for (b in blocks) {
-            val translated = try {
-                Tasks.await(client.translate(src(b.english)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
-            } catch (e: Exception) {
-                Log.e("ManhwaLens", "per-block translation failed for block #${b.id} — ${e.javaClass.name}: ${e.message}", e)
-                return null
-            }
-            out += TranslatedBlock(b.id, b.english, translated.trim())
-        }
-        PipelineTracer.span("mlkit translate per-block", System.currentTimeMillis() - tPerBlock, "${blocks.size} blocks")
-        return out
+    /** One block's engine call for the sequential retry; null when it produced nothing. */
+    private fun attemptBlock(block: TranslationBlock): String? = try {
+        Tasks.await(client.translate(src(block.english)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .trim().takeIf { it.isNotBlank() }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.e(TAG, "mlkit retry failed for block #${block.id} — ${e.javaClass.name}: ${e.message}", e)
+        null
+    }
+
+    /** One chunk of a long bubble, retried once by the caller; null when the chunk failed. */
+    private fun translateChunkText(blockId: Int, index: Int, text: String): String? = try {
+        Tasks.await(client.translate(src(text)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .trim().takeIf { it.isNotBlank() }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.e(TAG, "mlkit chunk ${index + 1} of block #$blockId failed — ${e.javaClass.name}: ${e.message}", e)
+        null
     }
 
     private fun failureFor(e: Exception): PageTranslation.Failure =

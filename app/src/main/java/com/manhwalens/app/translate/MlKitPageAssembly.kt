@@ -43,4 +43,75 @@ object MlKitPageAssembly {
         if (ArabicValidator.issue(block.english, block.arabic) != null) return null
         return block
     }
+
+    // ------------------------------------------------------------------ P2-06
+    // Failure policy for a whole page. Before these rules existed the engine decided
+    // "one bubble failed, so the page failed", threw away the answers it already had and
+    // re-translated every bubble before giving up. The decisions are pure so the JVM tests
+    // pin them while the engine keeps batching, timeouts and threading.
+
+    /** A finished page: order preserved, unanswered bubbles empty, plus how many landed. */
+    data class Assembly(val blocks: List<TranslatedBlock>, val translated: Int) {
+        /** Ids that came back without any Arabic — retried, then left empty. */
+        val unansweredIds: List<Int> get() = blocks.filter { it.arabic.isBlank() }.map { it.id }
+    }
+
+    /**
+     * Assemble the page from whatever the engine answered.
+     *
+     * Every id in [blocks] appears exactly once and in page order; an id missing from
+     * [arabicById] (or answered with blank text) becomes an **empty** bubble — the English
+     * source is never substituted (P0/C2). A failure in one bubble cannot drop another.
+     */
+    fun assemble(blocks: List<TranslationBlock>, arabicById: Map<Int, String>): Assembly {
+        val ordered = ordered(blocks, arabicById)
+        return Assembly(ordered, ordered.count { it.arabic.isNotBlank() })
+    }
+
+    /**
+     * Should the page be reported as a failure?
+     *
+     * Only when there was something to translate and **nothing** came back: a page with one
+     * or more good bubbles is a partial success, and its empty bubbles are the caller's cue
+     * to fall back per bubble. Reporting a "successful" page with no translation at all would
+     * paint an empty overlay over the art and hide the problem.
+     */
+    fun mustFail(assembly: Assembly, requestedBlocks: Int): Boolean =
+        requestedBlocks > 0 && assembly.translated == 0
+
+    /**
+     * Sequential recovery: retry **only** the bubbles without an answer, once each.
+     *
+     * Never re-runs a bubble that already succeeded (the old fallback re-translated the whole
+     * page), and never invents text: [attempt] returning null leaves that bubble missing.
+     * The callback is called as-is — a `CancellationException` thrown by the engine propagates
+     * to the caller instead of being turned into an ordinary translation failure.
+     */
+    fun retryMissing(
+        blocks: List<TranslationBlock>,
+        answered: Map<Int, String>,
+        attempt: (TranslationBlock) -> String?
+    ): Map<Int, String> {
+        val out = LinkedHashMap<Int, String>(answered.size + blocks.size)
+        out.putAll(answered)
+        for (b in blocks) {
+            if (!out[b.id].isNullOrBlank()) continue
+            val text = attempt(b)?.trim()
+            if (!text.isNullOrBlank()) out[b.id] = text
+        }
+        return out
+    }
+
+    /**
+     * Join the chunks of one long bubble, or null when any chunk is missing.
+     *
+     * A narration split into six chunks and answered five times is **not** a translation of the
+     * bubble: presenting five sixths of it as complete would silently lose the ending. The
+     * bubble stays empty instead, and the engine traces why.
+     */
+    fun joinChunks(parts: List<String?>): String? {
+        if (parts.isEmpty()) return null
+        if (parts.any { it.isNullOrBlank() }) return null
+        return parts.joinToString(" ") { it!!.trim() }.trim().takeIf { it.isNotEmpty() }
+    }
 }
