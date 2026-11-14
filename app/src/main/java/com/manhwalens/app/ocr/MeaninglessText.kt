@@ -72,7 +72,7 @@ object MeaninglessText {
         // NB: no bare two-letter marks here — "io", "me", "ok", "no", "go" are real dialogue.
         "www.", "http:", "https:", ".com", ".net", ".org", ".xyz", ".to/", "://",
         "tapas", "mangadex", "manga dex", "webtoon.com", "webtoons.com", "discord",
-        "patreon", "ko-fi", "kofi", "buymeacoffee", "t.me/", "instagram", "twitter",
+        "patreon", "ko-fi", "kofi", "buymeacoffee", "t.me/", "manhuaplus", "instagram", "twitter",
         "facebook", "tiktok", "reddit", "read at", "read on", "read more",
         "scanlation", "scanlator", "translator:", "translated by", "typeset", "proofread",
         "cleaned by", "credit", "credits", "do not reupload", "don't reupload", "reupload",
@@ -142,11 +142,19 @@ object MeaninglessText {
 
         // 5) Watermarks / credits / handles. Two-character marks (©, ®, ™, ".io") only
         //    count inside a longer block; a two-letter mark must never eat "OK" or "NO".
+        // OCR may confuse accented glyphs or diacritics in scanlation marks
+        // (e.g. "MĂNHUAPLUS.[OM"). Fold Unicode diacritics before checking known marks.
+        val watermarkText = java.text.Normalizer.normalize(
+            lower,
+            java.text.Normalizer.Form.NFD
+        ).filterNot { ch ->
+            java.lang.Character.getType(ch) == java.lang.Character.NON_SPACING_MARK.toInt()
+        }
         val watermarkHit = WATERMARK_TOKENS.firstOrNull { tok ->
             if (tok.length <= 2) {
                 !tok.all { it.isLetter() } && flat.contains(tok) && flat.length <= 24
             } else {
-                lower.contains(tok)
+                watermarkText.contains(tok)
             }
         }
         if (watermarkHit != null) return Verdict(false, Reason.WATERMARK)
