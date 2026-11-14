@@ -4,6 +4,8 @@ import android.content.Context
 import com.manhwalens.app.data.CharacterMemory
 import com.manhwalens.app.data.NameSession
 import com.manhwalens.app.data.TranslationPrefs
+import com.manhwalens.app.data.SettingsPrefs
+import com.manhwalens.app.util.TranslationPairLog
 import com.manhwalens.app.translate.gemini.GeminiTranslator
 import com.manhwalens.app.translate.gemini.HttpUrlConnectionGeminiApi
 import com.manhwalens.app.translate.libre.HttpUrlConnectionLibreTranslateApi
@@ -99,6 +101,13 @@ object TranslatorFactory {
     private fun memo(engineId: String, style: String): TranslationMemo =
         CachingTranslator.memoFor(engineId, style)
 
+    /** Pair capture is opt-in with Debug mode and remains app-private on this device. */
+    private fun pairRecorder(context: Context): ((TranslationPairTrace) -> Unit)? {
+        if (!SettingsPrefs(context.applicationContext).debugMode) return null
+        val app = context.applicationContext
+        return { trace -> TranslationPairLog.record(app, trace) }
+    }
+
     /** Build a cached Gemini translator with the app-private disk cache. */
     private fun gemini(context: Context, prefs: TranslationPrefs): Translator {
         val session = names(context)
@@ -118,7 +127,8 @@ object TranslatorFactory {
             disk(context),
             prefs.translationStyle,
             memo = memo("gemini", prefs.translationStyle),
-            pinnedOverride = session::rewrite
+            pinnedOverride = session::rewrite,
+            onTranslationPair = pairRecorder(context)
         )
     }
 
@@ -137,7 +147,8 @@ object TranslatorFactory {
             disk(context),
             styleForLibre(prefs),
             memo = memo(LibreTranslateTranslator.ENGINE_ID, styleForLibre(prefs)),
-            pinnedOverride = session::rewrite
+            pinnedOverride = session::rewrite,
+            onTranslationPair = pairRecorder(context)
         )
     }
 
@@ -153,7 +164,8 @@ object TranslatorFactory {
                 CachingTranslator(
                     MlKitTranslator(nameTableProvider = { texts -> session.tableFor(texts).table }),
                     sharedCache, disk, style, memo = memo("ml_kit_en_ar", style),
-                    pinnedOverride = session::rewrite
+                    pinnedOverride = session::rewrite,
+            onTranslationPair = pairRecorder(context)
                 )
             }
             TranslationEngine.GEMINI ->
@@ -167,7 +179,8 @@ object TranslatorFactory {
                     CachingTranslator(
                         MlKitTranslator(nameTableProvider = { texts -> session.tableFor(texts).table }),
                         sharedCache, disk, style, memo = memo("ml_kit_en_ar", style),
-                        pinnedOverride = session::rewrite
+                        pinnedOverride = session::rewrite,
+            onTranslationPair = pairRecorder(context)
                     )
                 } else if (prefs.hasGeminiKey) {
                     gemini(context, prefs)
@@ -198,7 +211,8 @@ object TranslatorFactory {
                 onRawTranslation = onRawTranslation
             ),
             sharedCache, disk(context), style, memo = memo("ml_kit_en_ar", style),
-            pinnedOverride = session::rewrite
+            pinnedOverride = session::rewrite,
+            onTranslationPair = pairRecorder(context)
         )
     }
 
@@ -227,7 +241,8 @@ object TranslatorFactory {
             style,
             onBlockReady = onBlockReady,
             memo = memo("ml_kit_en_ar", style),
-            pinnedOverride = session::rewrite
+            pinnedOverride = session::rewrite,
+            onTranslationPair = pairRecorder(context)
         )
     }
 
