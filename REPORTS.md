@@ -24,6 +24,11 @@ Rules of evidence: a test is only "passing" if a run actually executed it; a com
 run in the authoring sandbox is reported as such; findings that contradict an earlier document are
 stated in the report before the code changes.
 
+**A report refresh follows every prompt** (rule S6 in [DECISIONS.md](DECISIONS.md)): even a prompt that
+changes no code ends with [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) matching the latest head and
+state, and with any claim the prompt touched corrected in the affected report — same push, no
+chat-only record.
+
 ---
 
 ## Index

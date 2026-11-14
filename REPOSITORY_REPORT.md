@@ -153,6 +153,7 @@ divergence from the audit and is the standing architectural choice for this area
 
 | Updated | Head | What changed in this snapshot |
 | --- | --- | --- |
+| 2026-11-13 (doc-only, on top of `7b30804`) | standing rule S6 recorded | The user asked for the report to be refreshed after **every** prompt, not only after code changes. Recorded as rule S6 in `DECISIONS.md` and restated in `REPORTS.md`; no code, test or behaviour changed and no test run is claimed here beyond the CI run of this documentation commit. |
 | 2026-11-13 (`b82fb6f`) | P0/C2 merged into the branch | Added the P0/C2 work package (no source substitution, guard extended to `ml_kit_en_ar`, guarded progressive path, painter defence), refreshed the inventory (629 tests, 25 commits) |
 | 2026-11-13 (`e546470`) | P1.1-A merged into the branch | Added the canonical normalized-name invariant to the P1.1 entry, refreshed the inventory (619 tests, 21 commits), recorded the fourth hardening pass and the run at head |
 | 2026-11-13 (`723f101`) | P1.1 merged into the branch | Added the P1.1 work package and its two runs, refreshed the inventory (615 tests, 20 commits, 225 files), noted the third hardening pass |

@@ -823,6 +823,7 @@ One line per correction.
 # Repository report — 2026-11-13
 
 - S5. [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) is the repository-level snapshot (branch and PR state, the per-change work packages with their commits and CI runs, what is verifiable in this environment and what is not, the code map, the open blockers, and the ranked next steps). It is updated in the same push whenever the snapshot changes — a new phase, a changed head/PR state, a new verification run, or a blocker appearing or clearing — while per-change detail stays in the reports indexed by [REPORTS.md](REPORTS.md).
+- S6. **A report refresh after every prompt.** Every prompt — including one that only asks for a rule, a question or a direction, with no code change — ends with the repository updated in the same push: [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) always reflects the latest head, PR state, verification and next steps, and any phase report whose claim the prompt touches is corrected too ([REPORTS.md](REPORTS.md) index row refreshed as needed). The chat summary is never the only record of a prompt: if the repository does not show it, it did not happen. Doc-only refreshes state plainly that no code changed and claim no test run.
 
 # P1.1 strict staging validation — 2026-11-13
 
