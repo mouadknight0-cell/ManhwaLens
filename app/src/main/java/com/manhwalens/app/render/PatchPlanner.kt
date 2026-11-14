@@ -50,6 +50,33 @@ object PatchPlanner {
     /** (ownerId, cover) pairs — one per rendered patch. */
     fun renders(areas: List<Area>): List<Pair<Int, Rect2D>> = areas.map { it.ownerId to it.cover }
 
+    /**
+     * Build one opaque patch payload per visual area. All translated member blocks are
+     * combined in page order so a later opaque patch can never erase an earlier sibling's
+     * Arabic. Missing translations stay absent, while the area's full cover is retained.
+     */
+    fun compose(
+        areas: List<Area>,
+        boxes: List<BubbleRenderBox>
+    ): List<BubbleRenderBox> {
+        val byId = boxes.associateBy { it.id }
+        return areas.mapNotNull { area ->
+            val members = area.memberIds.mapNotNull { byId[it] }
+                .filter { it.arabic.isNotBlank() }
+            if (members.isEmpty()) return@mapNotNull null
+            val owner = byId[area.ownerId] ?: members.first()
+            owner.copy(
+                id = area.ownerId,
+                left = area.cover.left.toInt(),
+                top = area.cover.top.toInt(),
+                right = area.cover.right.toInt(),
+                bottom = area.cover.bottom.toInt(),
+                english = members.map { it.english }.filter { it.isNotBlank() }.joinToString(" "),
+                arabic = members.map { it.arabic.trim() }.joinToString(" ")
+            )
+        }
+    }
+
     /** How many boxes were folded into another block's patch (for the pipeline trace). */
     fun foldedCount(areas: List<Area>): Int = areas.sumOf { it.memberIds.size - 1 }
 
