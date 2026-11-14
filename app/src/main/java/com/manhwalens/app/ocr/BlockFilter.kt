@@ -11,9 +11,13 @@ object BlockFilter {
     /** One dropped block, with the reason (surfaced in the pipeline trace). */
     data class Removal(val id: Int, val text: String, val reason: String)
 
+    /** A retained block touching a horizontal frame edge; it may be clipped, but is not discarded. */
+    data class EdgeWarning(val id: Int, val text: String, val side: String)
+
     data class Result(
         val kept: List<BubbleBlock>,
-        val removed: List<Removal>
+        val removed: List<Removal>,
+        val edgeWarnings: List<EdgeWarning> = emptyList()
     )
 
     private val WATERMARK_SUBSTRINGS = listOf(
@@ -70,14 +74,21 @@ object BlockFilter {
         bottomPct: Float = 0f,
         userIgnore: List<String> = emptyList(),
         minHeightPx: Float = 0f,
-        minWordCount: Int = 0
+        minWordCount: Int = 0,
+        frameWidth: Int = 0
     ): Result {
         val kept = ArrayList<BubbleBlock>(blocks.size)
         val removed = ArrayList<Removal>()
+        val edgeWarnings = ArrayList<EdgeWarning>()
         val edgeTop = if (frameHeight > 0 && topPct > 0f) frameHeight * (topPct / 100f) else 0f
         val edgeBottom = if (frameHeight > 0 && bottomPct > 0f) frameHeight * (1f - bottomPct / 100f) else Float.MAX_VALUE
         for (block in blocks) {
             val flat = block.text.replace('\n', ' ').trim()
+            if (frameWidth > 0) {
+                val bounds = block.bounds
+                if (bounds.left <= 1f) edgeWarnings += EdgeWarning(block.id, flat.take(60), "left")
+                if (bounds.right >= frameWidth - 1f) edgeWarnings += EdgeWarning(block.id, flat.take(60), "right")
+            }
             val edgeReason = when {
                 frameHeight > 0 && edgeTop > 0f && block.bounds.bottom <= edgeTop -> "edge-top"
                 frameHeight > 0 && edgeBottom > 0f && block.bounds.top >= edgeBottom -> "edge-bottom"
@@ -118,7 +129,7 @@ object BlockFilter {
             }
             kept += block
         }
-        return Result(kept, removed)
+        return Result(kept, removed, edgeWarnings)
     }
 
     /** Normalized text for ignore matching: lowercase, newlines/tabs → space, collapsed spaces. */
