@@ -872,3 +872,52 @@ One line per correction.
 - D10. Status is reported with the fixed vocabulary Proposed → Audited → Implemented → Tested → CI-verified → Device-verified → Completed. Because no device test has ever been performed, **no phase or task in this repository is "Completed"**; "CI-verified" means the JVM suites and the debug build pass.
 - D11. The previous report (revision 2.0) had invented subjects for P3–P6 (orchestration seams, cache context, resilience, performance). Those subjects are not phases; they are candidate work items, now listed as open items under the phase they belong to (P3–P5) and in the risk register.
 - Verification: HEAD `81919f9`, PR #2 OPEN/CLEAN, 31 CI runs (27 success, 4 failure), 644 discovered `@Test` — all re-checked with git and the GitHub API for report revision 3.0. Documentation only; no source, test, dependency or PR change.
+
+# P2-05 — unify the name authority (decision C′) — 2026-11-14
+
+**Report:** [REPOSITORY_REPORT.md §5.15](REPOSITORY_REPORT.md) (analysis in §5.14) · **Base:** `0240bde` ·
+**Code:** `e9db50f` · **Test fix:** `5ae0665` · **CI:** run 43591301288 ✅.
+
+- X1. **One authority per page.** A page has exactly one resolved name table: the `PageNameTable` that
+  `NameSession.tableFor(texts)` returns (locked record → USER record → USER glossary pin → BUILT_IN → trusted
+  series record → PAGE_AI → deterministic transliteration → keep Latin). Both consumers read that one value: the
+  sheet in the Gemini prompt and the table `applyPinned` enforces. Before this, the engine received only the
+  sheet *text* and rebuilt its own table from `NameMemory.plan`, so the prompt and the repair could answer
+  differently — and a locked series spelling could be replaced in fresh output by a page-local transliteration
+  and then cached (chain D-A, §5.14.2).
+- X2. **The holder is a value, not a new seam into `names`.** `translate/NameSheet.kt` is
+  `data class NameSheet(sheet: String, table: Map<String, String>)`. It lives in `translate` because `names`
+  already imports `translate.NameMemory`; passing `PageNameTable` itself into the engine would create a package
+  cycle for no benefit. It carries the **exact** `PageNameTable.sheet` string, so the prompt's entries, order,
+  wording and 20-line cap are unchanged — deriving a sheet from the map would have silently reordered it — and
+  the **exact** `PageNameTable.table` map.
+- X3. **The engine stops computing names.** `GeminiTranslator.sheetProvider: ((List<String>) -> String)?`
+  becomes `nameSheetProvider: ((List<String>) -> NameSheet)?`; the prompt uses `nameSheet.sheet`, the repair uses
+  `nameSheet.table`, and the second `NameMemory.plan(...)` call on the Gemini path is deleted. The page-local
+  plan survives **only** as the fallback for `null`/empty providers (no series selected, or no names on the
+  page), and then it supplies both halves exactly as v0.11.0/P0-A did — byte-identical request bodies, which
+  `noSeriesSelectedKeepsThePageLocalBehaviour` asserts.
+- X4. **`NameSession.rewrite` stays.** Cache hits are still repaired by `CachingTranslator.pinnedOverride` with
+  the alias-aware, `previousArabic`-aware record pass. C′ removes the second decision on the *fresh* path; it does
+  not replace the decorator, and P2-15 (post-processing order) is untouched.
+- X5. **What this decision does not change**, deliberately: the eight-level order and `CharacterResolver.decide`
+  (whose KDoc's "seven" merges the two user levels — documented, not "fixed" in code), the store and its schema,
+  `CharacterWriter.commit`'s no-overwrite rule, trust rules, manual correction, the cache, ML Kit,
+  LibreTranslate, the settings UI, and `PAGE_AI`'s unreachability (P2-13).
+- X6. **Tests (10, 676 → 686).** `GeminiTranslatorTest`: `theSheetAndTheRepairComeFromTheSameTable`,
+  `aSeriesSpellingWinsOverThePagePlanner` (asserts the planner's conflicting spelling *first*, then that the
+  resolved one wins — D-A), `aLockedSpellingIsNeverReplacedByAPageDetection`,
+  `aPageNameThatTheSeriesDoesNotKnowIsStillNamed`, `noSeriesSelectedKeepsThePageLocalBehaviour`,
+  `p2FixesStillHoldAfterTheSeamChange`; `NameSessionTest`: `two pages of one series share spellings and leak
+  nothing`, `an alias in the page is repaired by the record` (D-B); `NameMemoryTest`:
+  `theRepairNeverRewritesCorrectArabic`; `CachingNameOverrideTest`: `a cache hit is still repaired after the
+  engine switched to the resolved table`.
+- X7. **Verification and residual risk.** Executed in CI only (no JDK/Gradle/SDK in the sandbox, never claimed
+  locally): run 43590892327 at `e9db50f` reported `686 tests completed, 2 failed` — both my *test* assumptions
+  (the planner keys a name by its canonical form, which drops the hyphen; `addAlias` ignores an alias whose
+  normalized key equals the record's own) — corrected in `5ae0665`; run 43591301288 is green. Remaining risks:
+  the provider is nullable, so a future caller could in principle pass a holder whose halves disagree (the type
+  documents the contract, it cannot enforce it); the page-local fallback still cannot repair a hyphenated Latin
+  remnant, because `applyPinned` matches the canonical key (`Han Ji woo`) against English that says
+  `Han Ji-woo` — pre-existing, deliberately out of scope; `tableFor` keeps its write side effect; and **no
+  device validation** exists for any of this.
