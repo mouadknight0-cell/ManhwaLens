@@ -117,13 +117,23 @@ class GeminiTranslator(
         val results = runChunks(chunks, sheet, byId)
         results.failure?.let { return it }
 
-        // Second pass: bubbles the model skipped. One cheap re-ask of just those ids is
-        // much faster than repeating the whole page, and it recovers a truncated reply.
+        // Re-ask only missing ids. MAX_TOKENS is a stronger signal: shrink retry chunks
+        // so the next response is less likely to hit the same output-token ceiling.
+        // Completed bubbles remain in byId and are never sent again.
         val firstMissing = translatable.map { it.id }.filter { byId[it].isNullOrBlank() }
-        if (firstMissing.isNotEmpty() && firstMissing.size < translatable.size) {
+        if (firstMissing.isNotEmpty() &&
+            (firstMissing.size < translatable.size || results.maxTokensReached)
+        ) {
             val retryBlocks = translatable.filter { it.id in firstMissing }
-            PipelineTracer.span("gemini retry", 0, "re-asking ${retryBlocks.size} missing block(s)")
-            runChunks(GeminiWire.chunkBlocks(retryBlocks, 1600, 8), sheet, byId)
+            val retryMaxChars = if (results.maxTokensReached) MAX_TOKENS_RETRY_MAX_CHARS else MISSING_RETRY_MAX_CHARS
+            val retryMaxBlocks = if (results.maxTokensReached) MAX_TOKENS_RETRY_BLOCKS else MISSING_RETRY_MAX_BLOCKS
+            PipelineTracer.span(
+                "gemini retry",
+                0,
+                "re-asking ${retryBlocks.size} missing block(s), maxTokens=${results.maxTokensReached}, " +
+                    "chunk=$retryMaxBlocks/$retryMaxChars"
+            )
+            runChunks(GeminiWire.chunkBlocks(retryBlocks, retryMaxChars, retryMaxBlocks), sheet, byId)
         }
         val missing = translatable.map { it.id }.filter { byId[it].isNullOrBlank() }
         // Half the page (or more) still missing → the reply is unusable as a page; report it
@@ -178,20 +188,24 @@ class GeminiTranslator(
         )
     }
 
-    /** Outcome of a parallel pass over chunks: a fatal failure, or null when it ran. */
-    private class ChunkPass(val failure: PageTranslation.Failure?)
+    /** Outcome of a parallel pass, including whether any chunk hit MAX_TOKENS. */
+    private class ChunkPass(
+        val failure: PageTranslation.Failure?,
+        val maxTokensReached: Boolean
+    )
 
     private fun runChunks(
         chunks: List<List<TranslationBlock>>,
         sheet: String,
         into: MutableMap<Int, String>
     ): ChunkPass {
-        if (chunks.isEmpty()) return ChunkPass(null)
+        if (chunks.isEmpty()) return ChunkPass(null, maxTokensReached = false)
         val model = modelProvider()
         val pool = java.util.concurrent.Executors.newFixedThreadPool(
             chunks.size.coerceAtMost(maxParallelRequests)
         )
         val failure = java.util.concurrent.atomic.AtomicReference<PageTranslation.Failure?>(null)
+        val maxTokensReached = java.util.concurrent.atomic.AtomicBoolean(false)
         val sink = java.util.Collections.synchronizedMap(into)
         try {
             val futures = chunks.map { chunk ->
@@ -199,7 +213,10 @@ class GeminiTranslator(
                     if (failure.get() != null) return@submit
                     val out = translateChunk(chunk, sheet, model)
                     when (out) {
-                        is ChunkResult.Ok -> out.byId.forEach { (id, ar) -> sink[id] = ar }
+                        is ChunkResult.Ok -> {
+                            if (out.maxTokensReached) maxTokensReached.set(true)
+                            out.byId.forEach { (id, ar) -> sink[id] = ar }
+                        }
                         is ChunkResult.Err -> {
                             // Transport/key errors are fatal for the whole page; a parse error is
                             // not — the caller retries the missing ids.
@@ -223,11 +240,14 @@ class GeminiTranslator(
         } finally {
             pool.shutdownNow()
         }
-        return ChunkPass(failure.get())
+        return ChunkPass(failure.get(), maxTokensReached.get())
     }
 
     private sealed interface ChunkResult {
-        data class Ok(val byId: Map<Int, String>) : ChunkResult
+        data class Ok(
+            val byId: Map<Int, String>,
+            val maxTokensReached: Boolean = false
+        ) : ChunkResult
         data class Err(val failure: PageTranslation.Failure, val fatal: Boolean) : ChunkResult
     }
 
@@ -329,6 +349,10 @@ class GeminiTranslator(
             )
         }
         if (reply.text.isBlank()) {
+            if (reply.finishReason == "MAX_TOKENS") {
+                PipelineTracer.span("gemini truncated", 0, "MAX_TOKENS returned no text; missing ids will be retried")
+                return ChunkResult.Ok(emptyMap(), maxTokensReached = true)
+            }
             return ChunkResult.Err(
                 PageTranslation.Failure(FailureReason.PARSE_ERROR, "No model text in response", engineId),
                 fatal = false
@@ -336,10 +360,16 @@ class GeminiTranslator(
         }
 
         val parsed = GeminiWire.parseJsonTranslations(reply.text, ids)
-            ?: return ChunkResult.Err(
+        if (parsed == null) {
+            if (reply.finishReason == "MAX_TOKENS") {
+                PipelineTracer.span("gemini truncated", 0, "MAX_TOKENS reply had no parseable blocks; missing ids will be retried")
+                return ChunkResult.Ok(emptyMap(), maxTokensReached = true)
+            }
+            return ChunkResult.Err(
                 PageTranslation.Failure(FailureReason.PARSE_ERROR, "Model reply had no usable blocks", engineId),
                 fatal = false
             )
+        }
 
         val usable = LinkedHashMap<Int, String>()
         for (id in ids) {
@@ -348,16 +378,22 @@ class GeminiTranslator(
             val cleaned = ArabicValidator.clean(raw)
             usable[id] = cleaned
         }
+        if (usable.isEmpty() && reply.finishReason == "MAX_TOKENS") {
+            PipelineTracer.span("gemini truncated", 0, "MAX_TOKENS returned no usable blocks; missing ids will be retried")
+            return ChunkResult.Ok(emptyMap(), maxTokensReached = true)
+        }
         if (usable.isEmpty()) {
             return ChunkResult.Err(
                 PageTranslation.Failure(FailureReason.PARSE_ERROR, "Model reply had no usable blocks", engineId),
                 fatal = false
             )
         }
-        if (reply.truncated) {
-            PipelineTracer.span("gemini truncated", 0, "reply hit MAX_TOKENS — ${ids.size - usable.size} block(s) left for retry")
+        if (reply.finishReason == "MAX_TOKENS") {
+            PipelineTracer.span("gemini truncated", 0, "MAX_TOKENS — ${ids.size - usable.size} block(s) left for smaller retry")
+        } else if (reply.truncated) {
+            PipelineTracer.span("gemini stopped", 0, "finishReason=${reply.finishReason}; no token-cap retry")
         }
-        return ChunkResult.Ok(usable)
+        return ChunkResult.Ok(usable, maxTokensReached = reply.finishReason == "MAX_TOKENS")
     }
 
     private fun classifyTransport(e: Throwable): FailureReason = when (e) {
@@ -382,5 +418,11 @@ class GeminiTranslator(
     companion object {
         private const val TAG = "MLCapture"
         private const val TRANSLATE_TIMEOUT_SEC = 30L
+        /** Smaller one-shot retry after Gemini explicitly reports MAX_TOKENS. */
+        private const val MAX_TOKENS_RETRY_MAX_CHARS = 900
+        private const val MAX_TOKENS_RETRY_BLOCKS = 4
+        /** Existing fallback for missing ids when the response was not token-limited. */
+        private const val MISSING_RETRY_MAX_CHARS = 1600
+        private const val MISSING_RETRY_MAX_BLOCKS = 8
     }
 }
