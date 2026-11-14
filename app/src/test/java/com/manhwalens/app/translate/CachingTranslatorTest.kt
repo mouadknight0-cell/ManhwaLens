@@ -55,6 +55,35 @@ class CachingTranslatorTest {
         pairs.map { TranslationBlock(it.first, it.second) }
 
     @Test
+    fun observerRecordsFreshFinalPairAndSubsequentCacheHit() {
+        val fake = FakeTranslator()
+        val traces = ArrayList<TranslationPairTrace>()
+        val caching = CachingTranslator(fake, TranslationCache(), onTranslationPair = { traces += it })
+
+        caching.translatePage(blocks(7 to "Where are you?"))
+        caching.translatePage(blocks(7 to "Where are you?"))
+
+        assertEquals(listOf("OK", "CACHE_HIT"), traces.map { it.status })
+        assertEquals("Where are you?", traces.first().sourceEnglish)
+        assertEquals("AR:Where are you?", traces.first().finalArabic)
+        assertEquals("AR:Where are you?", traces.last().finalArabic)
+    }
+
+    @Test
+    fun observerKeepsRejectedCandidateAndMarksFinalAsRejected() {
+        val remote = FakeRemoteTranslator("Hello!")
+        val traces = ArrayList<TranslationPairTrace>()
+        val result = CachingTranslator(remote, TranslationCache(), onTranslationPair = { traces += it })
+            .translatePage(blocks(3 to "Hello!"))
+
+        assertEquals(FailureReason.PARSE_ERROR, (result as PageTranslation.Failure).reason)
+        assertEquals("QUALITY_REJECTED", traces.single().status)
+        assertEquals("Hello!", traces.single().candidateArabic)
+        assertEquals("", traces.single().finalArabic)
+    }
+
+
+    @Test
     fun allMissesGoThroughEngineInOneBatch() {
         val fake = FakeTranslator()
         val caching = CachingTranslator(fake, TranslationCache())
