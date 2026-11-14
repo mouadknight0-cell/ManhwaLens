@@ -11,16 +11,15 @@ import com.manhwalens.app.ocr.geometry.Rect2D
  * the English near the seam was left uncovered ("English still visible").
  *
  * The fix: decide the areas ONCE, from the whole page, before anything is painted.
- * Every area has exactly one owner — the first block in priority order — which draws the
- * Arabic over the union of every member's bounds, dilated so no glyph survives outside it.
- * Siblings render nothing. [areas] is computed from all boxes, so the decision never
- * depends on which Arabic happened to arrive first.
+ * Every area has one stable owner ID and one opaque composite patch. Translated text from
+ * all available members is combined in page order; sibling patches never overwrite one
+ * another. [areas] is computed from all boxes, so the cover never depends on arrival order.
  *
  * Pure Kotlin (JVM-tested).
  */
 object PatchPlanner {
 
-    /** One painted area: [ownerId] draws, [memberIds] are erased, [cover] bounds it. */
+    /** One composite patch area: [ownerId] is its stable ID, [memberIds] contribute text, [cover] bounds it. */
     data class Area(
         val ownerId: Int,
         val memberIds: List<Int>,
