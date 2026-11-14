@@ -2980,7 +2980,7 @@ class FloatingButtonService : Service() {
             run {
                 val sent = dedupePlan.uniqueCount
                 val received = translations.count { it.arabic.isNotBlank() }
-remove first translation preview                val status = when {
+                val status = when {
                     sent == 0 -> StageTrace.Status.SKIPPED
                     translateError != null -> StageTrace.Status.FAILED
                     received > 0 -> StageTrace.Status.OK
