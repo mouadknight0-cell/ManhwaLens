@@ -25,7 +25,9 @@ import javax.net.ssl.SSLException
 class LibreTranslateTranslator(
     private val api: LibreTranslateApi,
     private val endpointProvider: () -> String,
-    private val apiKeyProvider: () -> String = { "" }
+    private val apiKeyProvider: () -> String = { "" },
+    /** P1: authoritative page/series name spellings, applied before LibreTranslate sees the text. */
+    private val nameTableProvider: ((List<String>) -> Map<String, String>)? = null
 ) : Translator {
 
     override val engineId = ENGINE_ID
@@ -54,7 +56,13 @@ class LibreTranslateTranslator(
                 engineId
             )
         val apiKey = runCatching(apiKeyProvider).getOrDefault("").trim()
-        val prepared = translatable.map { Glossary.prepare(it.english) }
+        // LibreTranslate cannot follow prompt instructions. Pin the same resolved page table
+        // used by ML Kit into the source text before sending the request.
+        val nameTable = runCatching { nameTableProvider?.invoke(translatable.map { it.english }) }
+            .getOrNull().orEmpty()
+        val prepared = translatable.map { block ->
+            SceneNames.apply(Glossary.prepare(block.english), nameTable)
+        }
         val requestBody = LibreTranslateWire.buildRequestBody(prepared, apiKey)
         val response = try {
             api.translate(endpoint, requestBody)
@@ -84,23 +92,31 @@ class LibreTranslateTranslator(
                 engineId
             )
 
+        val translatedById = LinkedHashMap<Int, String>()
         val rejected = translatable.indices.mapNotNull { index ->
-            ArabicValidator.issue(translatable[index].english, outputs[index])?.let {
-                translatable[index].id to it
+            val block = translatable[index]
+            val issue = ArabicValidator.issue(block.english, outputs[index])
+            if (issue == null) {
+                translatedById[block.id] = outputs[index]
+                null
+            } else {
+                block.id to issue
             }
         }
-        if (rejected.isNotEmpty()) {
+        // A bad response for one bubble must not erase valid translations from the same page.
+        // Rejected bubbles stay blank; never substitute their English source.
+        if (translatedById.isEmpty()) {
             val summary = rejected.take(4).joinToString { "#${it.first}:${it.second.name.lowercase()}" }
-            PipelineTracer.span("libre quality guard", 0, "rejected ${rejected.size}/${translatable.size} block(s)")
+            PipelineTracer.span("libre quality guard", 0, "rejected all ${translatable.size} block(s)")
             return PageTranslation.Failure(
                 FailureReason.PARSE_ERROR,
-                "Translation quality check rejected ${rejected.size} block(s) ($summary)",
+                "Translation quality check rejected all ${translatable.size} block(s) ($summary)",
                 engineId
             )
         }
-
-        val translatedById = translatable.indices.associate { index ->
-            translatable[index].id to outputs[index]
+        if (rejected.isNotEmpty()) {
+            val summary = rejected.take(4).joinToString { "#${it.first}:${it.second.name.lowercase()}" }
+            PipelineTracer.span("libre partial quality guard", 0, "accepted ${translatedById.size}/${translatable.size}; rejected ${rejected.size} block(s) ($summary)")
         }
         val elapsedMs = System.currentTimeMillis() - startedAt
         PipelineTracer.span("libre translate batch", elapsedMs, "${translatable.size} block(s), 1 request")
