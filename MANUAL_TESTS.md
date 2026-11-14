@@ -7,6 +7,68 @@ Log filter for every test below: `adb logcat -s MLCapture ManhwaLens`.
 
 ---
 
+# P2 — targeted translation regression checks (2026-11-14)
+
+Run these after installing the current v0.11.0 debug artifact. Use the same multi-bubble
+chapter for ML Kit and Gemini where possible. Enable Settings → Debug mode and capture
+the diagnostics/log output for any failure.
+
+### P2-06 — one failed ML Kit bubble must not erase the page
+1. Select **ML Kit / on-device** and translate a page with at least 6 dialogue bubbles,
+   including one long narration bubble.
+2. Repeat on a page where OCR text is difficult or partly obscured.
+3. **PASS:** successful bubbles remain translated in their original positions; a bubble
+   that cannot be translated remains blank/original-art (never English painted as Arabic);
+   one failed bubble does not make the entire page disappear.
+4. For a long narration split into chunks, **PASS:** the full narration is shown only when
+   every chunk succeeds; otherwise that bubble stays blank rather than showing a truncated
+   beginning. Other bubbles remain visible.
+5. **FAIL:** successful neighbours disappear, English is painted as Arabic, or a partial
+   narration is presented as complete.
+
+### P2-08 — LibreTranslate partial quality rejection
+1. Only if a trusted HTTPS LibreTranslate test endpoint is available, select it and translate
+   a page with multiple bubbles.
+2. **PASS:** valid Arabic responses are kept; any rejected/English-echo bubble remains blank;
+   the valid neighbours are not discarded. The page name spelling is preserved consistently.
+3. **FAIL:** one rejected bubble erases otherwise valid translations, or page names are
+   changed inconsistently.
+4. If a deterministic test endpoint is available, configure it to return one valid Arabic
+   result and one English echo in the same response; this is the direct regression case.
+   Do not use an untrusted public endpoint.
+
+### P2-16 — Gemini truncation recovery
+1. Select Gemini with a valid personal API key and translate a dense page (many bubbles or
+   long dialogue) that may approach the model output limit.
+2. **PASS:** complete bubbles are retained; only missing bubble IDs are retried; when the
+   response reports MAX_TOKENS, the retry uses smaller batches; no completed bubble is
+   needlessly translated again.
+3. **FAIL:** the entire page is discarded despite usable replies, completed bubbles are
+   duplicated/replaced, or the same oversized batch is retried unchanged.
+4. If the page does not trigger truncation, record **NOT TRIGGERED**; do not treat that as
+   a pass for the MAX_TOKENS path.
+
+### P2-14 — mixed and short output quality
+Use dialogue that naturally includes a name such as `Eren` or `Han Ji-woo`, plus short
+answers such as “Yes!” and “No!”.
+- **PASS:** Arabic “نعم” / “لا” is accepted; a single preserved Latin name inside Arabic
+  dialogue is accepted; a clearly untranslated English fragment or a very short Arabic
+  answer to a long source is withheld rather than painted or cached.
+- **FAIL:** valid short Arabic dialogue is blanked, a preserved name is rejected, or an
+  obviously incomplete/English-mixed translation is shown as valid.
+- Record the exact source/output pair for every unexpected result. These cases may need
+  a deterministic engine fixture to reproduce; do not infer the internal validator result
+  from appearance alone.
+
+### Evidence to return
+- Device model and Android/HyperOS version.
+- App version shown in Settings and selected translation engine.
+- PASS / FAIL / NOT TRIGGERED for each P2 item.
+- Settings → Diagnostics → Live self-check → Copy report.
+- Screenshots of any incorrect patch; redact API keys and private content.
+
+---
+
 # v0.11.0 — the four screenshot defects
 
 Run these on the same pages that produced the four screenshots. Logs: `adb logcat -s MLCapture ManhwaLens`.
