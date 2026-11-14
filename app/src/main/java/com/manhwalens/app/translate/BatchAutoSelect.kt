@@ -26,6 +26,7 @@ object BatchAutoSelect {
     const val RUNS = 3
     const val CONFIRM_RUNS = 2
     const val PARALLEL_LIMIT = 2
+    const val MIN_JOINED_WIN_PERCENT = 10
 
     data class Trial(
         val strategy: SplitStrategy,
@@ -49,6 +50,7 @@ object BatchAutoSelect {
         strategies: List<SplitStrategy> = SplitStrategy.values().toList(),
         sample: List<String> = SELF_TEST,
         confirmSample: List<String> = CONFIRM,
+        parallelLimit: Int = PARALLEL_LIMIT,
         clock: () -> Long = { System.nanoTime() / 1_000_000L }
     ): Choice {
         // Warm-up so the first strategy is not charged for a cold engine.
@@ -77,7 +79,7 @@ object BatchAutoSelect {
             Trial(s, ok, median(durations), mismatched, reason)
         }
 
-        val parallelMs = timeParallel(translateOne, sample, clock)
+        val parallelMs = timeParallel(translateOne, sample, parallelLimit, clock)
         // Fastest first; a candidate is adopted only if it also maps one page-sized call.
         val rejected = ArrayList<String>()
         var confirmedTrials = firstTrials
@@ -118,8 +120,8 @@ object BatchAutoSelect {
                         (if (rejected.isEmpty()) "" else ", ${rejected.joinToString("/")} failed the page-size check") +
                         ") → parallel"
                 )
-            parallelMs in 0..winner.elapsedMs ->
-                Choice(null, trials, parallelMs, "parallel ${parallelMs} ms ≤ best joined ${winner.strategy.label} ${winner.elapsedMs} ms")
+            parallelMs >= 0 && winner.elapsedMs * 100 > parallelMs * (100 - MIN_JOINED_WIN_PERCENT) ->
+                Choice(null, trials, parallelMs, "parallel ${parallelMs} ms retained; joined ${winner.strategy.label} ${winner.elapsedMs} ms was less than ${MIN_JOINED_WIN_PERCENT}% faster")
             else ->
                 Choice(
                     winner.strategy, trials, parallelMs,
@@ -141,8 +143,8 @@ object BatchAutoSelect {
     }
 
     /** Median of [RUNS] parallel per-block passes, or -1 when a call fails. */
-    private fun timeParallel(translateOne: (String) -> String, sample: List<String>, clock: () -> Long): Long {
-        val pool = Executors.newFixedThreadPool(PARALLEL_LIMIT)
+    private fun timeParallel(translateOne: (String) -> String, sample: List<String>, limit: Int, clock: () -> Long): Long {
+        val pool = Executors.newFixedThreadPool(limit.coerceIn(1, 6))
         return try {
             val durations = ArrayList<Long>(RUNS)
             for (run in 0 until RUNS) {

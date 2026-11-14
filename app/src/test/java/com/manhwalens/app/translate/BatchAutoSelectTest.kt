@@ -76,6 +76,22 @@ class BatchAutoSelectTest {
     }
 
     @Test
+    fun keepsParallel_whenJoinedIsLessThanTenPercentFaster() {
+        val clock = Clock()
+        val sample = listOf("AA", "BB", "CC", "DD")
+        val e = engine(clock, cost = { input -> if (input.length > 15) 95 else 25 })
+        val choice = BatchAutoSelect.run(
+            e,
+            strategies = listOf(SplitStrategy.PIPE),
+            sample = sample,
+            confirmSample = emptyList(),
+            clock = { clock.t }
+        )
+        assertNull(choice.strategy)
+        assertTrue(choice.why.contains("less than 10% faster"))
+    }
+
+    @Test
     fun nonePasses_fallsBackToParallel() {
         val clock = Clock()
         // Model flattens every reply to one line with no markers at all.

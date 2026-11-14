@@ -215,7 +215,7 @@ class MlKitTranslator(
             PipelineTracer.span("mlkit warm state", 0, MlKitWarmth.describe(System.currentTimeMillis()))
             val policy = BatchPolicyHolder.instance
             var done = false
-            if (onBlockReady == null && normal.size >= 2) {
+            if (normal.size >= 2) {
                 // Joined single call ONLY with a separator proven on this device.
                 val strategy = policy?.current()
                     ?.takeIf { normal.sumOf { b -> b.english.length } <= JOINED_MAX_CHARS }
@@ -226,7 +226,11 @@ class MlKitTranslator(
                     val ms = System.currentTimeMillis() - tTranslate
                     if (joined.blocks != null) {
                         PipelineTracer.span("mlkit translate joined", ms, "${normal.size} blocks, 1 call · strategy=joined ${strategy.label}")
-                        joined.blocks.forEach { answered[it.id] = it }
+                        joined.blocks.forEach {
+                            answered[it.id] = it
+                            // Emit only after the complete joined response has passed 1:1 validation.
+                            emitReady(it)
+                        }
                         done = true
                     } else if (joined.engineError) {
                         // Engine error, not a mapping problem — nothing to remember.
@@ -558,7 +562,11 @@ class MlKitTranslator(
             Thread({
                 try {
                     val t0 = System.currentTimeMillis()
-                    val choice = BatchAutoSelect.run(::translateRaw, strategies = policy.allowedStrategies())
+                    val choice = BatchAutoSelect.run(
+                        ::translateRaw,
+                        strategies = policy.allowedStrategies(),
+                        parallelLimit = policy.parallelLevel()
+                    )
                     policy.recordChoice(choice.strategy, choice.why)
                     lastSelfTestSummary = choice.trials.joinToString(" · ") {
                         "${it.strategy.label}=${if (it.ok) "${it.elapsedMs}ms" else "FAIL(${it.mismatched})"}"
