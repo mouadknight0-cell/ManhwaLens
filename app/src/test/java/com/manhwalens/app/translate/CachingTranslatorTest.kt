@@ -184,6 +184,27 @@ class CachingTranslatorTest {
     }
 
     @Test
+    fun implausiblyShortRemoteTranslationIsRejectedAndNotCached() {
+        val file = java.io.File.createTempFile("translation-cache", ".json").apply { delete() }
+        try {
+            val source = "I remember the night when you came to this village and told everyone that the old king had returned from the northern mountains after many years away."
+            val cache = TranslationCache()
+            val key = cache.key("gemini", source)
+            val persistent = PersistentTranslationCache(file)
+            val remote = FakeRemoteTranslator("نعم")
+
+            val result = CachingTranslator(remote, cache, persistent)
+                .translatePage(blocks(1 to source)) as PageTranslation.Failure
+
+            assertEquals(FailureReason.PARSE_ERROR, result.reason)
+            assertEquals(0, cache.size())
+            assertEquals(null, persistent.get(key))
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
     fun emptyInputReturnsEmptyInputFailure() {
         val fake = FakeTranslator()
         val caching = CachingTranslator(fake, TranslationCache())
