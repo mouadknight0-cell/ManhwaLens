@@ -128,8 +128,9 @@ class GlossaryTest {
             Glossary.prepare("She put the pan on the fire and used the tan cloth.")
         )
         assertEquals("He heard a ding from the bell.", Glossary.prepare("He heard a ding from the bell."))
-        // "Song" is a table key (سونغ) and an ordinary noun; the genre term next to it still works.
-        assertEquals("He sang a Song for the sect.", Glossary.prepare("He sang a Song for the sect."))
+        // "Song" is a table key (سونغ) and an ordinary noun, so it stays Latin; the genre term
+        // next to it is table subject matter and still translates.
+        assertEquals("He sang a Song for the طائفة.", Glossary.prepare("He sang a Song for the sect."))
         assertFalse(Glossary.prepare("A Song in the hall.").contains("سونغ"))
     }
 
