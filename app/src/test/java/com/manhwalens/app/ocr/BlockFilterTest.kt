@@ -317,4 +317,18 @@ fun part5_bottomToolbar_droppedByEdgeBand() {
     assertEquals("edge-bottom", result.removed.first().reason)
 }
 
+
+    @Test
+    fun horizontalEdgeContactIsReportedButDialogueIsKept() {
+        val right = BubbleBlock(7, listOf(DetectedLine("LET'S GO!", Rect2D(620f, 300f, 719f, 350f))))
+        val left = BubbleBlock(8, listOf(DetectedLine("WAIT!", Rect2D(0f, 400f, 90f, 450f))))
+        val middle = BubbleBlock(9, listOf(DetectedLine("I'M HERE.", Rect2D(200f, 500f, 400f, 550f))))
+
+        val result = BlockFilter.apply(listOf(right, left, middle), frameWidth = 720)
+
+        assertEquals(listOf(7, 8, 9), result.kept.map { it.id })
+        assertEquals(listOf("right", "left"), result.edgeWarnings.map { it.side })
+        assertEquals(listOf(7, 8), result.edgeWarnings.map { it.id })
+        assertTrue(result.removed.isEmpty())
+    }
 }
