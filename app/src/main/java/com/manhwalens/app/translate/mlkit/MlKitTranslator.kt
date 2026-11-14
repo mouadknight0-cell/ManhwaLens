@@ -367,20 +367,21 @@ class MlKitTranslator(
         operation: String
     ): String {
         val prepared = src(inputText)
-        val started = if (onRawTranslation != null) SystemClock.elapsedRealtime() else 0L
+        val observer = onRawTranslation
+        val started = if (observer != null) SystemClock.elapsedRealtime() else 0L
         val raw = try {
             Tasks.await(client.translate(prepared), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
         } catch (e: Exception) {
-            if (onRawTranslation != null) runCatching {
-                onRawTranslation.invoke(MlKitTranslationTrace(
+            if (observer != null) runCatching {
+                observer.invoke(MlKitTranslationTrace(
                     blockId, sourceText, prepared, "", SystemClock.elapsedRealtime() - started,
                     operation, e.javaClass.simpleName
                 ))
             }
             throw e
         }
-        if (onRawTranslation != null) runCatching {
-            onRawTranslation.invoke(MlKitTranslationTrace(
+        if (observer != null) runCatching {
+            observer.invoke(MlKitTranslationTrace(
                 blockId, sourceText, prepared, raw, SystemClock.elapsedRealtime() - started,
                 operation, null
             ))
