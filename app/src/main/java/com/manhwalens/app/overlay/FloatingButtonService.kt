@@ -3856,21 +3856,6 @@ class FloatingButtonService : Service() {
         activeCaptureDiagnostics = null
     }
 
-    /**
-     * Progressive overlay painter (Part C): holds the frame + the filtered blocks,
-     * samples each bubble's background lazily on first paint (bubble-sized pixels —
-     * cheap), and pushes a growing box list to the overlay as translations land:
-     *  - onBlockReady (ML Kit, peect(patch.id) != null) {
-                        po.replaceBitmap(patch.id, patch.bitmap)
-                    } else {
-                        po.upsert(patch, bitmap.width, bitmap.height)
-                    }
-                }
-                Log.i(TAG, "painter finish: reconciled ${patches.size} composite area(s) (elapsed=${elapsed} ms)")
-            }
-        }
-    }
-
     private fun patchOverlayEnsure(): com.manhwalens.app.overlay.PatchOverlayWindow =
         patchOverlay ?: com.manhwalens.app.overlay.PatchOverlayWindow(this, windowManager).also { patchOverlay = it }
 
