@@ -162,7 +162,7 @@ object TranslatorFactory {
         val style = prefs.translationStyle
         val disk = disk(context)
         // Explicit offline mode is authoritative: never construct or call a cloud translator.
-        if (prefs.offlineMode) return createOffline(context)
+        if (OfflineTranslationPolicy.mustUseLocal(prefs.offlineMode)) return createOffline(context)
         return when (prefs.engine) {
             TranslationEngine.ML_KIT -> {
                 val session = names(context)
@@ -257,7 +257,7 @@ object TranslatorFactory {
      */
     fun remoteUpgradeAvailable(context: Context): Boolean {
         val prefs = TranslationPrefs(context)
-        if (prefs.offlineMode) return false
+        if (!OfflineTranslationPolicy.canUseRemoteUpgrade(prefs.offlineMode, prefs.engine)) return false
         return when (prefs.engine) {
             TranslationEngine.ML_KIT -> false
             TranslationEngine.GEMINI -> prefs.hasGeminiKey && !prefs.geminiCircuit.isOpen()
@@ -273,7 +273,7 @@ object TranslatorFactory {
     fun createRemoteOnly(context: Context): Translator? {
         ensureBatchPolicy(context)
         val prefs = TranslationPrefs(context)
-        if (prefs.offlineMode) return null
+        if (!OfflineTranslationPolicy.canUseRemoteUpgrade(prefs.offlineMode, prefs.engine)) return null
         prefs.refreshGlossary()
         return when (prefs.engine) {
             TranslationEngine.ML_KIT -> null
@@ -287,7 +287,7 @@ object TranslatorFactory {
     /** Backwards-compatible Gemini-only factory entry point. */
     fun createGeminiOnly(context: Context): Translator? {
         val prefs = TranslationPrefs(context)
-        if (prefs.offlineMode || prefs.engine != TranslationEngine.GEMINI || !prefs.hasGeminiKey || prefs.geminiCircuit.isOpen()) return null
+        if (!OfflineTranslationPolicy.canCreateGeminiOnly(prefs.offlineMode, prefs.engine, prefs.hasGeminiKey, prefs.geminiCircuit.isOpen())) return null
         prefs.refreshGlossary()
         return gemini(context, prefs)
     }
