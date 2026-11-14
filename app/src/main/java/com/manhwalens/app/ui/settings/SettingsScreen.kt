@@ -55,7 +55,6 @@ import com.manhwalens.app.util.ErrorLog
 import com.manhwalens.app.util.TranslationPairLog
 import com.manhwalens.app.ui.theme.LensVioletSoft
 import com.manhwalens.app.ui.theme.PanelAmber
-import com.manhwalens.app.ui.settings.OfflineTranslationModelCard
 
 /**
  * Settings screen — single scrolling page:
