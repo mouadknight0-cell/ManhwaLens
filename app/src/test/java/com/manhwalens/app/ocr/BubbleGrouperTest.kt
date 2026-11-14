@@ -121,4 +121,31 @@ class BubbleGrouperTest {
         )
         assertEquals(2, BubbleGrouper.group(input).size)
     }
+
+    @Test
+    fun `intermediate bridge line does not join two distant text columns`() {
+        val input = listOf(
+            line("LEFT TOP", 100f, 100f, 300f, 140f),
+            line("BRIDGE", 200f, 150f, 500f, 190f),
+            line("RIGHT BOTTOM", 400f, 200f, 600f, 240f)
+        )
+
+        val blocks = BubbleGrouper.group(input)
+
+        assertEquals(2, blocks.size)
+        assertEquals(setOf("LEFT TOP", "BRIDGE"), blocks[0].lines.map { it.text }.toSet())
+        assertEquals(listOf("RIGHT BOTTOM"), blocks[1].lines.map { it.text })
+    }
+
+    @Test
+    fun `long centered bubble remains one block after bridge protection`() {
+        val input = listOf(
+            line("FIRST LINE", 180f, 100f, 420f, 140f),
+            line("SECOND LINE", 160f, 150f, 440f, 190f),
+            line("THIRD LINE", 175f, 200f, 425f, 240f),
+            line("FOURTH LINE", 165f, 250f, 435f, 290f)
+        )
+
+        assertEquals(1, BubbleGrouper.group(input).size)
+    }
 }
