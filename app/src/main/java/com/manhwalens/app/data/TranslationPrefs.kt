@@ -36,6 +36,11 @@ class TranslationPrefs(context: Context) {
         try { prefs?.edit()?.putLong(key, value)?.apply() } catch (t: Throwable) { Log.e("ManhwaLens", "translation pref write failed ($key)", t) }
     }
 
+    /** When enabled, all translation paths are forced to on-device ML Kit; cloud upgrades are disabled. */
+    var offlineMode: Boolean
+        get() = getLong(KEY_OFFLINE_MODE, 0L) != 0L
+        set(value) = putLong(KEY_OFFLINE_MODE, if (value) 1L else 0L)
+
     var engine: TranslationEngine
         get() = try {
             val stored = getString(KEY_ENGINE, "").trim()
@@ -156,6 +161,7 @@ class TranslationPrefs(context: Context) {
     companion object {
         private const val PREFS_NAME = "manhwalens_translation"
         private const val KEY_ENGINE = "engine"
+        private const val KEY_OFFLINE_MODE = "offline_mode"
         private const val KEY_GEMINI_KEY = "gemini_api_key"
         private const val KEY_GEMINI_MODEL = "gemini_model"
         private const val KEY_GEMINI_CIRCUIT_UNTIL = "gemini_circuit_until"
