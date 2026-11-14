@@ -1,7 +1,7 @@
 # MANUAL_TESTS.md — Redmi 13C checklist
 
 Device: Redmi 13C (Helio G85, 720×1600, MIUI/HyperOS). Browser: **Brave**.
-Build under test: `app/build/outputs/apk/debug/app-debug.apk` (v0.11.0, versionCode 30).
+Build under test: `ManhwaLens-v0.11.5-debug.apk` (versionCode 35; experimental).
 Each numbered test lists **PASS / FAIL**. When in doubt, Settings → Debug mode ON and Settings → Last error → Copy.
 Log filter for every test below: `adb logcat -s MLCapture ManhwaLens`.
 
@@ -543,3 +543,16 @@ one from cache, and progressive painting is still visibly progressive (first bub
 6. Turn **Debug mode OFF** after collecting the evidence. The report remains in app-private storage until a later report replaces it; do not share it if the page contains private content.
 
 **Expected:** normal captures with Debug mode OFF do not include page dialogue in the generic pipeline report. This check does not change translation behavior; use 3–5 representative pages before proposing OCR or translation-quality fixes. Live-mode per-frame raw text is not included in this P4-A pass.
+
+
+## P5-A — composite patch rendering (v0.11.5, device)
+
+1. Install **ManhwaLens v0.11.5** and select **ML Kit / on-device**. Keep Debug mode ON for this test.
+2. Translate a page containing a multi-line speech bubble, especially where OCR may split the bubble into adjacent blocks. Use both a short two-line bubble and a longer bubble with at least four visible lines.
+3. Capture the page before and after translation. Repeat the same page twice to include both fresh translation and cache-hit paths.
+4. **PASS:** Arabic from all translated member blocks remains visible together; a later sibling result does not erase earlier Arabic; one patch covers the full planned area; no English line is left visible inside that area when its member blocks were retained.
+5. **FAIL:** only the last translated line remains, Arabic disappears after another block completes, or the patch covers only the first portion of a grouped area.
+6. Repeat once with the remote engine enabled if configured. A remote upgrade must replace the corresponding composite area without removing other sibling translations.
+7. Copy **Settings → Diagnostics → Last report** after the test. Keep the original and translated screenshots together with the report. Turn Debug mode OFF afterward.
+
+**Scope:** this test verifies rendering and patch aggregation only. It does not establish semantic translation quality, glossary coverage, or OCR accuracy. Those are evaluated separately.
