@@ -150,8 +150,17 @@ class CachingTranslator(
                 }
                 is PageTranslation.Success -> {
                     val polished = result.blocks.map { raw ->
-                        // One post-processing pipeline for every engine; cached text is already clean.
-                        raw.copy(arabic = postProcess(raw.arabic))
+                        // Apply authoritative series-name corrections BEFORE the quality guard,
+                        // matching the cache-hit path. A preserved name such as "Will" must not
+                        // be mistaken for an untranslated common English word.
+                        val cleaned = postProcess(raw.arabic)
+                        val nameOverride = pinnedOverride
+                        val corrected = if (cleaned.isNotBlank() && nameOverride != null) {
+                            runCatching { nameOverride.invoke(raw.english, cleaned) }.getOrDefault(cleaned)
+                        } else {
+                            cleaned
+                        }
+                        raw.copy(arabic = corrected)
                     }
                     // Per-bubble triage: a rejected bubble becomes EMPTY (never an English
                     // echo on screen), the readable bubbles of the same reply are kept.
@@ -184,15 +193,9 @@ class CachingTranslator(
                     val toPersist = LinkedHashMap<String, String>(polished.size)
                     for (tb in polished) {
                         val isRejected = rejectedIds.any { it.first == tb.id }
-                        // P1: the engine's own output gets the same authoritative override, so
-                        // a model that spells a locked name differently cannot reach the screen.
-                        val source = tb.arabic
-                        val nameOverride = pinnedOverride
-                        val finalArabic = if (!isRejected && source.isNotBlank() && nameOverride != null) {
-                            runCatching { nameOverride.invoke(tb.english, source) }.getOrDefault(source)
-                        } else {
-                            source
-                        }
+                        // The authoritative name override was already applied before the
+                        // quality guard above, so persistence and display use that judged value.
+                        val finalArabic = tb.arabic
                         translatedById[tb.id] = if (isRejected) "" else finalArabic
                         if (finalArabic.isNotBlank() && !isRejected) {
                             cache.put(engineId, tb.english, finalArabic, style)
