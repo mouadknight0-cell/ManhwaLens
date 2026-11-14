@@ -281,7 +281,12 @@ object GeminiWire {
     }
 
     /** Text plus why the model stopped, so a truncated page can be re-asked. */
-    data class Reply(val text: String, val truncated: Boolean, val blocked: Boolean)
+    data class Reply(
+        val text: String,
+        val truncated: Boolean,
+        val blocked: Boolean,
+        val finishReason: String = ""
+    )
 
     fun parseReply(responseBody: String): Reply = try {
         val root = JSONObject(responseBody)
@@ -301,7 +306,7 @@ object GeminiWire {
                 }
             }
             val truncated = reason == "MAX_TOKENS" || reason == "RECITATION" || reason == "SAFETY"
-            Reply(sb.toString().trim(), truncated, blocked)
+            Reply(sb.toString().trim(), truncated, blocked, reason)
         }
     } catch (e: Exception) {
         Reply("", truncated = false, blocked = false)
