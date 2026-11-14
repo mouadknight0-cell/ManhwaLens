@@ -152,6 +152,8 @@ run is the evidence that the suite — including the 10 new tests — compiled a
   **success** (steps: *Unit tests* success, *Build debug APK* success).
 * Compare: [`6eb8974...08004c4`](https://github.com/mouadknight0-cell/ManhwaLens/compare/6eb8974...08004c4) — `--stat` below.
 * Audit flip: C2 is marked **fixed** in [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md) only after this run.
+* Run-record commit `b82fb6f` (27th) — green at its own head in run 43563800508 (unit tests +
+  debug APK), so the branch tip carrying these documents is CI-verified too.
 
 ### Diff
 
