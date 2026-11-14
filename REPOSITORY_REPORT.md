@@ -1,302 +1,567 @@
 # ManhwaLens — repository report
 
-**Snapshot:** session date 2026-11-13 · **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — **OPEN**, not draft
-**Head at this snapshot:** `01e12a6` (*docs: P2 translation quality & context audit (read-only)*) — the last commit that changed application code is still `c008f62` (P0/C2); everything after it is documentation
-**Base:** `main` @ `560705d55012f1549449ca3230184b4b5beda991` · **Branch ahead (at `3674ebf`):** 29 commits, 228 files, +36 706 / −0 · **Working tree:** clean before this documentation commit, which adds Markdown only
-**Latest verified run:** [43567398304](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43567398304) — workflow *Android build*, conclusion **success** at `01e12a6` (steps *Unit tests* ✅, *Build debug APK* ✅, APK artifact uploaded); the run before it, [43565553808](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43565553808), verified `05fa1ab`
+**Report revision:** 2.0 (consolidated) · **Updated:** session date 2026-11-13 (commit clock 2026-11-14 UTC)
+**Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — **OPEN**, not draft, not merged
+**Base:** `main` @ `560705d55012f1549449ca3230184b4b5beda991` (the PR branch carries the whole app; `main` holds the initial commit)
+**Head at this revision:** `a7b276f` (*test(P2-A): pin the real expectation in the Song collision test*) — the consolidation commit after it changes Markdown plus one source **comment** (a documentation pointer in `names/JsonCharacterStore.kt`), no behaviour
+**Latest verified run:** [43569302435](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569302435) — workflow *Android build*, conclusion **success** at `a7b276f` (steps *Unit tests* ✅, *Build debug APK* ✅, APK + test-report artifacts uploaded)
 
-This is the repository-level view and the authoritative current-state document: what the branch contains,
-what has been verified and how, what cannot be verified in this environment, and what is next. Per-change
-detail lives in the reports indexed in [REPORTS.md](REPORTS.md). §9 records this snapshot's own consistency
-audit: what was stale, what it was corrected to, and what remains **UNVERIFIED**.
-
-> Clock note: this session's date is 2026-11-13, while commit timestamps (UTC) run 2026-11-13 16:21 →
-> 2026-11-14 06:08. Dates below are the commit clock where a commit is cited, the session date otherwise.
-
----
-
-## 1. What the repository is
-
-An Android utility (not a reader) that translates manhwa/manga/webtoon pages in place: floating
-button → MediaProjection capture → ML Kit OCR (Latin) → translation (ML Kit EN→AR on device, Gemini
-or LibreTranslate) → Arabic text painted over the original bubbles in an overlay. Single `:app`
-module, Kotlin 2.4.21, AGP 8.13.2, Compose + Material 3, `minSdk 26`, `compileSdk`/`targetSdk` 36.
-
-| | | Verified how |
-| --- | --- | --- |
-| Kotlin sources | **113** files under `app/src/main` | `find app/src/main -name '*.kt' \| wc -l` |
-| Test sources | **69** files under `app/src/test` | `find app/src/test -name '*.kt' \| wc -l` |
-| Test methods (`@Test`) at this head | **629** | `grep -rn '@Test' app/src/test \| wc -l` |
-| Branch vs `main` (at `3674ebf`) | **29** commits, **228** files, **+36 706** lines (the PR branch carries the whole app; `main` holds the initial commit) | `git rev-list --count origin/main..3674ebf`, `git diff --stat origin/main...3674ebf` |
-| Documentation at the root | **19** Markdown files (§6) | `ls *.md \| wc -l` |
-| PR #2 (at `3674ebf`) | OPEN · MERGEABLE · CLEAN · 0 reviews · 29 commits · 228 files · +36 706 / −0 | `gh pr view 2 --json …` |
+> **This is the only authoritative report in the repository.** Since 2026-11-13 (report revision 2.0) the
+> per-change reports (`REPORTS.md`, `P0_*`, `P0A_*`, `P0B_*`, `P1_*`, `P1_1_*`, `P2_TRANSLATION_CONTEXT_AUDIT.md`)
+> were folded into this file and deleted; §5 and §6 carry their content. The standing rule **S1–S6** was
+> rewritten accordingly (§13). `PLAN.md` stays as the *forward-looking* roadmap (it is a plan, not a report);
+> `README.md`, `PRIVACY.md`, `CHANGELOG.md`, `BLOCKERS.md`, `DECISIONS.md`, `MANUAL_TESTS.md`,
+> `OPEN_SOURCE_RESEARCH.md` and `V096_PLAN.md` are registers/guides and were kept.
+>
+> Clock note: the session date is 2026-11-13 while commit timestamps (UTC) are 2026-11-13 16:21 → 2026-11-14 07:20.
+> A date below is the commit clock where a commit is cited, the session date otherwise.
 
 ---
 
-## 2. What this branch adds on top of v0.11.0
+## 1. What this repository is
 
-| # | Work package | Report | Base → final (code commit) | Diff | CI |
-| --- | --- | --- | --- | --- | --- |
-| 1 | **P0** architecture audit (read-only) | [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md) | v0.11.0 `b8e37de` | none (no code changed) | — (no code changed) |
-| 2 | **P0-A** Gemini name sheet missing from the primary request | [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md) | `b8e37de` → `528d629` | 6 files, +692 / −5 | 43514068424, 43514608722 |
-| 3 | **P1** series-scoped character memory | [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) · design [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md) | `528d629` → `8d5cc9e` (docs `1c0c270`) | 27 files, +3 307 / −52 | 43518604612, 43520783453 |
-| 4 | **P1 review** — atomic writes, session cache identity, series visibility | [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) | `1c0c270` → `e99dd93` (docs `06b3d84`) | 7 files, +269 / −16 | 43523522645, 43524129101 |
-| 5 | **P1 persistence safety** — recovery may never write the live file | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `87830b7` (docs `345715d`) | 6 files, +348 / −63 | 43526686657, 43527227407 |
-| 6 | **P1.1 strict staging validation** — a staging copy is promoted only after it is proved structurally complete; **P1.1-A** adds canonical `normalizedName` integrity (§8 of that report) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `723f101` → `fee9d9e` (docs `feb20ef`, `e546470`, `6eb8974`) | P1.1 5 files +451/−12 · P1.1-A 6 files +206/−13 | 43531030306, 43531550380, 43561318751, 43561668957 |
-| 7 | **P0/C2** ML Kit English echo eliminated — no source substitution, guard extended to `ml_kit_en_ar`, guarded progressive path, painter-boundary defence | [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) | `6eb8974` → `c008f62` (docs `08004c4`, `b82fb6f`, `7b30804`, `3674ebf`) | 6 files, +510 / −8 | 43563394305, 43563800508, 43564060458, 43564884208 |
-| 8 | **P2 audit** — translation quality & context (READ-ONLY: 4 confirmed bugs, 9 verified risks, 3 improvements, 5 verified-correct) | [P2_TRANSLATION_CONTEXT_AUDIT.md](P2_TRANSLATION_CONTEXT_AUDIT.md) | audit baseline `fe5aa6a` | — (no code changed) | — (no code changed) |
+An Android utility (not a reader) that translates manhwa/manga/webtoon pages **in place**: a floating lens
+button → MediaProjection capture → on-device ML Kit OCR (Latin, bundled model) → translation → Arabic text
+painted over the original bubbles in an overlay. On-device translation is the default and the product promise
+(**Offline First**); a remote engine (Gemini, or LibreTranslate on a user-supplied endpoint) is an optional
+*upgrade* that never delays the local draft.
 
-Net: one defect fixed in the Gemini wire path, one feature (persistent, series-scoped names), four
-hardening passes over the new persistence layer (atomic writes → recovery never writes the live file →
-strict structural validation before promotion → canonical normalized-name integrity), and one output-guard
-fix (ML Kit). No existing feature removed; no translation or OCR behaviour changed by the hardening passes;
-the P0/C2 change touches only the assembly/guard/painter boundaries, not the engines' batching or prompts.
-
----
-
-## 3. Verification: what is real here
-
-`./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --console=plain`
-
-The authoring sandbox has **no JDK, no `javac`, no `gradle` and no Android SDK**
-(`which java javac gradle` → nothing; `ANDROID_HOME` unset), so Gradle cannot run locally. The only
-executed verification is GitHub Actions (`.github/workflows/android.yml`, workflow *Android build*), on
-the `pull_request` event; each report cites the run that validated its commit.
-
-### 3.1 Every run on this branch (verified via the Actions API, not from memory)
-
-| Run | Commit | Conclusion | Note |
-| --- | --- | --- | --- |
-| [43567398304](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43567398304) | `01e12a6` | **success** | P2 audit docs; unit tests + APK |
-| [43564884208](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564884208) | `3674ebf` | success | unit tests + APK |
-| [43564060458](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564060458) | `7b30804` | success | |
-| [43563800508](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43563800508) | `b82fb6f` | success | |
-| [43563394305](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43563394305) | `08004c4` | success | P0/C2 code + docs |
-| [43561668957](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43561668957) | `6eb8974` | success | |
-| [43561318751](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43561318751) | `e546470` | success | P1.1-A verified here |
-| [43558741498](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43558741498) | `feb20ef` | success | |
-| [43531550380](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43531550380) | `723f101` | success | P1.1 |
-| [43531030306](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43531030306) | `e6598a8` | success | |
-| [43530112769](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43530112769) | `8140a4b` | success | |
-| [43527227407](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43527227407) | `87830b7` | success | persistence safety |
-| [43526686657](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43526686657) | `345715d` | success | |
-| [43525048064](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43525048064) | `b960444` | success | rules push |
-| [43524129101](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43524129101) | `06b3d84` | success | |
-| [43523522645](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43523522645) | `e99dd93` | success | P1 review |
-| [43520783453](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43520783453) | `1c0c270` | success | P1 |
-| [43518604612](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43518604612) | `8d5cc9e` | success | P1 code |
-| [43517986742](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43517986742) | `1686e72` | ❌ **failure** | 590 tests, 4 failed — analysed in [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) |
-| [43517478032](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43517478032) | `6a71f77` | ❌ **failure** | nullable smart-cast compile error — analysed in that report |
-| [43514608722](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43514608722) | `528d629` | success | P0-A code |
-| [43514068424](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43514068424) | `1940487` | success | P0-A second attempt |
-| [43513473811](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43513473811) | `0e6d5ff` | ❌ **failure** | 517 tests, 1 failed (the new P0-A test) — analysed in [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md) |
-
-Totals on this branch: **23 runs — 20 success, 3 failure**. The three failures are pre-fix states of
-later-green commits, each identified and analysed in its report; none is open. The base `main` commit
-`b8e37de` was green on the v0.11.0 tag push (run 43504057987).
-
-**Not verifiable in this environment** (see [BLOCKERS.md](BLOCKERS.md)): any on-device behaviour (overlay
-timing, scroll riding, Live mode, battery), `lint`/`lintDebug` (offline cache gap; `lintVitalRelease` is
-banned on this box by user mandate), R8/minify, and real Gemini/Libre API calls (no key, no network from
-here). Nothing in this branch's reports claims otherwise.
-
----
-
-## 4. Test counts — scope, provenance, and what is UNVERIFIED
-
-Four numbers appear across the history (509, 517/590/599/604/615/619, 629). They are **not contradictory**:
-each is the source-level `@Test` count at a different commit, and every one was re-derived for this snapshot
-with `git grep -c '@Test' <sha> -- app/src/test` (summed):
-
-| Commit | Phase boundary | `@Test` discovered | Unit-test task in CI |
-| --- | --- | --- | --- |
-| `b8e37de` | v0.11.0 | 509 | green (run 43504057987, tag push) — matches CHANGELOG's "509" |
-| `528d629` (= `0e6d5ff`, `1940487`) | after P0-A (+8) | 517 | green (43514608722) |
-| `8d5cc9e` | after P1 (+73) | 590 | green (43518604612) |
-| `e99dd93` | after P1 review (+9) | 599 | green (43523522645) |
-| `87830b7` / `8140a4b` | after P1 persistence safety (+5) | 604 | green (43527227407) |
-| `723f101` | after P1.1 (+11) | 615 | green (43531550380) |
-| `fee9d9e` / `6eb8974` | after P1.1-A (+4) | 619 | green (43561318751) |
-| `3674ebf` (head) | after P0/C2 (+10) | **629** | green (43564884208) |
-
-Scope of each number: **every Kotlin test in the single `:app` module** (`app/src/test`), one JVM source
-set, `testDebugUnitTest`. No instrumented/Android test source set exists. At this head: `translate` 231,
-`live` 118, `names` 82, `ocr` 79, `render` 46, `util` 37, `data` 22, `overlay` 14 — total 629.
-
-**Discovered vs executed** (this is the honest split):
-
-| Metric | Value | Evidence status |
-| --- | --- | --- |
-| Tests discovered (source) | **629** | VERIFIED — `grep -rn '@Test' app/src/test` at `3674ebf` |
-| Tests executed | **UNVERIFIED number** | The *Unit tests* step ran `:app:testDebugUnitTest` and concluded **success** (step log via Actions API); the exact executed count is **not observable from here** |
-| Tests passed | **no failing test** (task-level) | `testDebugUnitTest` fails on any test failure, and it succeeded — so failures = 0 among executed |
-| Tests failed | **0** | same inference at this head; the 3 historical failures are listed in §3.1 |
-| Tests skipped | **UNVERIFIED** | skipped tests do not fail the task; the JUnit XMLs are in the uploaded artifact, which cannot be downloaded here |
-
-Why the numbers cannot be read: the run's `test-reports` artifact (98 KB) downloads from
-`productionresultssa*.blob.core.windows.net`, outside this sandbox's network allowlist
-(`gh run download` → `EOF`), and `gh run view --log` returns `EOF` for the same reason. The workflow only
-echoes per-test lines when the task **fails**, so green runs leave no count in the API. This limitation is
-stated rather than papered over: no report in this repository claims an executed count for a green run
-beyond the inference above.
-
----
-
-## 5. Where the risk lives (code map)
-
-| Area | Files | State |
-| --- | --- | --- |
-| `overlay/FloatingButtonService.kt` | 4.4k-line orchestrator | Touched by P0/C2 only (one painter-boundary guard + its log line); the known structural risk (audit item 10) is unchanged |
-| `translate/` | engines + cache decorator + name pipeline + `MlKitPageAssembly` | Modified by P0-A, P1, P0/C2 |
-| `names/` (new in P1) | record, form, resolver, JSON store, series catalogue | Added by P1, hardened four times (atomic writes, no-write recovery, strict staging validation, canonical-key integrity); JVM-tested (no Android deps) |
-| `data/` | prefs, caches, `CharacterMemory`/`NameSession` | Added P1 glue; the store's only Android coupling is the factory |
-| `ocr/`, `render/`, `capture/` | OCR, patch painter, MediaProjection | Untouched by this branch |
-
----
-
-## 6. Documentation map
-
-| Document | Purpose |
+| Item | Value |
 | --- | --- |
-| [REPORTS.md](REPORTS.md) | The rule ("a report travels with every change", S1–S6) and the index of per-change reports, with each phase's status |
-| [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) | This file — repository-level snapshot and the authoritative phase status |
-| [PLAN.md](PLAN.md) | Phases, definitions of done, environment notes |
-| [DECISIONS.md](DECISIONS.md) | One line per decision, including the standing rules S1–S6, T1–T7, U1–U6, V1–V5, W1–W6 |
-| [BLOCKERS.md](BLOCKERS.md) | What cannot be done in this environment, and why |
-| [MANUAL_TESTS.md](MANUAL_TESTS.md) | On-device checklists (Redmi 13C, Brave) |
-| [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md), [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md), [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md), [P2_TRANSLATION_CONTEXT_AUDIT.md](P2_TRANSLATION_CONTEXT_AUDIT.md), [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md), [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md), [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md), [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md), [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | Per-change reports (§2) |
-| [CHANGELOG.md](CHANGELOG.md), [README.md](README.md), [PRIVACY.md](PRIVACY.md), [OPEN_SOURCE_RESEARCH.md](OPEN_SOURCE_RESEARCH.md), [V096_PLAN.md](V096_PLAN.md) | User-facing changelog (version history, kept as written), product readme, privacy stance, licence research, earlier plan |
+| Module / language | single `:app`, Kotlin 2.4.21, AGP 8.13.2, Compose + Material 3 |
+| SDKs | `minSdk 26`, `compileSdk` / `targetSdk` 36 |
+| Version | `versionName` **0.11.0** (`app/build.gradle.kts:27`); debug builds only in CI |
+| On-device engines | ML Kit Text Recognition v2 (Latin, bundled) · ML Kit Translate EN→AR |
+| Remote engines (optional) | Google `gemini-2.5-flash` over REST (`x-goog-api-key` header only) · LibreTranslate (user endpoint) |
+| Persistence | SharedPreferences (+ app-private JSON for series character memory, atomic writes) |
+| Dependencies added by this branch | **none** |
 
-All links above resolve to files that exist at this head (`ls *.md` = 19 files, all listed).
+### 1.1 Data flow (as implemented at `a7b276f`)
 
----
+```
+tap or Live scan
+  → FrameCapture (MediaProjection, RGBA bitmap)
+  → TextRecognizerClient (ML Kit OCR, ≤1600 px long edge)  → BubbleGrouper (lines → bubbles)
+  → PagePlan.prepare(blocks, preprocess = Glossary::prepare)      ← drops meaningless blocks, dedupes on the
+      │                                                            glossary-prepared text, keeps a page order
+      ├─ local progressive pass  : PagePlan.progressiveOrder(...)  → ML Kit   (paint first, visual priority)
+      └─ optional remote relay   : PagePlan.remoteOrder(...)       → Gemini / LibreTranslate (page order)
+  → ArabicValidator (rejects English echoes / unusable Arabic)
+  → CachingTranslator (memory LRU + disk cache + fuzzy memo, engine-namespaced, name-aware repair)
+  → BubblePainter (Cairo, RTL, auto-fit) over the original bubbles
+```
 
-## 7. Open blockers (inherited, unchanged by this branch)
+### 1.2 Name pipeline (three cooperating layers, unchanged by P2-A)
 
-1. **No on-device validation** of overlay/patch/Live behaviour in this environment — including the P0/C2
-   withholding behaviour (§8, P0/C2 risk).
-2. **Lint** unavailable offline; `lintVitalRelease` banned on this box.
-3. **R8/minify** disabled here (memory); release builds are signed but unminified.
-4. **Release build not produced** by this branch — CI runs `assembleDebug` only.
-5. **No real API traffic** for Gemini/Libre from here; wire format is covered by fake-response tests.
-6. **Executed/skipped test counts unreadable** (artifact host outside the sandbox allowlist) — §4.
-
----
-
-## 8. Phase status (authoritative)
-
-Status vocabulary is fixed: **VERIFIED COMPLETE** = implemented, its tests ran in a green CI run on a
-commit that is an ancestor of this head, and no claim in its report is contradicted by this audit.
-"Complete" never means "device-validated": no phase in this repository has device validation (§7, item 1).
-Control commits are ancestors of `3674ebf` — verified with `git merge-base --is-ancestor` for
-`e546470`, `6eb8974`, `fee9d9e`, `c008f62`, `08004c4`, `b82fb6f`, `7b30804` (all YES).
-
-| Phase | Status | Code commit(s) | Changed files | Tests added | Tests executed (CI) | Remaining risk |
-| --- | --- | --- | --- | --- | --- | --- |
-| **P0 architecture audit** | **VERIFIED COMPLETE** | `b8e37de` (read-only, no code) | 1 doc | 0 | n/a (no code) | Its line numbers drift as code changes; C2's were corrected in place (220→246, 42-43→51-52, 3841→3844). Open audit items C3, C4, C5, RTL, offline, perf remain **PENDING** |
-| **P0-A Gemini name sheet** | **VERIFIED COMPLETE** | `528d629` | 6 files, +692/−5 | +8 (509→517) | run 43514608722 green; 517 discovered, executed count UNVERIFIED (§4) | No real Gemini API call from here; wire format covered by fake-response tests only |
-| **P1 series name memory** | **VERIFIED COMPLETE** | `8d5cc9e` (+docs `1c0c270`) | 27 files, +3 307/−52 | +73 (517→590) | runs 43518604612, 43520783453 green | Device UX of series selection unverified; memory is manual-scoped by design (no auto-detection) |
-| **P1 review corrections** | **VERIFIED COMPLETE** | `e99dd93` (+docs `06b3d84`) | 7 files, +269/−16 | +9 (590→599) | runs 43523522645, 43524129101 green | Atomic-rename fallback path is only exercised through the `atomicMove` test seam |
-| **P1 persistence safety** | **VERIFIED COMPLETE** | `87830b7` (+docs `345715d`) | 6 files, +348/−63 | +5 (599→604) | runs 43526686657, 43527227407 green | Real-world crash/kill timing during promotion not reproducible offline |
-| **P1.1 strict staging validation** (incl. **P1.1-A**) | **VERIFIED COMPLETE** | `723f101`, `fee9d9e` (+docs `feb20ef`, `e546470`, `6eb8974`) | 5 files +451/−12; 6 files +206/−13 | +11 (604→615), +4 (615→619) | runs 43531030306, 43531550380, 43561318751, 43561668957 green | `NameForm.normalize` changes would reject older documents — deliberate future-migration concern (V5) |
-| **P0/C2 ML Kit English echo** | **VERIFIED COMPLETE** | `c008f62` (+docs `08004c4`, `b82fb6f`, `7b30804`, `3674ebf`) | 6 files, +510/−8 | +10 (619→629) | runs 43563394305, 43563800508, 43564060458, 43564884208 green | Visual behaviour of a withheld bubble is **not device-verified**; ML Kit echo rate unmeasured |
-| **P2 translation quality & context — audit** | **VERIFIED COMPLETE** (audit delivered, read-only; implementation **PENDING** — not started) | `fe5aa6a` (baseline, no code change) | 1 new report + 2 docs | 0 | n/a (no code) | Audit findings are unfixed by definition: 4 confirmed bugs (2 High), 9 verified risks, 3 improvements — see the report §3/§7 for the P2-A…P2-D plan |
-
-No phase is **IMPLEMENTED BUT NOT VERIFIED**, **PARTIALLY COMPLETE**, **PENDING** or **BLOCKED** except the
-audit's *open items* listed in §10 (C3, C4, C5, RTL, offline readiness, perf, `FloatingButtonService` seams),
-which were never started.
-
----
-
-## 9. Documentation consistency audit (this snapshot)
-
-### 9.1 Was inspected
-
-`REPOSITORY_REPORT.md`, `REPORTS.md`, `P0_MANHWALENS_AUDIT.md`, `P0A_GEMINI_NAME_SHEET.md`,
-`P1_SERIES_NAME_MEMORY.md`, `P1_REVIEW_CORRECTIONS.md`, `P1_PERSISTENCE_SAFETY_FIX.md`,
-`P1_1_STRICT_STAGING_VALIDATION.md`, `P0B_MLKIT_ENGLISH_ECHO.md`, `CHANGELOG.md`, `DECISIONS.md`,
-`MANUAL_TESTS.md` — **all 12 exist** (no missing file to report), plus `PLAN.md`, `BLOCKERS.md`,
-`P1_CHARACTER_MEMORY.md` for cross-reference. Repository state was read from git and the GitHub API, not
-from the documents themselves.
-
-### 9.2 Inconsistencies found and their resolution
-
-| # | Inconsistency | Resolution | Evidence |
-| --- | --- | --- | --- |
-| 1 | Header claimed head `fee9d9e`, 21 commits, latest run 43561318751 | Corrected: head `3674ebf`, **29** commits, latest run 43564884208 | `git rev-parse HEAD`; `git rev-list --count origin/main..HEAD`; Actions API |
-| 2 | Inventory: 112 Kotlin sources, 68 test files, 25 commits, +36 673 lines, 18 docs | Corrected: **113**, **69**, **29**, **+36 706**, **19** | `find`/`ls`/`git diff --shortstat` |
-| 3 | §3 run table stopped at run 43520783453 and said "the last eight runs are green" | Replaced by the complete 22-run table: **19 success, 3 failure**, each failure identified | Actions API listing of the branch |
-| 4 | §7 said "P0 / C2 — open" while the C2 report and audit say fixed | Corrected to **done** (P0/C2), consistent with [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) and the audit's C2 row | run 43563394305 + §8 |
-| 5 | §5 said the standing rules are "S1–S5" | Corrected to **S1–S6** (S6 = a report refresh after every prompt) | `DECISIONS.md` |
-| 6 | `REPORTS.md` P0/C2 row ended at docs `b82fb6f` | Corrected to the phase's real doc commits (`08004c4`, `b82fb6f`, `7b30804`, `3674ebf`); run list extended to all four green runs | `git log` |
-| 7 | `REPORTS.md` index had no status column, so its statuses could drift from this file | Added a **Status** column using this file's vocabulary; every row now agrees with §8 | [REPORTS.md](REPORTS.md) |
-| 8 | Commit totals 21 / 25 appear in the history rows, and the P0/C2 report names commits as "25th / 26th / 27th" | Each is **historical**: the count actually true at `e546470` is 23 and at `b82fb6f` is 27, so the history rows are annotated in place rather than rewritten, and the P0/C2 report's ordinals are superseded by its updated §6 (tip = 29th, `3674ebf`) | `git rev-list --count origin/main..<sha>` |
-| 9 | Test counts 615 / 619 / 629 read as contradictions | Resolved: they are the counts at `723f101` / `fee9d9e` / `3674ebf`; §4 tabulates all eight boundaries and the scope | `git grep -c '@Test'` per commit |
-| 10 | Audit C2 evidence line numbers (220, 42-43, 3841) had drifted | Corrected in the audit to 246, 51-52, 3844-3846 with the original text preserved as history | audit §9.1 + [P0B](P0B_MLKIT_ENGLISH_ECHO.md) §1 |
-| 11 | Documents are dated 2026-11-13 while commits are 2026-11-14 UTC | Not an error: documented once in the header clock note; no date rewritten | `git log --date=iso` |
-| 12 | CHANGELOG says "509 unit tests pass" while this file says 629 | Both are correct in scope: CHANGELOG is the v0.11.0 entry (509 at `b8e37de`), this file is the head (629 at `3674ebf`). **No change made** — version history is preserved | §4 table |
-
-### 9.3 Facts that remain UNVERIFIED
-
-* **Executed / passed / skipped test counts** for every green run — artifact host outside the allowlist,
-  green runs print no counts (§4). Only "0 failures" is inferred from task success.
-* **Per-test identity of the 629 tests** at this head (names are in the JUnit XMLs, also unreachable).
-* **Device behaviour of every phase**, including the P0/C2 withheld-bubble path and the P1 series UI.
-* **Real Gemini / LibreTranslate traffic** (no key/network here).
-* **Review status**: PR #2 has **0 reviews** — that is verified, but it means no human has signed off.
-
----
-
-## 10. What is next (from the audit ranking, §10)
-
-| Item (priority from the audit) | Status |
-| --- | --- |
-| P0 / C1 — name sheet in the primary Gemini body | **done** (P0-A) |
-| P0 / C2 — ML Kit English echo can reach the screen | **done** (P0/C2, `c008f62`) |
-| P2-A — source-text and context integrity (P2-01, P2-02) | **open — recommended next** (audit complete, implementation not started) |
-| P1 / C4 — AI cleanup queued on the live thread | **open** |
-| P1 — RTL correctness (one shared layout builder, RLM wrapping) | **open** |
-| P1 — offline readiness step ("Prepare offline EN→AR") | **open** |
-| P2 / item 7 — name persistence per series | **done** (P1) |
-| P2 / item 8 — de-duplicate `NameMemory.plan` (C5), clear `pageNames` in `finally` (C3) | **open** (partially obsolete: with a series selected the page-local plan usually does not run) |
-| P2 — perf (binary-search `AutoFitTextSizer`, measurer `maxLines`) | **open** |
-| P3 — orchestration seams out of `FloatingButtonService` | **open** |
-
-The audit's item 7 proposed keying memory by the foreground package + title. P1 deliberately did
-**not** do that: a package is not a series, so memory is scoped by an explicitly selected series
-(decision D1 in [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md)). That remains a deliberate
-divergence from the audit and is the standing architectural choice for this area.
-
-**Recommended next step:** **P2-A** — the first task of the P2 roadmap in
-[P2_TRANSLATION_CONTEXT_AUDIT.md](P2_TRANSLATION_CONTEXT_AUDIT.md) §7: fix **P2-01** (the glossary rewrites
-ordinary English words such as `long`/`song`/`sun` before translation) and **P2-02** (the tap path sends the
-remote engine a visual-priority order while the prompt claims page order). Both are deterministic, local and
-testable in the existing JVM suites. P2 implementation is **not started**; it begins only after the audit
-findings are approved. C4 stays open behind it, unchanged.
-
----
-
-## 11. Merge readiness
-
-- **Checks:** green at the current head `3674ebf` (run 43564884208); the three preceding heads
-  (`7b30804`, `b82fb6f`, `08004c4`) are green too. PR #2: **OPEN / MERGEABLE / CLEAN**, merge state CLEAN.
-- **Review:** 0 reviews, no review decision, no labels — nothing has been human-approved.
-- **What a reviewer should read first:** the seven per-change reports in §2 (each self-contained: evidence,
-  fix, tests, diff, risks), then `DECISIONS.md` for the standing rules.
-- **What merging does *not* buy:** device validation, a release APK, or lint coverage — all three remain
-  environment blockers, unchanged by this branch.
-- **Nothing is merged by the author of these changes;** the branch stops here for architectural approval.
-
----
-
-## Report history
-
-| Updated | Head | What changed in this snapshot |
+| Layer | Object | Job |
 | --- | --- | --- |
-| 2026-11-14 (`fe5aa6a` + this docs commit) | P2 audit delivered | Read-only translation quality & context audit: 4 confirmed bugs, 9 verified risks, 3 improvements, 5 items verified correct; roadmap P2-A…P2-D; **no source, test, Gradle or dependency change**, no test executed (no JDK/SDK), P2 implementation NOT STARTED |
-| 2026-11-13 (audit commit `05fa1ab` on top of `3674ebf`; commit clock 2026-11-14, green in run 43565553808) | documentation consistency audit | Re-derived every current-state claim from git and the GitHub API: head/commit count/PR state, the full 22-run CI table, the eight test-count boundaries with explicit scope, the discovered-vs-executed split, and the authoritative phase status table. Corrected the stale header, inventory, run table, C2 status, rules range and a non-existent run id; added §4 (test counts) and §9 (this audit); preserved historical rows with annotations. **No application source, test, Gradle or dependency change.** |
-| 2026-11-13 (doc-only, on top of `7b30804`) | standing rule S6 recorded | Rule S6 in `DECISIONS.md` and `REPORTS.md`; no code change, no test run claimed beyond the CI run of that documentation commit (43564060458 green at `7b30804`). |
-| 2026-11-13 (`b82fb6f`) | P0/C2 merged into the branch | Added the P0/C2 work package, refreshed the inventory (629 tests) — *historical: the commit count printed here as 25 was 27 at that head; corrected in the 2026-11-14 audit row* |
-| 2026-11-13 (`e546470`) | P1.1-A merged into the branch | Added the canonical normalized-name invariant, refreshed the inventory (619 tests) — *historical: the commit count printed here as 21 was 23 at that head; corrected in the 2026-11-14 audit row* |
-| 2026-11-13 (`723f101`) | P1.1 merged into the branch | Added the P1.1 work package and its runs, refreshed the inventory (615 tests, 20 commits, 225 files) |
-| 2026-11-13 (`8140a4b`) | first version | Branch/PR state, the five work packages, verification matrix, code and documentation maps, blockers, ranked next steps, merge readiness |
+| Static + user dictionary | `Glossary` (`translate/Glossary.kt`) | resolves known names/terms to Arabic *before* the engine sees the text; user Settings entries win |
+| Page plan | `NameMemory` / `SceneNames` (`translate/`) | picks one spelling per page and pins it into the source text, model name sheets |
+| Series memory | `names/` (`CharacterRecord`, `CharacterResolver`, `JsonCharacterStore`, `SeriesCatalog`) + `data/CharacterMemory` | reader-confirmed spellings, aliases, per-series isolation, survives restarts |
+
+---
+
+## 2. Branch, commits and inventory at this revision
+
+| | |
+| --- | --- |
+| Commits ahead of `origin/main` | **36** at `a7b276f` (+1 for the consolidation commit) |
+| Branch diff vs `main` | `230 files changed, 37 714 insertions(+)` (`git diff --shortstat origin/main...a7b276f`) |
+| Kotlin sources | **113** files under `app/src/main` |
+| Test sources | **70** files under `app/src/test` (one JVM source set; no instrumented source set) |
+| Test methods (`@Test`) | **644** at `a7b276f` (`grep -rn '@Test' app/src/test \| wc -l`) |
+| Root Markdown files | **20** before this consolidation → **10** after (§5.9 lists what was deleted) |
+| Last commit that changed application code | `a7b276f` (P2-A); before it `c008f62` (P0/C2) |
+
+### 2.1 The commits this report describes
+
+| Commit | Kind | What |
+| --- | --- | --- |
+| `533ae90` | docs | P2 audit commit recorded (baseline of the P2-A round) |
+| `25b15c2` | **code + tests** | **P2-A / P2-01 + P2-02** implementation and their tests |
+| `a7b276f` | **test fix** | one wrong expectation in the new glossary test (see §7.6) — *verified green* |
+| *(this commit)* | docs | report revision 2.0: single authoritative report, superseded reports deleted, one doc-pointer comment updated |
+
+---
+
+## 3. Product roadmap (from `PLAN.md` §5 — unchanged, kept there)
+
+`PLAN.md` is the **product** plan. Its milestones are historical and are *not* the engineering phases of §4.
+
+| Milestone | Scope | Status in `PLAN.md` | Verification reality |
+| --- | --- | --- | --- |
+| **M0** | Project scaffold (Gradle, Compose, theme, icon) | DONE (2026-11-11) | build green |
+| **M1** | Overlay foundation (floating button, drag, snap, permissions, FGS) | DONE (2026-11-11) | build green; **no device verification** |
+| **M2a** | Capture + debug view (MediaProjection, consent trampoline, FLAG_SECURE heuristic) | DONE (2026-11-11) | build green; **no device verification** |
+| **M2b** | OCR + bubble grouping (ML Kit Latin, union-find grouper, 4 guards) | DONE (2026-11-11) | 10 JVM tests; **no device verification** |
+| **M3** | Translation engines + batching + cache + settings (ML Kit, Gemini, error taxonomy, LRU) | DONE (2026-11-11) | 45 JVM tests; **no device verification** |
+| **M4** | In-place Arabic bubble overlay (colour sampling, Cairo, auto-fit, RTL) | DONE for the overlay-rendering scope (2026-11-11) | 63 JVM tests; Room cache / download UI / failure UX still open |
+| **M5** | Speed + settings + privacy + signed release (v0.7.0) | DONE build-side (2026-11-11) | R8 could not run on the authoring box; signed release not produced here |
+| **M6** | Post-launch: vertical JP/ZH text, auto bubble detection, strip mode, accessibility hooks | not started | — |
+
+The roadmap continued as ad-hoc part/hotfix sections in the same file (v0.7.1 crash fixes, Part A–C, pipeline
+work A–D, v0.8.0, v0.9.0 Live + progressive translation, v0.9.1 Safe Mode, v0.9.2 wrong-thread fix, v0.9.3
+in-place patch rework) and reached **v0.11.0** (`b8e37de`), the baseline this branch starts from. There is no
+M7+ and no "P-numbered roadmap" in `PLAN.md` — the P-numbers below are the **engineering** phases this branch
+has been executed in.
+
+---
+
+## 4. Engineering phases P0–P6 (verified status)
+
+**Milestone vs phase.** A *milestone* (M0–M6) is a product increment, defined and closed in `PLAN.md`. A
+*phase* (P0–P6) is an engineering work package on this branch, each with its own report, base commit, tests and
+CI run. Milestone M5 being "done build-side" says nothing about phase P2, and a finished phase never implies
+device validation (§10).
+
+Status vocabulary — **VERIFIED COMPLETE**: implemented, tests executed by a green CI run on an ancestor of
+this head, no claim contradicted by a later audit. **IN PROGRESS**: part of the phase is implemented and
+verified, the rest is not started. **PENDING**: not started.
+
+| Phase | Subject | Status | Evidence |
+| --- | --- | --- | --- |
+| **P0** | Architecture audit of v0.11.0 (read-only) | **VERIFIED COMPLETE** | §5.1; no code changed |
+| **P0-A** | Gemini name sheet missing from the primary request | **VERIFIED COMPLETE** | `528d629`, run 43514608722 |
+| **P0/C2** | ML Kit English echo reaching the screen | **VERIFIED COMPLETE** | `c008f62`, runs 43563394305 … 43564884208 |
+| **P1** | Series-scoped character memory + review + persistence safety + strict staging (P1.1, P1.1-A) | **VERIFIED COMPLETE** | `8d5cc9e`, `e99dd93`, `87830b7`, `723f101`, `fee9d9e`; runs 43518604612 … 43561668957 |
+| **P2** | Translation quality & context | **IN PROGRESS** — audit complete (`01e12a6`); **P2-01 + P2-02 fixed by P2-A** (`25b15c2`, `a7b276f`); P2-03…P2-16 open | §6, §7 |
+| **P3** | Orchestration seams out of `FloatingButtonService` (audit item 10) | **PENDING** | §6 risk register |
+| **P4** | Cached/context-aware translation (audit P2-10) | **PENDING** | — |
+| **P5** | Resilience & validation polish (P2-06, P2-08, P2-14, P2-16) | **PENDING** | — |
+| **P6** | Performance (binary-search text sizer, measurer `maxLines`) | **PENDING** | — |
+
+P3–P6 are labels for *not-yet-started* work of the P2 audit's roadmap (P2-C, P2-D and the audit's ranked
+items); nothing in this repository has been executed under those names, and no report claims otherwise.
+
+---
+
+## 5. Work history on this branch (condensed from the deleted per-change reports)
+
+### 5.1 P0 — architecture audit (`P0_MANHWALENS_AUDIT.md`, deleted)
+
+Read-only audit of v0.11.0 (`b8e37de`): 10 numbered findings (C1…C5, RTL, offline readiness, perf,
+`FloatingButtonService` seams) with file:line evidence, plus a ranked plan. No code, no tests. Its open items
+C3 (stale `pageNames`), C4 (AI cleanup on the live thread), C5 (`NameMemory.plan` duplication), RTL, offline
+readiness and perf remain **PENDING** and are carried in §11. Its C2 evidence line numbers were corrected in
+place when C2 was fixed (220→246, 42-43→51-52, 3841→3844).
+
+### 5.2 P0-A — Gemini name sheet (`P0A_GEMINI_NAME_SHEET.md`, deleted)
+
+**Defect.** The production default is `jsonReply = false`, so `translateChunk` sent the *legacy* body, whose
+builder took no name sheet; page-local names were enforced only on the HTTP-400 fast-retry body. Evidence:
+`GeminiTranslator.kt:216` → `GeminiWire` router → `promptFor(blocks)` without the sheet.
+**Fix.** `buildRequestBody(blocks, thinkingLevel, nameSheet)` is now the only path; both bodies carry the
+sheet; `GeminiWireTest` pins the sheet in the request body.
+**Files:** `translate/gemini/GeminiWire.kt`, `GeminiTranslator.kt` + tests (6 files, +692/−5).
+**Verified:** runs 43513473811 ❌ (the new test's own expectation, fixed) → 43514068424 ✅ → 43514608722 ✅.
+
+### 5.3 P1 — series character memory (`P1_SERIES_NAME_MEMORY.md`, design `P1_CHARACTER_MEMORY.md`, deleted)
+
+**Problem.** v0.11.0 pins names **per page** and forgets them: the same character drifted between bubbles,
+pages and restarts; the glossary is global and does not survive a cache hit.
+**Solution.** `names/` package: `CharacterRecord` (original name, Arabic, script, aliases, series, confidence),
+`CharacterResolver` (resolution ladder: locked/user/confirmed → transliteration → built-in), `JsonCharacterStore`
+(per-series JSON, atomic writes, recovery), `SeriesCatalog` (explicit series selection), `data/CharacterMemory` +
+`NameSession` glue; the memory supplies the Gemini name sheet and an Arabic repair pass
+(`NameForm.replaceArabic`) that runs after the engine and rewrites stale spellings before caching.
+**Design decision D1:** memory is scoped by an **explicitly selected series**, not by package name (a package
+is not a series). No auto-detection, no new dependency (no Room).
+**Files:** 27 files, +3 307/−52; tests +73 (517→590).
+**Verified:** 43517478032 ❌ (nullable smart-cast compile error) → 43517986742 ❌ (4 tests) → 43518604612 ✅ (feature) → 43520783453 ✅.
+
+### 5.4 P1 review corrections (`P1_REVIEW_CORRECTIONS.md`, deleted)
+
+Three verified defects in the new persistence layer, each fixed minimally: (a) `saveLocked` fell back to an
+in-place `writeText` when `renameTo` failed, and never `fsync`-ed the staging file → replaced by
+`writeDurably()` (flush + `fd.sync`) + `commitAtomically()` (`Files.move ATOMIC_MOVE`, `renameTo` fallback) +
+`discard()`; (b) the session cache identity ignored the series → cache key now carries it; (c) series
+visibility/refresh in the settings surface. 7 files, +269/−16, +9 tests.
+**Verified:** run 43523522645 ✅ (+docs 43524129101).
+
+### 5.5 P1 persistence safety (`P1_PERSISTENCE_SAFETY_FIX.md`, deleted)
+
+**Defect.** `recoverInterruptedWrite()` promoted a staged file, and when that failed fell back to
+`staging.copyTo(file, overwrite = true)` — an in-place truncate-and-rewrite of the **live** file. A kill or a
+full disk in that window destroyed the reader's character memory.
+**Fix.** The recovery path may never write the live file: failure means "keep the current file, report the
+problem"; the staged copy is discarded. 6 files, +348/−63, +5 tests.
+**Verified:** run 43526686657 ✅ (+docs 43527227407).
+
+### 5.6 P1.1 / P1.1-A — strict staging validation (`P1_1_STRICT_STAGING_VALIDATION.md`, deleted)
+
+**Failure mode.** Promotion only required "valid JSON", then the tolerant live-file reader silently skipped
+what it could not use — so a document with no `series` object, a wrong-typed series, or a record under the
+wrong series key could replace a good file and load as empty.
+**Fix.** `validateStagingDocument()` proves structural completeness (version, series object, record identity,
+`seriesId` match) **before** promotion; P1.1-A adds canonical `normalizedName` integrity (a record whose key is
+not `NameForm.normalize(originalName)` is rejected). 5 files +451/−12, 6 files +206/−13; +11 and +4 tests.
+**Verified:** 43531030306 ✅ → 43531550380 ✅ → 43561318751 ✅ (P1.1-A) → 43561668957 ✅.
+
+### 5.7 P0/C2 — ML Kit English echo (`P0B_MLKIT_ENGLISH_ECHO.md`, deleted)
+
+**Defect.** Four doors let untranslated English reach the screen as if it were Arabic: (1) page assembly
+substituted the source when ML Kit answered nothing; (2) the progressive callback painted every finished block
+before the page guard; (3) the quality guard was scoped to remote engines only, so ML Kit output was cached
+and re-served; (4) the painter only refused blank text.
+**Fix.** `MlKitPageAssembly.ordered()` (a missing answer is empty, never the source); the guard now runs for
+`ml_kit_en_ar` in `CachingTranslator`; the progressive path is guarded; the painter refuses an echo at the
+boundary. 6 files, +510/−8, +10 tests (`MlKitEnglishEchoTest`, new).
+**Consequences kept:** progressive translation preserved; a rejected bubble stays **empty** (no source
+substitution, no retry loop); pins are honoured before the guard.
+**Verified:** 43563394305 ✅ (+docs 43563800508, 43564060458, 43564884208).
+
+### 5.8 P2 audit (`P2_TRANSLATION_CONTEXT_AUDIT.md`, deleted)
+
+Read-only audit of the translation path at `fe5aa6a`: data-flow trace, **4 confirmed bugs** (P2-01…P2-04),
+**9 verified risks** (P2-05…P2-13), **3 improvements** (P2-14…P2-16), **5 investigated-correct** items
+(P2-N1…N5), existing coverage and gaps, and a staged roadmap P2-A…P2-D. No code changed; no test run claimed.
+**Verified:** run 43567398304 ✅ (docs) → recorded in 43567644013 ✅.
+
+### 5.9 Documentation consolidation (this commit)
+
+| File | Fate |
+| --- | --- |
+| `REPORTS.md` | **deleted** — its rule text and index are now §13 and §5/§6 here |
+| `P0_MANHWALENS_AUDIT.md`, `P0A_GEMINI_NAME_SHEET.md`, `P0B_MLKIT_ENGLISH_ECHO.md` | **deleted** — folded into §5.1, §5.2, §5.7 and the risk register |
+| `P1_CHARACTER_MEMORY.md`, `P1_SERIES_NAME_MEMORY.md`, `P1_REVIEW_CORRECTIONS.md`, `P1_PERSISTENCE_SAFETY_FIX.md`, `P1_1_STRICT_STAGING_VALIDATION.md` | **deleted** — folded into §5.3–§5.6 |
+| `P2_TRANSLATION_CONTEXT_AUDIT.md` | **deleted** — folded into §6 (findings + per-issue status) and §7 (P2-A) |
+| `PLAN.md` | **kept** — forward-looking roadmap (M0–M6) and definitions of done; not a report |
+| `README.md`, `PRIVACY.md`, `CHANGELOG.md` | **kept** — product/version/privacy documents |
+| `BLOCKERS.md`, `DECISIONS.md`, `MANUAL_TESTS.md`, `OPEN_SOURCE_RESEARCH.md`, `V096_PLAN.md` | **kept** — register, decision log, on-device checklist, licence research, earlier plan; roles are unambiguous non-report |
+| Code comment in `names/JsonCharacterStore.kt:20` | pointed at the deleted `P1_CHARACTER_MEMORY.md` → now points here (comment text only; no code, no behaviour) |
+
+---
+
+## 6. P2 findings register and per-issue status
+
+Priority labels are the ones the audit assigned (**not** re-labelled by P2-A). Evidence line numbers refer to
+the audit baseline `fe5aa6a` / `533ae90`.
+
+| ID | Type | Priority | Finding | Status |
+| --- | --- | --- | --- | --- |
+| **P2-01** | Bug | High | `Glossary` rewrote ordinary English words (`long`, `song`, `sun`, `pan`, `tan`, `ding`…) before translation | **FIXED** in `25b15c2` (§7.2) |
+| **P2-02** | Bug | High | Remote chunks built from visual-priority order while the prompt claims consecutive page order | **FIXED** in `25b15c2` (§7.3) |
+| **P2-03** | Bug | Medium | `jsonReply` never reaches the primary request; body is legacy while the instruction demands JSON (`GeminiTranslator.kt:232`) | **OPEN — deliberately not implemented by this task** |
+| **P2-04** | Bug | Medium | Last-resort "one line per id" parse can shift translations onto the wrong bubbles (`GeminiWire.kt:321-328`) | **OPEN — deliberately not implemented by this task** |
+| **P2-05** | Risk | High | Two name authorities on the Gemini path: page-local `applyPinned` can override the series/locked spelling | **OPEN** (needs a decision — roadmap P2-C) |
+| **P2-06** | Risk | Medium | One failing long-block chunk aborts the whole ML Kit page | **OPEN** |
+| **P2-07** | Risk | Medium | `pageNames` survives early returns → stale names can leak into the next page (audit C3) | **OPEN** |
+| **P2-08** | Risk | Medium | LibreTranslate fails the page on one rejected bubble and gets no name sheet | **OPEN** |
+| **P2-09** | Risk | Medium | Remote upgrade always wins on non-blank output — no comparison with the local draft | **OPEN** |
+| **P2-10** | Risk | Medium | Cache keys are context-free; a reused line keeps its old pronoun/gender reading | **OPEN** |
+| **P2-11** | Risk | Low | `PagePlan.prepare` is called without `preprocess`, contrary to its documented contract | **OPEN** (unchanged by P2-A: the tap path does pass it; Live does not) |
+| **P2-12** | Risk | Low | SFX bubbles are dropped by the planner while the Gemini prompt instructs SFX transliteration | **OPEN** |
+| **P2-13** | Risk | Low | `NameMemory.pageNameSpellings` indexes the page list with bubble ids (latent, no caller today) | **OPEN (latent)** |
+| **P2-14** | Improvement | Low | Validator cannot detect a truncated short answer, nor a 1–2 word English remnant | **OPEN** |
+| **P2-15** | Improvement | Low | Post-processing order differs between the engine and the decorator | **OPEN** |
+| **P2-16** | Improvement | Low | A `MAX_TOKENS`-truncated reply is traced, but a bubble cut mid-sentence is kept | **OPEN** |
+| **P2-N1…N5** | Not a problem | — | Idempotent `prepare`; per-bubble triage; pinned override vs stale cache; offline independence; names survive chunking | **verified correct** (re-verified in §7.5 for N1/N2/N4/N5 under the new rules) |
+
+### 6.1 Open findings — evidence anchors and the minimal fix each needs
+
+Carried over from the deleted audit so the work does not have to be re-derived. Line numbers are the audit
+baseline (`fe5aa6a`); re-verify them before editing.
+
+| ID | Anchor (baseline) | Minimal fix the audit proposed | Regression the fix must add |
+| --- | --- | --- | --- |
+| P2-03 | `GeminiTranslator.kt:232` (`jsonReply = false` hard-wired), KDoc `:47-52` | pass the field through (`jsonReply = jsonReply`) and document which body is primary | `jsonReply = true` → body contains `responseMimeType`; `false` → legacy body; must land **before** P2-16 |
+| P2-04 | `GeminiWire.kt:316-330`, fallback `:321-328` | positional mapping only on an **exact** count match (`>=` → `==`) and drop a translator-label line first | equal-count reply maps by position; an extra leading label line maps nothing |
+| P2-05 | `GeminiTranslator.kt:87-99` (sheet from series) vs `:128-136` (`applyPinned` from page plan) | one authority: give the engine the same series table the sheet used | a series table + Gemini post-processing test (none exists) |
+| P2-06 | `MlKitTranslator.kt:154-181`, abort `:174-176` | omit the failed long block (empty) and continue the page | a failing chunk leaves one empty block, page still `Success` |
+| P2-07 | `MlKitTranslator.kt:246` clears `pageNames`; early returns `:103-108` | `try/finally` around the body (or clear at entry) | two pages on one translator instance never share names |
+| P2-08 | `LibreTranslateTranslator.kt:57-58`, `:80-100` | per-bubble triage like ML Kit; attach the sheet | one rejected bubble does not fail the page |
+| P2-09 | `FloatingButtonService.kt:3705-3711` | do not replace a local patch with a worse remote one (needs a quality signal) | arbitration test on the relay path |
+| P2-10 | `TranslationCache.kt:18-30`, `CachingTranslator.kt:224-232`, `TranslationMemo.kt` | document the choice; consider a context-bearing key only if evidence demands it | none today (documented trade-off) |
+| P2-11 | `PagePlan.kt:59-68` + Live call site | pass `Glossary::prepare` where the contract says so | `Wei Lin` / `wei lin` dedupe to one item on the Live path |
+| P2-12 | `MeaninglessText.kt:163-177`, `PagePlan.kt:74-84` | make the prompt and the planner agree about SFX | SFX kept (or the prompt claim removed) |
+| P2-13 | `NameMemory.kt:259`, `:287` | index by id, not by position | latent — no caller passes `pageArabic` today |
+| P2-14 | `ArabicValidator.kt:59-90`, `:144-166` | detect a truncated short answer and a 1–2 word English remnant | guard tests for both |
+| P2-15 | `GeminiTranslator.kt:133-142` vs the decorator path | unify post-processing order | same text judged on both paths |
+| P2-16 | `GeminiTranslator.kt:321-337`, `GeminiWire.kt:303` | treat `MAX_TOKENS` truncation (empty the cut bubble) instead of tracing it | a truncated reply leaves no half sentence |
+
+Open P2 items are **not** claimed fixed anywhere in this repository. P2-B (P2-03/P2-04), P2-C (P2-05) and
+P2-D (resilience) remain parked until this round is reviewed.
+
+---
+
+## 7. P2-A — source-text and context integrity (this round)
+
+**Scope authorised:** P2-01 and P2-02 only. **Baseline:** `533ae90`. **Code commit:** `25b15c2`.
+**Test fix:** `a7b276f`. **Out of scope and untouched:** prompts, model settings, OCR, persistence, UI,
+dependencies, architecture, P2-03, P2-04.
+
+### 7.1 What the baseline did (verified in the code at `533ae90`)
+
+* `Glossary.applyCompiled` (`Glossary.kt:84-91` at baseline) replaced every whole-word table hit
+  case-insensitively; the only protection was `ambiguousShort` — tokens of ≤3 letters that are in a small
+  English stop-word list (`Glossary.kt:106`). `Long`, `Song`, `Sun`, `Pan`, `Tan`, `Ding`, `Tang`, `Fang`,
+  `Ma`, `Mo`, `Ye`, `Li`, `Ren`, `Tao`, `Dong`, `Wang` are all table keys and all pass that filter, so
+  "How long until the sun sets?" reached the engine as "How لونغ until the سون sets?".
+* The tap path computed **one** list — `PagePlan.engineBlocks(dedupePlan).sortedBy { rankById[it.id] }`,
+  i.e. short → biggest → most central (`FloatingButtonService.kt:2778-2779`) — and handed it to the relay
+  (`:2813`), which passed it to `remote.translatePage(unique)` (`:3705`), which chunked it sequentially
+  (`GeminiTranslator.kt:101`, `GeminiWire.chunkBlocks`). Meanwhile the prompt tells the model
+  *"Consecutive blocks belong to the same page — use them to resolve context and pronouns"*
+  (`GeminiWire.kt:128`). The claim was false for every relay request.
+
+### 7.2 P2-01 — conservative glossary matching (`Glossary.kt`)
+
+Replacement now has to earn itself (`Glossary.accepts`), in this order:
+
+1. an entry the reader typed in Settings is an **explicit pin** → always replaced (this is the escape hatch);
+2. a **multi-word or hyphenated** key (`Wei Wuxian`, `Song Lan`, `young master`, `Mobei-Jun`) is unambiguous →
+   always replaced;
+3. a **single-word genre term** (`TERMS`: sect, core, qi, cultivation, dantian, pill, demon, immortal,
+   talisman, shidi/shifu/shijie/shimei/shixiong …) is the table's subject matter → replaced in any case,
+   exactly as before;
+4. any other single word must be written **capitalised** in the source and must not be ALL CAPS;
+5. its lower-case form must not be an **ordinary English word** (`AMBIGUOUS_ENGLISH` = the existing stop-word
+   list + the English words that collide with table keys: long, song, sun, pan, tan, ding, tang, fang, ma, mo,
+   ye, tao, dong, wang, li, ren).
+
+Sentence position is deliberately **not** used: "Long ago…" is the same word mid-sentence, so capitalisation
+alone cannot separate a name from prose. The rule set is deterministic, table-driven and pure Kotlin.
+
+**Trade-off (documented, not hidden).** A character actually named `Long`, `Song`, `Sun`, `Pan`, `Tan` or
+`Ding` keeps the **Latin** spelling on the glossary path, because a one-word token gives no deterministic
+signal and corrupting prose is the worse failure for every page that contains the word as prose. Every escape
+hatch stays open: the reader's Settings line (explicit pin), a multi-word spelling (`Long Wei`), and the series
+name memory (`SceneNames`/`NameMemory` + `NameForm.replaceLatin`), which runs *after* `prepare` and is
+unaffected. The table itself is unchanged, so `Glossary.effective()` still offers every name to the memory
+planner — the fix refuses the *replacement*, it does not forget the *name*.
+
+**Rejected alternatives:** disabling all short/capitalised names (breaks `Wei`, `Lan`, `Mo Xuanyu`); a
+capitalisation-only rule (still corrupts "Long ago", "Sun was in his eyes"); a sentence-position rule (same
+corruption at the start of a line, which is exactly where names and prose both appear); a per-entry `pun` flag
+(does not separate `long` the word from `Long` the surname — both are the same key); swapping the engine's
+output afterwards (too late: the engine has already translated the Arabic-corrupted token).
+
+### 7.3 P2-02 — one order per engine (`PagePlan.kt`, `FloatingButtonService.kt`)
+
+`PagePlan` now names the two orders:
+
+| Helper | Order | Who uses it |
+| --- | --- | --- |
+| `PagePlan.remoteOrder(plan)` | page / reading order (`engineBlocks`) | the remote relay, and every `TranslatorFactory.create(...)` call that can resolve to a remote engine |
+| `PagePlan.progressiveOrder(plan, rankById)` | visual priority, unranked ids last (previous behaviour) | `createProgressive` (ML Kit draft), `createOffline`, the ML Kit fallback |
+
+The Live pipeline (`FloatingButtonService.kt:3296-3304`) already used `engineBlocks` and is **unchanged**.
+Chunk boundaries therefore now slice the page in reading order for remote requests; the local progressive
+draft still paints the most useful bubbles first. No global policy swap: the two orders are separate named
+helpers, so a future caller cannot pick "the" order by accident.
+
+### 7.4 Files changed (5 files, +348/−13)
+
+| File | Why |
+| --- | --- |
+| `app/src/main/java/com/manhwalens/app/translate/Glossary.kt` | `Rule`/`Compiled` carry the pin flag; `accepts` implements rules 1–5; `TERMS` + `AMBIGUOUS_ENGLISH`; documentation of the trade-off |
+| `app/src/main/java/com/manhwalens/app/translate/PagePlan.kt` | `remoteOrder` and `progressiveOrder` with the contract documented |
+| `app/src/main/java/com/manhwalens/app/overlay/FloatingButtonService.kt` | tap path computes both orders; relay and remote-capable `create(...)` calls take `remoteBlocks` |
+| `app/src/test/java/com/manhwalens/app/translate/GlossaryTest.kt` | 8 new regressions (existing 9 untouched) |
+| `app/src/test/java/com/manhwalens/app/translate/TranslationOrderingTest.kt` | **new**, 7 ordering tests |
+
+### 7.5 Tests added (15 new `@Test`; 629 → 644 discovered)
+
+`GlossaryTest` (each asserts the **resulting text**):
+
+| Test | Property pinned |
+| --- | --- |
+| `ordinaryLongAndSunStayEnglish` | mid-sentence `long`/`sun` are not replaced (exact string) |
+| `sentenceInitialLongAndSunAreStillOrdinaryWords` | sentence-initial `Long`/`Sun` are ordinary words, not names |
+| `shortCollisionsStayEnglish` | `pan`, `tan`, `ding`, capitalised `Song` stay Latin; the term `sect` beside them still translates |
+| `termsStillTranslateInAnyCase` | `sect`/`core`/`qi`/`shidi` still resolve (no weakening of the term dictionary) |
+| `genuineNamesStillTranslate` | `Song Lan` and `Wei Wuxian` still resolve to `سونغ لان` / `وي ووشيان` |
+| `aPinnedNameIsAlwaysHonoured` | a Settings line (`Long = لونغ`) forces the swap; unpinned `Song` is unaffected |
+| `thePinIsScopedToTheCurrentSettings` | the pin disappears when the settings change (no leakage) |
+| `theTableStillCarriesTheNameForTheMemory` | `effective()` still holds `Long`/`Song`, and `NameForm.replaceLatin` still converts a series-memory name the glossary now leaves alone |
+
+`TranslationOrderingTest` (new):
+
+| Test | Property pinned |
+| --- | --- |
+| `remoteOrderIsPageOrder` | 24 blocks reach a remote engine in ids 1…24 |
+| `visualPriorityOrderIsPreservedForTheLocalPass` | reversed ranks paint 24…1, and the two orders differ |
+| `unrankedBlocksGoLastInVisualPriorityOrder` | ranked ids first, unranked keep page order |
+| `remoteChunksKeepThePageSequenceAcrossBoundaries` | 24 blocks, `maxChars = 200`, `maxBlocks = 8` → ≥3 chunks, flattened order = 1…24, every chunk ascending and duplicate-free |
+| `visualPriorityOrderWouldScrambleTheChunks` | the old behaviour is reproducible (24…1) — the regression is pinned, not just removed |
+| `dedupeDoesNotDisturbTheRemoteOrder` | 21 blocks with one repeat → 20 unique, ids ascending minus the duplicate, and both ids get the same Arabic |
+| `theLivePathStillUsesPageOrder` | Live's `engineBlocks` is exactly `remoteOrder` and is page order |
+
+Existing suites kept working, including `GlossaryTest.linesOfOneBubbleBecomeOneSentence` (exact strings),
+`cacheKeyFollowsThePreparedText` (`وي ووشيان`), `preparingAHundredBlocksStaysCheap`, all 18 `names` isolation
+tests (`series are isolated from each other`, `aliases are searchable and never replace the original`,
+`an alias finds the record`) — untouched and green in the run below.
+
+### 7.6 Verification actually performed
+
+| Step | Command / source | Result |
+| --- | --- | --- |
+| Local build/tests | `java`, `javac`, `gradle`, `kotlinc`, `ANDROID_HOME` | **all absent** — no local execution possible, nothing claimed |
+| CI run 1 | [43568984747](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43568984747) at `25b15c2` | ❌ **failure**: `GlossaryTest > shortCollisionsStayEnglish` — my expectation compared the sentence against itself while the term `sect` in it legitimately translates. `Unit tests` ❌, `Build debug APK` skipped |
+| Fix | `a7b276f` | expectation corrected to the intended behaviour (`He sang a Song for the طائفة.`) |
+| CI run 2 | [43569302435](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569302435) at `a7b276f` | ✅ **success** — steps *Unit tests* ✅, *Build debug APK* ✅, APK and test-report artifacts uploaded, job 132369008530 |
+
+The exact command CI runs (and the only one that has executed this code) is
+`./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --console=plain` (workflow *Android build*,
+`pull_request` event). **Executed / skipped test counts are UNVERIFIED**: green runs print no per-test lines,
+and the `test-reports` artifact (101 KB) plus the job log live on `*.blob.core.windows.net`, outside this
+sandbox's allowlist (`gh run view --log` → `EOF`). What *is* verified is that the task failed when one test
+failed and succeeded when it was fixed, and that one failure name was reported — the 644 discovered `@Test`
+methods compile and none failed in run 43569302435.
+
+### 7.7 Explicitly not implemented (as instructed)
+
+* **P2-03** (`jsonReply` propagation, `GeminiTranslator.kt:232`) — untouched.
+* **P2-04** (positional reply parsing, `GeminiWire.kt:321-328`) — untouched.
+* No prompt text, model setting, OCR, persistence or UI change; no dependency; no architecture redesign;
+  no test deleted; no global order swap; Live path unmodified.
+
+`git diff --name-only 533ae90..a7b276f` lists exactly the five files of §7.4.
+
+---
+
+## 8. Source and test map
+
+| Area | Files | State at this head |
+| --- | --- | --- |
+| `overlay/FloatingButtonService.kt` | 4.4k-line orchestrator (tap, Live, relay, painter wiring) | touched by P0/C2 and P2-A (order selection only); structural risk (audit item 10) unchanged |
+| `translate/` | engines, cache decorator, `PagePlan`, `BlockPriority`, `Glossary`, `NameMemory`, `SceneNames`, guards | touched by P0-A, P0/C2, P2-A |
+| `translate/gemini/` | `GeminiTranslator`, `GeminiWire` | **not touched by P2-A** (P2-03/P2-04 live here) |
+| `translate/mlkit/`, `translate/libre/` | on-device and Libre engines | untouched by P2-A |
+| `names/` | record, form, resolver, JSON store, series catalogue | added by P1, hardened four times; JVM-tested |
+| `data/` | prefs, caches, `CharacterMemory`/`NameSession` | P1 glue |
+| `ocr/`, `render/`, `capture/` | OCR, patch painter, MediaProjection | untouched by this branch's phases |
+
+Test suite layout (`app/src/test`, 70 files, 644 `@Test`): `translate` (largest group: glossary, page plan,
+chunking, validators, cache, engine fakes), `live`, `names`, `ocr`, `render`, `util`, `data`, `overlay`,
+`gemini`, `libre`.
+
+---
+
+## 9. Verification: what is real here
+
+### 9.1 Environment
+
+The authoring sandbox has **no JDK, no `javac`, no `gradle`, no `kotlinc` and no Android SDK**
+(`command -v` → nothing; `ANDROID_HOME` unset), so Gradle cannot run locally. GitHub Actions is the only
+executor. `lint` is unavailable offline, R8 is disabled on this box, and only `assembleDebug` is produced.
+
+### 9.2 All runs on this branch (29 runs: 25 success, 4 failure)
+
+| Run | Commit | Result | Note |
+| --- | --- | --- | --- |
+| [43569302435](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569302435) | `a7b276f` | ✅ | **P2-A verified** (unit tests + APK) |
+| [43568984747](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43568984747) | `25b15c2` | ❌ | one wrong test expectation (§7.6), fixed in `a7b276f` |
+| [43567644013](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43567644013) | `533ae90` | ✅ | P2 audit docs |
+| [43567398304](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43567398304) | `01e12a6` | ✅ | P2 audit |
+| [43566212238](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43566212238) | `fe5aa6a` | ✅ | audit baseline |
+| [43565553808](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43565553808) | `05fa1ab` | ✅ | docs consistency audit |
+| [43564884208](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564884208) | `3674ebf` | ✅ | rule S6 |
+| [43564060458](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564060458) | `7b30804` | ✅ | |
+| [43563800508](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43563800508) | `b82fb6f` | ✅ | |
+| [43563394305](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43563394305) | `08004c4` | ✅ | P0/C2 code + docs |
+| [43561668957](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43561668957) | `6eb8974` | ✅ | |
+| [43561318751](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43561318751) | `e546470` | ✅ | P1.1-A verified here |
+| [43558741498](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43558741498) | `feb20ef` | ✅ | |
+| [43531550380](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43531550380) | `723f101` | ✅ | P1.1 |
+| [43531030306](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43531030306) | `e6598a8` | ✅ | |
+| [43530112769](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43530112769) | `8140a4b` | ✅ | |
+| [43527227407](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43527227407) | `87830b7` | ✅ | persistence safety |
+| [43526686657](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43526686657) | `345715d` | ✅ | |
+| [43525048064](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43525048064) | `b960444` | ✅ | rules push |
+| [43524129101](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43524129101) | `06b3d84` | ✅ | |
+| [43523522645](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43523522645) | `e99dd93` | ✅ | P1 review |
+| [43520783453](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43520783453) | `1c0c270` | ✅ | |
+| [43518604612](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43518604612) | `8d5cc9e` | ✅ | P1 code |
+| [43517986742](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43517986742) | `1686e72` | ❌ | 4 failed tests in P1 — analysed then, fixed in `8d5cc9e` |
+| [43517478032](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43517478032) | `6a71f77` | ❌ | nullable smart-cast compile error |
+| [43514608722](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43514608722) | `528d629` | ✅ | P0-A code |
+| [43514068424](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43514068424) | `1940487` | ✅ | P0-A second attempt |
+| [43513473811](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43513473811) | `0e6d5ff` | ❌ | 1 failed test (the new P0-A test), fixed in `1940487` |
+
+Each of the four failures is a pre-fix state of a later-green commit; none is open.
+
+### 9.3 Test counts — provenance (each row is the source count at that commit)
+
+| Commit | Phase | `@Test` discovered | CI |
+| --- | --- | --- | --- |
+| `b8e37de` | v0.11.0 baseline | 509 | green (43504057987, tag push) |
+| `528d629` | after P0-A (+8) | 517 | green |
+| `8d5cc9e` | after P1 (+73) | 590 | green |
+| `e99dd93` | after P1 review (+9) | 599 | green |
+| `87830b7` | after persistence safety (+5) | 604 | green |
+| `723f101` | after P1.1 (+11) | 615 | green |
+| `fee9d9e` | after P1.1-A (+4) | 619 | green |
+| `3674ebf` | after P0/C2 (+10) | 629 | green |
+| `25b15c2` / `a7b276f` | after P2-A (+15) | **644** | green (43569302435) |
+
+**Discovered vs executed:** discovered = 644 (verified by `grep`). Executed = UNVERIFIED as a number; the
+*Unit tests* step succeeded, so failures among executed tests = 0. Skipped = UNVERIFIED. No document here
+claims a per-test count for a green run.
+
+---
+
+## 10. Device validation status
+
+**None.** No phase in this repository — including P2-A — has been validated on a device. Every claim about
+overlay timing, scroll riding, Live mode, battery, the withheld-bubble behaviour of P0/C2, the series UI of P1
+and the remote-order change of P2-02 is **build-and-JVM-verified only**. The on-device checklist lives in
+[MANUAL_TESTS.md](MANUAL_TESTS.md) (Redmi 13C, Brave) and has not been executed by anyone with hardware.
+
+---
+
+## 11. Risks, limitations and pending work
+
+1. **No device validation** (above) — the largest open risk, unchanged by this branch.
+2. **P2-A trade-off** (§7.2): a one-word ambiguous name (`Long`, `Song`, `Sun`, `Pan`, `Tan`, `Ding`) is no
+   longer auto-replaced; it relies on the reader's pin, a two-word spelling, or the series memory.
+3. **P2-03 / P2-04 open**: the Gemini request/response format still has a legacy body and a positional parse
+   that can misalign bubbles (§6).
+4. **P2-05 open**: two name authorities on the Gemini path can disagree — needs a decision (P2-C).
+5. **Audit items still open**: C3 (`pageNames` across pages), C4 (AI cleanup on the live thread), C5
+   (`NameMemory.plan` duplication), RTL correctness, offline readiness step, render performance.
+6. **Environment blockers** (also in [BLOCKERS.md](BLOCKERS.md)): no JDK/Android SDK locally, lint
+   unavailable offline, R8 disabled, debug APK only, no real Gemini/Libre traffic, executed test counts
+   unreadable.
+7. **PR #2 has 0 reviews** — no human has signed off on any of these phases.
+
+---
+
+## 12. Next action
+
+1. **Review P2-A** (this round): §7 is self-contained — root causes at `533ae90`, the rule set, the
+   trade-off, the five files, the 15 tests and run 43569302435.
+2. On approval, the next P2 step is **P2-B** (P2-03 + P2-04: `jsonReply` propagation and parsing that cannot
+   misalign bubbles) — **not started, and not started by this task**.
+3. P2-C (P2-05 name authority) needs a design decision before any code; P2-D stays opportunistic.
+4. Nothing is merged; the branch stops at `a7b276f` (+ this documentation commit) for review.
+
+---
+
+## 13. Report and rules metadata
+
+**Standing rules (replacing S1–S6 as previously written in the deleted `REPORTS.md`/`DECISIONS.md`):**
+
+* **S1.** Every change ships in the **same push** as an update to **this file**. There are no per-change
+  report files any more; a new work package adds a subsection to §5 (history) and, if it is a P2 finding, a
+  row to §6.
+* **S2.** Each work-package subsection records: scope, base commit, verified root cause with file:line, the fix
+  and the rejected alternatives, files changed and why, tests added and the property each pins, the exact
+  command and the CI run that executed it, and the remaining risks (including "not verified on device").
+* **S3.** Evidence discipline: no test is reported as passing unless a run executed it; a command that cannot
+  run here (no JDK/SDK) is reported as such, never simulated; a finding that contradicts an existing document
+  is stated before the code changes.
+* **S4.** Chat summaries, commit trailers and PR descriptions are conveniences, never the record. If a later
+  change alters an earlier claim, this file is corrected in the same push.
+* **S5.** This file is the repository-level snapshot **and** the authoritative per-change record (§1–§7).
+  `PLAN.md` stays the forward-looking roadmap; `DECISIONS.md` the decision log; `BLOCKERS.md` the environment
+  register; `MANUAL_TESTS.md` the device checklist.
+* **S6.** A refresh follows **every** prompt, including doc-only ones — with an explicit statement that no code
+  changed and no test run is claimed.
+
+**Report history**
+
+| Revision | Date | Head | What changed |
+| --- | --- | --- | --- |
+| **2.0** | 2026-11-14 (UTC) | `a7b276f` + this docs commit | **Consolidation**: the nine per-change reports and `REPORTS.md` were folded into §5–§7 and deleted; added the phase table P0–P6 with the milestone/phase distinction (§3/§4), the P2 findings register with per-issue status (§6), the full P2-A record (§7), the open-finding anchors (§6.1) and the rewritten rules (§13). **No behaviour change**: Markdown plus a single documentation-pointer comment in `names/JsonCharacterStore.kt`; no test, Gradle or dependency change. |
+| 1.x | 2026-11-13/14 | `01e12a6`, `05fa1ab`, `3674ebf`, `b82fb6f`, `e546470`, `723f101`, `8140a4b` | Incremental snapshots (branch/PR state, work packages, run tables, test-count boundaries, consistency audits). Superseded by this revision; their content is carried over in §5–§10. |

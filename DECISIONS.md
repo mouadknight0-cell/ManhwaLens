@@ -766,7 +766,7 @@ Actions; device validation (patch opacity, name consistency on a real chapter) i
 
 # P1 — series character memory — 2026-11-13
 
-**Report:** [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) · **Design:** [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md) · **Baseline:** v0.11.0 `b8e37de` → `8d5cc9e` (PR #2) · **CI:** run 43518604612 green.
+**Report:** [REPOSITORY_REPORT.md §5.3](REPOSITORY_REPORT.md) · **Design:** [REPOSITORY_REPORT.md §5.3](REPOSITORY_REPORT.md) · **Baseline:** v0.11.0 `b8e37de` → `8d5cc9e` (PR #2) · **CI:** run 43518604612 green.
 
 One line per decision.
 
@@ -788,7 +788,7 @@ One line per decision.
 
 # P1 review corrections — 2026-11-13
 
-**Report:** [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) · **Base:** `1c0c270` → **Fix:** `e99dd93` · **CI:** run 43523522645 green.
+**Report:** [REPOSITORY_REPORT.md §5.4](REPOSITORY_REPORT.md) · **Base:** `1c0c270` → **Fix:** `e99dd93` · **CI:** run 43523522645 green.
 
 One line per correction.
 
@@ -803,14 +803,14 @@ One line per correction.
 
 # Standing rule — a report travels with every change — 2026-11-13
 
-- S1. Every change (code, tests, data model, behaviour, docs that fix a claim) ships in the **same push** as a Markdown report at the repository root, named after its phase (`P0_…`, `P0A_…`, `P1_…`), and indexed in [REPORTS.md](REPORTS.md).
+- S1. Every change (code, tests, data model, behaviour, docs that fix a claim) ships in the **same push** as an update to [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md), which since report revision 2.0 is the **only** report in the repository (no per-phase report files; a new work package adds a §5 subsection and, if it is a P2 finding, a §6 row).
 - S2. The report must contain: scope and what is out of scope, the exact **base commit SHA**, the verified root cause with file:line evidence, the fix and why that shape (including rejected alternatives), files changed with a reason each, tests added with the property each pins, the exact command executed + the CI run that executed it, the `base...final` compare link with `--stat`, and the remaining risks (including "not verified on device" when true).
 - S3. Evidence discipline: no test is reported as passing unless a run actually executed it; a command that cannot run in the authoring sandbox (no JDK/Android SDK) is reported as such, never simulated; a finding that contradicts an existing document is stated in the report **before** the code changes.
 - S4. Chat summaries, commit trailers and PR descriptions are conveniences, never the deliverable: the report in the repository is the record. If a later change alters an earlier report's claim, the earlier report is corrected in the same push that changes the behaviour.
 
 # P1 persistence safety — recovery may never write the live file — 2026-11-13
 
-**Report:** [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) · **Base:** `b960444` (store code `e99dd93`).
+**Report:** [REPOSITORY_REPORT.md §5.5](REPOSITORY_REPORT.md) · **Base:** `b960444` (store code `e99dd93`).
 
 - T1. The `staging.copyTo(file, overwrite = true)` fallback in `recoverInterruptedWrite()` is removed: it truncated and rewrote the live character-memory file in place, so a kill during recovery could leave partial JSON — the exact failure the atomic save exists to prevent, on the path that runs at start-up.
 - T2. Recovery is now read-only with respect to the live file. It loads the complete `<file>.tmp` **in place** and only then attempts one atomic promotion; if the move is refused, nothing is written, the copy stays on disk for the next attempt, and the live file (if any) keeps its exact bytes.
@@ -822,12 +822,12 @@ One line per correction.
 
 # Repository report — 2026-11-13
 
-- S5. [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) is the repository-level snapshot (branch and PR state, the per-change work packages with their commits and CI runs, what is verifiable in this environment and what is not, the code map, the open blockers, and the ranked next steps). It is updated in the same push whenever the snapshot changes — a new phase, a changed head/PR state, a new verification run, or a blocker appearing or clearing — while per-change detail stays in the reports indexed by [REPORTS.md](REPORTS.md).
-- S6. **A report refresh after every prompt.** Every prompt — including one that only asks for a rule, a question or a direction, with no code change — ends with the repository updated in the same push: [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) always reflects the latest head, PR state, verification and next steps, and any phase report whose claim the prompt touches is corrected too ([REPORTS.md](REPORTS.md) index row refreshed as needed). The chat summary is never the only record of a prompt: if the repository does not show it, it did not happen. Doc-only refreshes state plainly that no code changed and claim no test run.
+- S5. [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) is both the repository-level snapshot **and** the per-change record (identity, architecture, roadmap M0–M6, engineering phases P0–P6, work history, the P2 findings register, verification and CI runs, blockers, next steps). `PLAN.md` stays the forward-looking roadmap, `DECISIONS.md` this log, `BLOCKERS.md` the environment register, `MANUAL_TESTS.md` the device checklist; none of them is a report.
+- S6. **A report refresh after every prompt.** Every prompt — including one that only asks for a rule, a question or a direction, with no code change — ends with the repository updated in the same push: [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) always reflects the latest head, PR state, verification and next steps, and and any earlier claim the prompt touches is corrected in the same place. The chat summary is never the only record of a prompt: if the repository does not show it, it did not happen. Doc-only refreshes state plainly that no code changed and claim no test run.
 
 # P1.1 strict staging validation — 2026-11-13
 
-**Report:** [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) · **Base:** `8140a4b`.
+**Report:** [REPOSITORY_REPORT.md §5.6](REPOSITORY_REPORT.md) · **Base:** `8140a4b`.
 
 - U1. A staging copy is promoted into the live slot, so it is validated by a **strict** path (`validateStaging`) that is separate from the tolerant live-file reader: root object, `version` present/integral/supported, `series` present and an object, every series value an array, every element a record the parser accepts, non-blank id/series-id/name, `seriesId` equal to its containing key, and per-series uniqueness of both record id and normalized name.
 - U2. Validation is all-or-nothing: one deviation rejects the whole document. The old gate (`isReadableJson`, syntax only) plus the tolerant loader silently skipped bad records, and the next save persisted the reduced set — silent, permanent data loss.
@@ -838,7 +838,7 @@ One line per correction.
 
 # P1.1-A canonical normalized-name integrity — 2026-11-13
 
-**Report:** [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) §8 · **Base:** `feb20ef`.
+**Report:** [REPOSITORY_REPORT.md §5.6](REPOSITORY_REPORT.md) §8 · **Base:** `feb20ef`.
 
 - V1. The stored `normalizedName` is untrusted input: `CharacterRecord.fromJson` accepts any non-blank string, so P1.1's duplicate check (which compared stored values) could be sidestepped by two rows for one character carrying different forged keys — both would pass and be promoted.
 - V2. `validateStaging()` now recomputes `NameForm.normalize(originalName)` for every record, rejects the whole document when the stored value differs, and judges duplicate identity on the recomputed canonical key rather than on the JSON value. A missing/blank stored value needs no leniency: the record parser already canonicalises it, so the comparison stays exact.
@@ -848,7 +848,7 @@ One line per correction.
 
 # P0/C2 ML Kit English echo — 2026-11-13
 
-**Report:** [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) · **Base:** `6eb8974`.
+**Report:** [REPOSITORY_REPORT.md §5.7](REPOSITORY_REPORT.md) · **Base:** `6eb8974`.
 
 - W1. A block ML Kit gives no answer for is returned **empty**, never as the English source (`MlKitPageAssembly.ordered`). Page order and ids are preserved and the source stays on the block for the painter/fallback, but it is never the output; a page with nothing translated is no longer a silent "success" carrying English text.
 - W2. `CachingTranslator.requiresArabicGuard` includes `ml_kit_en_ar`, so ML Kit output — fresh and cached — is judged by the same `ArabicValidator` as the remote engines: a rejected bubble is returned empty and never written to the memory, disk or fuzzy tier; a stale cached entry that fails the guard is evicted from all three tiers and treated as a miss.
@@ -856,3 +856,10 @@ One line per correction.
 - W4. `BubblePainter` gained a last-line-of-defence check against the same validator, so no path (progressive callback, remote upgrade, final reconciliation, cache) can draw non-Arabic into an RTL patch; the refusal is logged with its reason and `remoteWins` arbitration is untouched.
 - W5. Rejected blocks stay empty, so the existing failure contract, fallback and area merging apply — no retry loop and no added latency. The rules live in pure Kotlin (`MlKitPageAssembly`) because `MlKitTranslator` needs Android; Robolectric and new dependencies stay forbidden.
 - W6. Verification: 10 new regression tests (619 → 629 test methods in the module); `:app:testDebugUnitTest` + `:app:assembleDebug` ran in GitHub Actions run 43563394305 at head `08004c4` — success (steps *Unit tests* and *Build debug APK*); the documentation tip `b82fb6f` is green in run 43563800508. No device validation is claimed.
+
+# Documentation consolidation — one authoritative report — 2026-11-13
+
+- D8. There is exactly **one** report: [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) (revision 2.0). Its content was transferred before deletion, in the same push.
+- Deleted after transfer: `REPORTS.md`, `P0_MANHWALENS_AUDIT.md`, `P0A_GEMINI_NAME_SHEET.md`, `P0B_MLKIT_ENGLISH_ECHO.md`, `P1_CHARACTER_MEMORY.md`, `P1_SERIES_NAME_MEMORY.md`, `P1_REVIEW_CORRECTIONS.md`, `P1_PERSISTENCE_SAFETY_FIX.md`, `P1_1_STRICT_STAGING_VALIDATION.md`, `P2_TRANSLATION_CONTEXT_AUDIT.md`. Every surviving link to them now points at the consolidated report.
+- Kept, with roles that are **not** "report": `PLAN.md` (roadmap M0–M6, definitions of done), `README.md`, `PRIVACY.md`, `CHANGELOG.md` (version history as written), `BLOCKERS.md`, `DECISIONS.md` (this log), `MANUAL_TESTS.md`, `OPEN_SOURCE_RESEARCH.md`, `V096_PLAN.md` (earlier plan, kept for provenance).
+- Reason: the per-report index had drifted from the phase table three times (wrong run ids, stale heads, conflicting statuses). A single file cannot disagree with itself.

@@ -47,6 +47,9 @@ Requirements: JDK 17, Android SDK 36, Android build tools, and network access fo
 
 The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Build/overlay behavior still needs validation on a physical Android device. See `MANUAL_TESTS.md`.
 
+Project status, the engineering record (phases, commits, CI runs, open findings) and the roadmap live in
+[`REPOSITORY_REPORT.md`](REPOSITORY_REPORT.md) and [`PLAN.md`](PLAN.md).
+
 ## Open-source review
 
 See [`OPEN_SOURCE_RESEARCH.md`](OPEN_SOURCE_RESEARCH.md) for the GitHub projects reviewed, licensing/suitability notes, and why PaddleOCR and manga-image-translator are not bundled in this Android release. The app implements a small LibreTranslate REST client only; it does not copy server source or model weights.

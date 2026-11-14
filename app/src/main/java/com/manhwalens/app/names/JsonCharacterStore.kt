@@ -17,7 +17,7 @@ import java.nio.file.StandardCopyOption
  * so this reuses a proven pattern and the same failure handling. Everything Room would buy us
  * for this data — per-series queries, alias lookup, locked rows, restart persistence, schema
  * versioning — is provided here by the tolerant reader in [CharacterRecord.fromJson] plus
- * [SCHEMA_VERSION]. See P1_CHARACTER_MEMORY.md for the full comparison.
+ * [SCHEMA_VERSION]. See REPOSITORY_REPORT.md (work package P1) for the full comparison.
  *
  * Safety properties:
  *  - one in-memory index per file, loaded once (no full-table scan per OCR block);
