@@ -61,41 +61,41 @@ class CaptureDiagnostics(
     fun report(): String = synchronized(lock) {
         buildString {
             appendLine("ManhwaLens OCR/translation diagnostics")
-            appendLine("created=\u0024{SimpleDateFormat(\"yyyy-MM-dd HH:mm:ss\", Locale.US).format(Date(createdAtMs))}")
-            appendLine("frame=\u0024{frameWidth}x\u0024{frameHeight} ocrMs=\u0024ocrElapsedMs")
+            appendLine("created=${SimpleDateFormat(\"yyyy-MM-dd HH:mm:ss\", Locale.US).format(Date(createdAtMs))}")
+            appendLine("frame=${frameWidth}x${frameHeight} ocrMs=$ocrElapsedMs")
             appendLine("Privacy: opt-in debug-mode report; page text is not written to Logcat.")
             appendLine()
-            appendLine("[RAW OCR LINES] count=\u0024{ocrLines.size}")
+            appendLine("[RAW OCR LINES] count=${ocrLines.size}")
             ocrLines.forEachIndexed { index, line ->
                 val b = line.box
-                appendLine("L\u0024{index + 1} confidence=\u0024{format(line.confidence)} " +
-                    "box=\u0024{format(b.left)},\u0024{format(b.top)},\u0024{format(b.right)},\u0024{format(b.bottom)} " +
-                    "text=\"\u0024{safe(line.text)}\"")
+                appendLine("L${index + 1} confidence=${format(line.confidence)} " +
+                    "box=${format(b.left)},${format(b.top)},${format(b.right)},${format(b.bottom)} " +
+                    "text=\"${safe(line.text)}\"")
             }
             appendLine()
-            appendLine("[GROUPED BLOCKS] count=\u0024{groupedBlocks.size}")
+            appendLine("[GROUPED BLOCKS] count=${groupedBlocks.size}")
             groupedBlocks.forEach { block ->
-                appendLine("#\u0024{block.id} box=\u0024{box(block)} text=\"\u0024{safe(block.text)}\"")
+                appendLine("#${block.id} box=${box(block)} text=\"${safe(block.text)}\"")
             }
             appendLine()
-            appendLine("[KEPT FOR TRANSLATION] count=\u0024{keptBlocks.size}")
-            keptBlocks.forEach { block -> appendLine("#\u0024{block.id} text=\"\u0024{safe(block.text)}\"") }
+            appendLine("[KEPT FOR TRANSLATION] count=${keptBlocks.size}")
+            keptBlocks.forEach { block -> appendLine("#${block.id} text=\"${safe(block.text)}\"") }
             appendLine()
-            appendLine("[ML KIT RAW CALLS] count=\u0024{translationCalls.size}")
+            appendLine("[ML KIT RAW CALLS] count=${translationCalls.size}")
             appendLine("Each entry includes original OCR source, exact prepared input, raw engine output and latency.")
             translationCalls.forEachIndexed { index, call ->
-                appendLine("CALL \u0024{index + 1} block=#\u0024{call.blockId} operation=\u0024{call.operation} " +
-                    "elapsedMs=\u0024{call.durationMs} error=\u0024{call.error ?: \"none\"}")
-                appendLine("  source=\"\u0024{safe(call.sourceText)}\"")
-                appendLine("  input =\"\u0024{safe(call.preparedInput)}\"")
-                appendLine("  raw   =\"\u0024{safe(call.rawOutput)}\"")
+                appendLine("CALL ${index + 1} block=#${call.blockId} operation=${call.operation} " +
+                    "elapsedMs=${call.durationMs} error=${call.error ?: \"none\"}")
+                appendLine("  source=\"${safe(call.sourceText)}\"")
+                appendLine("  input =\"${safe(call.preparedInput)}\"")
+                appendLine("  raw   =\"${safe(call.rawOutput)}\"")
             }
             appendLine()
-            appendLine("[OVERLAY TEXT] count=\u0024{overlayTexts.size}")
+            appendLine("[OVERLAY TEXT] count=${overlayTexts.size}")
             appendLine("Entries are recorded only after a patch bitmap is built.")
             overlayTexts.forEach { (id, item) ->
-                appendLine("#\u0024id origin=\u0024{item.origin} patchBuilt=\u0024{item.patchBuilt} " +
-                    "source=\"\u0024{safe(item.english)}\" arabic=\"\u0024{safe(item.arabic)}\"")
+                appendLine("#$id origin=${item.origin} patchBuilt=${item.patchBuilt} " +
+                    "source=\"${safe(item.english)}\" arabic=\"${safe(item.arabic)}\"")
             }
             appendLine()
             appendLine("Missing raw-call entries usually indicate a cache hit, another engine, or a request that failed before returning output.")
@@ -104,11 +104,11 @@ class CaptureDiagnostics(
 
     private fun box(block: BubbleBlock): String {
         val b = block.bounds
-        return "\u0024{format(b.left)},\u0024{format(b.top)},\u0024{format(b.right)},\u0024{format(b.bottom)}"
+        return "${format(b.left)},${format(b.top)},${format(b.right)},${format(b.bottom)}"
     }
 
     private fun safe(value: String): String =
-        value.replace("\\r", " ").replace("\\n", " ↵ ").take(MAX_TEXT_CHARS)
+        value.replace("\r", " ").replace("\n", " ↵ ").take(MAX_TEXT_CHARS)
 
     private fun format(value: Float): String = String.format(Locale.US, "%.1f", value)
 
