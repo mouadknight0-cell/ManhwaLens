@@ -119,4 +119,66 @@ class LibreTranslateTranslatorTest {
         assertEquals("", blank.blocks.single().arabic)
         assertNull(blankApi.bodies.singleOrNull())
     }
+
+    @Test
+    fun oneRejectedBubbleDoesNotDiscardOtherValidTranslations() {
+        val api = FakeLibreTranslateApi(
+            result = LibreTranslateHttpResult(
+                200,
+                """{"translatedText":["مرحبًا","Take my hand."]}"""
+            )
+        )
+        val input = listOf(
+            TranslationBlock(4, "Hello!"),
+            TranslationBlock(7, "Take my hand.")
+        )
+
+        val result = LibreTranslateTranslator(api, { "https://translate.example" })
+            .translatePage(input)
+
+        val success = result as PageTranslation.Success
+        assertEquals(listOf(4, 7), success.blocks.map { it.id })
+        assertEquals(listOf("مرحبًا", ""), success.blocks.map { it.arabic })
+    }
+
+    @Test
+    fun allRejectedBubblesStillFailThePage() {
+        val api = FakeLibreTranslateApi(
+            result = LibreTranslateHttpResult(
+                200,
+                """{"translatedText":["Hello!","Take my hand."]}"""
+            )
+        )
+        val result = LibreTranslateTranslator(api, { "https://translate.example" })
+            .translatePage(
+                listOf(TranslationBlock(1, "Hello!"), TranslationBlock(2, "Take my hand."))
+            ) as PageTranslation.Failure
+
+        assertEquals(FailureReason.PARSE_ERROR, result.reason)
+        assertTrue(result.message.contains("rejected all"))
+    }
+
+    @Test
+    fun appliesResolvedPageNameTableBeforeSendingLibreRequest() {
+        val api = FakeLibreTranslateApi(
+            result = LibreTranslateHttpResult(
+                200,
+                """{"translatedText":["وي وو شيان يظهر."]}"""
+            )
+        )
+        val translator = LibreTranslateTranslator(
+            api = api,
+            endpointProvider = { "https://translate.example" },
+            nameTableProvider = { mapOf("Wei Wuxian" to "وي وو شيان") }
+        )
+
+        val result = translator.translatePage(
+            listOf(TranslationBlock(3, "Wei Wuxian appears."))
+        ) as PageTranslation.Success
+
+        val sent = JSONObject(api.bodies.single()).getJSONArray("q").getString(0)
+        assertEquals("وي وو شيان appears.", sent)
+        assertEquals("وي وو شيان يظهر.", result.blocks.single().arabic)
+    }
+
 }
