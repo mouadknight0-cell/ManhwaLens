@@ -35,6 +35,7 @@ chat-only record.
 
 | Date | Phase | Report | Base → final | Verified by | Status |
 | --- | --- | --- | --- | --- | --- |
+| 2026-11-14 | P2 translation quality & context — **audit only** (read-only, implementation not started) | [P2_TRANSLATION_CONTEXT_AUDIT.md](P2_TRANSLATION_CONTEXT_AUDIT.md) | baseline `fe5aa6a` | none — no code changed; no test executed | **AUDIT COMPLETE / IMPLEMENTATION PENDING** |
 | 2026-11-13 | P0/C2 ML Kit English echo eliminated | [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) | `6eb8974` → `c008f62` (docs `08004c4`, `b82fb6f`, `7b30804`, `3674ebf`) | CI 43563394305, 43563800508, 43564060458, 43564884208 | **VERIFIED COMPLETE** |
 | 2026-11-13 | P1.1 strict staging validation · P1.1-A canonical keys (§8) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `723f101` · P1.1-A `feb20ef` → `fee9d9e` (docs `e546470`, `6eb8974`) | CI 43531030306, 43531550380, 43561318751, 43561668957 | **VERIFIED COMPLETE** |
 | 2026-11-13 | P1 persistence safety (recovery never writes the live file) | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `87830b7` (docs `345715d`) | CI 43526686657, 43527227407 | **VERIFIED COMPLETE** |

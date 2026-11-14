@@ -44,6 +44,7 @@ module, Kotlin 2.4.21, AGP 8.13.2, Compose + Material 3, `minSdk 26`, `compileSd
 | 5 | **P1 persistence safety** — recovery may never write the live file | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `87830b7` (docs `345715d`) | 6 files, +348 / −63 | 43526686657, 43527227407 |
 | 6 | **P1.1 strict staging validation** — a staging copy is promoted only after it is proved structurally complete; **P1.1-A** adds canonical `normalizedName` integrity (§8 of that report) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `723f101` → `fee9d9e` (docs `feb20ef`, `e546470`, `6eb8974`) | P1.1 5 files +451/−12 · P1.1-A 6 files +206/−13 | 43531030306, 43531550380, 43561318751, 43561668957 |
 | 7 | **P0/C2** ML Kit English echo eliminated — no source substitution, guard extended to `ml_kit_en_ar`, guarded progressive path, painter-boundary defence | [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) | `6eb8974` → `c008f62` (docs `08004c4`, `b82fb6f`, `7b30804`, `3674ebf`) | 6 files, +510 / −8 | 43563394305, 43563800508, 43564060458, 43564884208 |
+| 8 | **P2 audit** — translation quality & context (READ-ONLY: 4 confirmed bugs, 9 verified risks, 3 improvements, 5 verified-correct) | [P2_TRANSLATION_CONTEXT_AUDIT.md](P2_TRANSLATION_CONTEXT_AUDIT.md) | audit baseline `fe5aa6a` | — (no code changed) | — (no code changed) |
 
 Net: one defect fixed in the Gemini wire path, one feature (persistent, series-scoped names), four
 hardening passes over the new persistence layer (atomic writes → recovery never writes the live file →
@@ -162,7 +163,7 @@ beyond the inference above.
 | [DECISIONS.md](DECISIONS.md) | One line per decision, including the standing rules S1–S6, T1–T7, U1–U6, V1–V5, W1–W6 |
 | [BLOCKERS.md](BLOCKERS.md) | What cannot be done in this environment, and why |
 | [MANUAL_TESTS.md](MANUAL_TESTS.md) | On-device checklists (Redmi 13C, Brave) |
-| [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md), [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md), [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md), [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md), [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md), [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md), [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md), [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | Per-change reports (§2) |
+| [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md), [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md), [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md), [P2_TRANSLATION_CONTEXT_AUDIT.md](P2_TRANSLATION_CONTEXT_AUDIT.md), [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md), [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md), [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md), [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md), [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | Per-change reports (§2) |
 | [CHANGELOG.md](CHANGELOG.md), [README.md](README.md), [PRIVACY.md](PRIVACY.md), [OPEN_SOURCE_RESEARCH.md](OPEN_SOURCE_RESEARCH.md), [V096_PLAN.md](V096_PLAN.md) | User-facing changelog (version history, kept as written), product readme, privacy stance, licence research, earlier plan |
 
 All links above resolve to files that exist at this head (`ls *.md` = 19 files, all listed).
@@ -198,6 +199,7 @@ Control commits are ancestors of `3674ebf` — verified with `git merge-base --i
 | **P1 persistence safety** | **VERIFIED COMPLETE** | `87830b7` (+docs `345715d`) | 6 files, +348/−63 | +5 (599→604) | runs 43526686657, 43527227407 green | Real-world crash/kill timing during promotion not reproducible offline |
 | **P1.1 strict staging validation** (incl. **P1.1-A**) | **VERIFIED COMPLETE** | `723f101`, `fee9d9e` (+docs `feb20ef`, `e546470`, `6eb8974`) | 5 files +451/−12; 6 files +206/−13 | +11 (604→615), +4 (615→619) | runs 43531030306, 43531550380, 43561318751, 43561668957 green | `NameForm.normalize` changes would reject older documents — deliberate future-migration concern (V5) |
 | **P0/C2 ML Kit English echo** | **VERIFIED COMPLETE** | `c008f62` (+docs `08004c4`, `b82fb6f`, `7b30804`, `3674ebf`) | 6 files, +510/−8 | +10 (619→629) | runs 43563394305, 43563800508, 43564060458, 43564884208 green | Visual behaviour of a withheld bubble is **not device-verified**; ML Kit echo rate unmeasured |
+| **P2 translation quality & context — audit** | **VERIFIED COMPLETE** (audit delivered, read-only; implementation **PENDING** — not started) | `fe5aa6a` (baseline, no code change) | 1 new report + 2 docs | 0 | n/a (no code) | Audit findings are unfixed by definition: 4 confirmed bugs (2 High), 9 verified risks, 3 improvements — see the report §3/§7 for the P2-A…P2-D plan |
 
 No phase is **IMPLEMENTED BUT NOT VERIFIED**, **PARTIALLY COMPLETE**, **PENDING** or **BLOCKED** except the
 audit's *open items* listed in §10 (C3, C4, C5, RTL, offline readiness, perf, `FloatingButtonService` seams),
@@ -250,6 +252,7 @@ from the documents themselves.
 | --- | --- |
 | P0 / C1 — name sheet in the primary Gemini body | **done** (P0-A) |
 | P0 / C2 — ML Kit English echo can reach the screen | **done** (P0/C2, `c008f62`) |
+| P2-A — source-text and context integrity (P2-01, P2-02) | **open — recommended next** (audit complete, implementation not started) |
 | P1 / C4 — AI cleanup queued on the live thread | **open** |
 | P1 — RTL correctness (one shared layout builder, RLM wrapping) | **open** |
 | P1 — offline readiness step ("Prepare offline EN→AR") | **open** |
@@ -263,10 +266,12 @@ The audit's item 7 proposed keying memory by the foreground package + title. P1 
 (decision D1 in [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md)). That remains a deliberate
 divergence from the audit and is the standing architectural choice for this area.
 
-**Recommended next step:** **C4** — move AI cleanup off the live pipeline's single-thread executor
-(`FloatingButtonService.kt:4053` vs `:1774`, `ioExecutor:232`), the last P0 defect in the audit that
-affects the live path. It is small, local and testable with the existing seams; it needs its own phase
-report before any code change.
+**Recommended next step:** **P2-A** — the first task of the P2 roadmap in
+[P2_TRANSLATION_CONTEXT_AUDIT.md](P2_TRANSLATION_CONTEXT_AUDIT.md) §7: fix **P2-01** (the glossary rewrites
+ordinary English words such as `long`/`song`/`sun` before translation) and **P2-02** (the tap path sends the
+remote engine a visual-priority order while the prompt claims page order). Both are deterministic, local and
+testable in the existing JVM suites. P2 implementation is **not started**; it begins only after the audit
+findings are approved. C4 stays open behind it, unchanged.
 
 ---
 
@@ -287,6 +292,7 @@ report before any code change.
 
 | Updated | Head | What changed in this snapshot |
 | --- | --- | --- |
+| 2026-11-14 (`fe5aa6a` + this docs commit) | P2 audit delivered | Read-only translation quality & context audit: 4 confirmed bugs, 9 verified risks, 3 improvements, 5 items verified correct; roadmap P2-A…P2-D; **no source, test, Gradle or dependency change**, no test executed (no JDK/SDK), P2 implementation NOT STARTED |
 | 2026-11-13 (audit commit `05fa1ab` on top of `3674ebf`; commit clock 2026-11-14, green in run 43565553808) | documentation consistency audit | Re-derived every current-state claim from git and the GitHub API: head/commit count/PR state, the full 22-run CI table, the eight test-count boundaries with explicit scope, the discovered-vs-executed split, and the authoritative phase status table. Corrected the stale header, inventory, run table, C2 status, rules range and a non-existent run id; added §4 (test counts) and §9 (this audit); preserved historical rows with annotations. **No application source, test, Gradle or dependency change.** |
 | 2026-11-13 (doc-only, on top of `7b30804`) | standing rule S6 recorded | Rule S6 in `DECISIONS.md` and `REPORTS.md`; no code change, no test run claimed beyond the CI run of that documentation commit (43564060458 green at `7b30804`). |
 | 2026-11-13 (`b82fb6f`) | P0/C2 merged into the branch | Added the P0/C2 work package, refreshed the inventory (629 tests) — *historical: the commit count printed here as 25 was 27 at that head; corrected in the 2026-11-14 audit row* |
