@@ -127,6 +127,19 @@ internal class AiCleanupCoordinator(
                 }
                 if (jpeg == null) continue
 
+                // Re-check immediately before each image request. The user can enable
+                // Force offline while crop encoding is in progress.
+                val requestPrefs = TranslationPrefs(appContext)
+                if (!SettingsPrefs(appContext).aiCleanupEnabled ||
+                    !OfflineTranslationPolicy.canUseCloudServices(requestPrefs.offlineMode) ||
+                    !requestPrefs.hasGeminiKey ||
+                    requestPrefs.geminiKey != apiKey ||
+                    requestPrefs.geminiCircuit.isOpen()
+                ) {
+                    Log.i(TAG, "ai cleanup: remaining requests cancelled — settings changed before request")
+                    break
+                }
+
                 when (val result = GeminiImageEditor.editBubble(api, model, jpeg, box.arabic)) {
                     is com.manhwalens.app.translate.gemini.ImageEditResult.Success -> {
                         val decoded = BitmapFactory.decodeByteArray(result.imageBytes, 0, result.imageBytes.size)
@@ -162,7 +175,18 @@ internal class AiCleanupCoordinator(
             if (cachedKey == apiKey && now - imageModelCacheAtMs < MODEL_CACHE_TTL_MS) return modelId
         }
         return try {
-            val response = HttpUrlConnectionGeminiApi(apiKey).listModels()
+            // Model discovery is network traffic too; guard it independently because
+            // offline mode may change after the worker's initial preference snapshot.
+            val latestPrefs = TranslationPrefs(appContext)
+            if (!OfflineTranslationPolicy.canUseCloudServices(latestPrefs.offlineMode) ||
+                !latestPrefs.hasGeminiKey ||
+                latestPrefs.geminiKey != apiKey ||
+                latestPrefs.geminiCircuit.isOpen()
+            ) {
+                Log.i(TAG, "ai cleanup: model discovery cancelled — cloud settings changed")
+                return null
+            }
+            HttpUrlConnectionGeminiApi(apiKey).listModels()
             if (response.code !in 200..299) {
                 Log.w(TAG, "ai cleanup: listModels http ${response.code}")
                 null

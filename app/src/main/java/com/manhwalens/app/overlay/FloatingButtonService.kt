@@ -298,7 +298,8 @@ class FloatingButtonService : Service() {
             ioExecutor,
             patchRect = { id -> patchOverlay?.patchRect(id) },
             replaceBitmap = { id, bitmap ->
-                if (patchOverlay != null) patchOverlay?.replaceBitmap(id, bitmap)
+                val overlay = patchOverlay
+                if (overlay != null) overlay.replaceBitmap(id, bitmap)
                 else runCatching { bitmap.recycle() }
             }
         )
