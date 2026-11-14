@@ -87,7 +87,7 @@ class BatchAutoSelectTest {
     fun separatorThatBreaksAtPageSize_isRejected_nextFastestWins() {
         val clock = Clock()
         // "@@@" is fastest and survives 4 short strings, but loses its markers on a
-        // 10-bubble page (the Redmi 13C result). "###" is next and holds.
+        // 20-bubble page (the Redmi 13C result). "###" is next and holds.
         val e = engine(
             clock,
             cost = { input ->
@@ -98,7 +98,7 @@ class BatchAutoSelectTest {
                     else -> 30
                 }
             },
-            mangle = { out -> if (Regex("@@@").findAll(out).count() >= 9) out.replace("\n@@@\n", " ") else out }
+            mangle = { out -> if (Regex("@@@").findAll(out).count() >= 19) out.replace("\n@@@\n", " ") else out }
         )
         val choice = BatchAutoSelect.run(e, clock = { clock.t })
         assertEquals(SplitStrategy.HASH, choice.strategy)
