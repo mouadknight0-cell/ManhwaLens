@@ -24,9 +24,10 @@ import javax.net.ssl.SSLException
  * v0.11.0 changes, all driven by real manhwa pages:
  *  - **Name stability:** the page's proper nouns are resolved once by [NameMemory] and sent
  *    as an explicit name sheet; the reply is rewritten so a name keeps the pinned spelling.
- *  - **Speed:** the request asks for a JSON object with `temperature 0.2` and no deep
- *    thinking, and a large page is split into ≤18-bubble requests that run in parallel,
- *    so the first bubbles can be painted while the tail is still in flight.
+ *  - **Speed:** when [jsonReply] is on, the request asks for a JSON object with
+ *    `temperature 0.2` and no deep thinking; either way a large page is split into
+ *    ≤18-bubble requests that run in parallel, so the first bubbles can be painted while
+ *    the tail is still in flight.
  *  - **Robust parsing:** a JSON reply, legacy `[id] text` lines and a bare one-line-per-block
  *    reply all parse; a truncated reply (MAX_TOKENS) is re-asked for the missing ids once
  *    instead of throwing the page away.
@@ -48,6 +49,9 @@ class GeminiTranslator(
      * When true the request asks for a JSON object reply (`responseMimeType`). Default is
      * the legacy numbered-line format: it is what every already-installed model and every
      * test double answers, and the parser accepts both anyway.
+     *
+     * P2-03: this flag now governs the **primary** request; the HTTP-400 retry keeps using
+     * the fast body built from the same flag ([GeminiWire.buildFastBody]).
      */
     private val jsonReply: Boolean = false,
     private val maxBlocksPerRequest: Int = 18,
@@ -229,7 +233,12 @@ class GeminiTranslator(
         val tAttempt = System.currentTimeMillis()
         // P0-A: both body formats carry the page name sheet, so the FIRST request already
         // tells the model how to spell every name — names must not depend on the 400 retry.
-        var body = GeminiWire.buildRequestBody(chunk, GeminiWire.THINKING_LEVEL, sheet, jsonReply = false)
+        // P2-03: the caller's [jsonReply] decides the primary request format. It used to be
+        // hardcoded to `false` here, so a caller that asked for a JSON reply still sent the
+        // legacy numbered-lines body on the first attempt and only the 400 retry honoured it.
+        var body = GeminiWire.buildRequestBody(
+            chunk, GeminiWire.THINKING_LEVEL, sheet, jsonReply = jsonReply
+        )
         var result = try {
             api.generate(body, model).also {
                 PipelineTracer.span("gemini request", System.currentTimeMillis() - tAttempt, "model=$model http=${it.code} blocks=${chunk.size}")

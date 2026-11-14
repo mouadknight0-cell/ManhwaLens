@@ -312,22 +312,136 @@ object GeminiWire {
      * {"t":{…}} (what we ask for), {"translations":{…}}, a bare {"<id>":"…"} object, an
      * array of {"id":…,"ar":…}, the legacy "[id] text" lines, and — when the model ignored
      * every format — one Arabic line per sent id, in order.
+     *
+     * Explicit ids always win, and the positional fallback (P2-04) is deliberately strict:
+     * label/formatting lines are removed first, the number of usable lines must equal the
+     * number of expected ids **exactly**, and a partly-numbered reply is refused. A reply
+     * that does not meet that bar returns null, which the caller already treats as a parse
+     * error (re-ask the missing ids, then fall back), so a shifted mapping can never be
+     * painted over the art. See [positionalMap].
      */
     fun parseJsonTranslations(text: String, expectedIds: List<Int> = emptyList()): Map<Int, String>? {
         val raw = text.trim().removePrefix("\u0060\u0060\u0060json").removePrefix("\u0060\u0060\u0060")
             .removeSuffix("\u0060\u0060\u0060").trim()
         jsonMap(raw)?.let { if (it.isNotEmpty()) return it }
+        // Explicit "[id] text" lines: the ids are the model's own claim, so they are honoured
+        // even when only some ids came back (the caller re-asks the rest). Never re-positioned.
         parseNumberedLines(raw)?.let { return it }
-        if (expectedIds.isNotEmpty()) {
-            val lines = raw.split('\n')
-                .map { it.trim().trim('-', '*', '"').trim() }
-                .filter { it.isNotEmpty() && it.any { c -> c.code in 0x0600..0x06FF } }
-            if (lines.size >= expectedIds.size) {
-                return expectedIds.mapIndexed { i, id -> id to lines[i] }.toMap()
-            }
-        }
+        if (expectedIds.isNotEmpty()) positionalMap(raw, expectedIds)?.let { return it }
         return null
     }
+
+    // ------------------------------------------------------------------
+    // P2-04: safe positional mapping
+    //
+    // The old fallback was `if (lines.size >= expectedIds.size) expectedIds[i] -> lines[i]`.
+    // Any extra line the model added — a standalone "الترجمة:" / "Translation:" label, an
+    // explanatory sentence, a horizontal rule — shifted every translation by one bubble,
+    // silently. Positional mapping is now allowed only when the structure is unambiguous.
+    // ------------------------------------------------------------------
+
+    /** A standalone label line a model may print above the dialogue. Never a translation. */
+    private val STANDALONE_LABEL = Regex(
+        "^(?:الترجمة|الترجمه|ترجمة|الترجمة العربية|النص|النص العربي|الإجابة|الجواب|الرد" +
+            "|بالعربية|بالعربي|Arabic|Translation|Output)\\s*[:：]?\\s*$",
+        RegexOption.IGNORE_CASE
+    )
+
+    /** The same labels used as a prefix on real dialogue ("الترجمة: مرحبا"). */
+    private val LABEL_PREFIX = Regex(
+        "^(?:الترجمة|الترجمه|ترجمة|الترجمة العربية|النص العربي|بالعربية|بالعربي" +
+            "|Arabic|Translation|Output)\\s*[:：]\\s*",
+        RegexOption.IGNORE_CASE
+    )
+
+    /** Arabic letters only — Arabic punctuation and digits alone are not dialogue. */
+    private val ARABIC_LETTER = Regex(
+        "[\\u0621-\\u063A\\u0641-\\u064A\\u066E-\\u06D3\\u06FA-\\u06FC" +
+            "\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]"
+    )
+
+    /** "1. " / "2) " / "3- " — a list marker, not part of the dialogue. */
+    private val LINE_MARKER = Regex("^(\\d{1,3})\\s*[.)\\-]\\s+")
+
+    /** A short line ending in a colon is a caption ("هذه هي الترجمة:"), not a bubble. */
+    private val COLON_TAIL = Regex("[:：]\\s*$")
+    private val WHITESPACE = Regex("\\s+")
+
+    /** One usable reply line: its text and the list number the model put in front of it. */
+    private class ReplyLine(val text: String, val number: Int?)
+
+    /**
+     * Turn the raw reply into the list of lines that could be a translation, dropping
+     * everything that is a label or formatting instead. Never drops a line that carries
+     * dialogue, and never reorders.
+     */
+    private fun replyLines(raw: String): List<ReplyLine> {
+        val out = ArrayList<ReplyLine>()
+        for (rawLine in raw.split('\n')) {
+            var line = rawLine.trim()
+            if (line.isEmpty()) continue
+            // Bullets / rule characters a model wraps around a line ("- ", "* ", "---").
+            line = line.trimStart('-', '*', '•', '·', '–', '—').trim()
+            if (line.isEmpty()) continue
+            if (isRuleLine(line)) continue
+            var number: Int? = null
+            val marker = LINE_MARKER.find(line)
+            if (marker != null) {
+                val rest = line.substring(marker.range.last + 1).trim()
+                if (rest.isNotEmpty()) {
+                    number = marker.groupValues[1].toIntOrNull()
+                    line = rest
+                }
+            }
+            line = LABEL_PREFIX.replace(line, "").trim()
+            if (line.isEmpty()) continue
+            line = line.trim('"', '\'', '`', '«', '»').trim()
+            if (line.isEmpty()) continue
+            if (isLabelLine(line)) continue
+            // Formatting noise: an English preamble, a bare "###", a stray bracket.
+            if (!ARABIC_LETTER.containsMatchIn(line)) continue
+            out += ReplyLine(line, number)
+        }
+        return out
+    }
+
+    /** "---", "***", "___": a separator the model drew, not a bubble. */
+    private fun isRuleLine(line: String): Boolean =
+        line.all { it == '-' || it == '*' || it == '_' || it == '=' || it == '–' || it == '—' }
+
+    private fun isLabelLine(line: String): Boolean {
+        if (STANDALONE_LABEL.matches(line)) return true
+        // "الترجمة:" / "هذه هي الترجمة:" — a colon tail on a line of at most five words.
+        if (COLON_TAIL.containsMatchIn(line) &&
+            line.trimEnd(':', '：', ' ').split(WHITESPACE).count { it.isNotEmpty() } <= 5
+        ) return true
+        return false
+    }
+
+    /**
+     * Positional mapping, only when it is provably unambiguous:
+     *  - the usable line count must equal the expected id count EXACTLY (a missing or an
+     *    extra line is refused — the caller then re-asks instead of painting a shift);
+     *  - if the model numbered every line, the numbers must either be the expected ids or a
+     *    clean 1..N list; a duplicated / gapped / out-of-order numbering is refused;
+     *  - a reply where only some lines are numbered is refused (its structure is unknown).
+     */
+    private fun positionalMap(raw: String, expectedIds: List<Int>): Map<Int, String>? {
+        val lines = replyLines(raw)
+        if (lines.size != expectedIds.size) return null
+        val numbered = lines.count { it.number != null }
+        val inOrder = when {
+            numbered == lines.size -> {
+                val numbers = lines.map { it.number!! }
+                numbers == expectedIds || numbers == (1..lines.size).toList()
+            }
+            numbered == 0 -> true
+            else -> false
+        }
+        if (!inOrder) return null
+        return expectedIds.mapIndexed { index, id -> id to lines[index].text }.toMap()
+    }
+
 
     private fun jsonMap(raw: String): Map<Int, String>? = try {
         val out = LinkedHashMap<Int, String>()

@@ -313,4 +313,120 @@ class GeminiTranslatorTest {
         assertTrue("the prompt text must never be empty", !first.contains("\"text\":\"\""))
         assertTrue(first.split(GeminiWire.GLOSSARY_HEADER).size - 1 <= 1)
     }
+
+    // ------------------------------------------------------------------
+    // P2-03: [GeminiTranslator.jsonReply] must reach the PRIMARY request,
+    // not only the HTTP-400 retry, and the shipped default must not change.
+    // ------------------------------------------------------------------
+
+    /** A generateContent envelope whose model text is [text] (quotes/newlines escaped). */
+    private fun jsonEnvelope(text: String): String {
+        val escaped = text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+        return "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"$escaped\"}]}}]}"
+    }
+
+    private val jsonReplyBody = jsonEnvelope("""{"t":{"1":"مرحبا","2":"خذ يدي"}}""")
+
+    @Test
+    fun jsonReplyTrueSendsTheJsonPrimaryRequest() {
+        val api = FakeGeminiApi(result = GeminiHttpResult(200, jsonReplyBody))
+        val result = GeminiTranslator(api, jsonReply = true)
+            .translatePage(blocks) as PageTranslation.Success
+        // Exactly one request: the primary one. Before P2-03 this body was the legacy one.
+        assertEquals(1, api.requestBodies.size)
+        val primary = api.requestBodies.first()
+        assertTrue(primary, primary.contains("\"responseMimeType\":\"application/json\""))
+        // The JSON body keeps its own tuning: temperature 0.2, no thinking budget.
+        assertTrue(primary, primary.contains("\"temperature\":0.2"))
+        assertTrue(primary, primary.contains("\"thinkingBudget\":0"))
+        // And the JSON reply shape is parsed through the same path.
+        assertEquals(listOf("مرحبا", "خذ يدي"), result.blocks.map { it.arabic })
+    }
+
+    @Test
+    fun jsonReplyFalseKeepsTheLegacyPrimaryRequest() {
+        val api = FakeGeminiApi(result = GeminiHttpResult(200, okBody(1 to "مرحبا", 2 to "خذ يدي")))
+        GeminiTranslator(api, jsonReply = false).translatePage(blocks)
+        val primary = api.requestBodies.first()
+        assertTrue(primary, primary.contains("\"thinkingLevel\":\"low\""))
+        assertTrue(primary, primary.contains("\"temperature\":0.3"))
+        assertTrue(
+            "the legacy body must not request a JSON reply",
+            !primary.contains("responseMimeType")
+        )
+    }
+
+    @Test
+    fun defaultConstructorKeepsTheLegacyPrimaryRequest() {
+        // P2-03 must not flip the shipped default: TranslatorFactory passes no flag.
+        val api = FakeGeminiApi(result = GeminiHttpResult(200, okBody(1 to "مرحبا", 2 to "خذ يدي")))
+        GeminiTranslator(api, modelProvider = { GeminiWire.DEFAULT_MODEL }).translatePage(blocks)
+        assertEquals(1, api.requestBodies.size)
+        assertTrue(!api.requestBodies.first().contains("responseMimeType"))
+        assertTrue(api.requestBodies.first().contains("\"thinkingLevel\":\"low\""))
+    }
+
+    @Test
+    fun http400RetryStillRunsWithJsonReplyTrue() {
+        val api = FakeGeminiApi(
+            queue = ArrayDeque(
+                listOf(
+                    GeminiHttpResult(400, "{\"error\":{\"message\":\"bad request\"}}"),
+                    GeminiHttpResult(200, jsonReplyBody)
+                )
+            )
+        )
+        val result = GeminiTranslator(api, jsonReply = true)
+            .translatePage(blocks) as PageTranslation.Success
+        assertEquals(2, api.requestBodies.size)
+        assertTrue(api.requestBodies[0].contains("responseMimeType"))
+        assertTrue(api.requestBodies[1].contains("responseMimeType"))
+        assertEquals(listOf("مرحبا", "خذ يدي"), result.blocks.map { it.arabic })
+    }
+
+    @Test
+    fun http400RetryStillRunsWithJsonReplyFalse() {
+        val api = FakeGeminiApi(
+            queue = ArrayDeque(
+                listOf(
+                    GeminiHttpResult(400, "{\"error\":{\"message\":\"bad request\"}}"),
+                    GeminiHttpResult(200, okBody(1 to "مرحبا", 2 to "خذ يدي"))
+                )
+            )
+        )
+        val result = GeminiTranslator(api, jsonReply = false)
+            .translatePage(blocks) as PageTranslation.Success
+        assertEquals(2, api.requestBodies.size)
+        assertTrue(!api.requestBodies[0].contains("responseMimeType"))
+        // The retry keeps its fast, non-JSON body: thinkingBudget 0 and no responseMimeType.
+        assertTrue(!api.requestBodies[1].contains("responseMimeType"))
+        assertTrue(api.requestBodies[1].contains("\"thinkingBudget\":0"))
+        assertEquals(listOf("مرحبا", "خذ يدي"), result.blocks.map { it.arabic })
+    }
+
+    // ------------------------------------------------------------------
+    // P2-04 end to end: what the reader sees per bubble id.
+    // ------------------------------------------------------------------
+
+    @Test
+    fun positionalReplyWithALabelStillMapsEveryBubbleEndToEnd() {
+        val api = FakeGeminiApi(
+            result = GeminiHttpResult(200, jsonEnvelope("الترجمة:\nمرحبا\nخذ يدي"))
+        )
+        val result = translatorWith(api).translatePage(blocks) as PageTranslation.Success
+        assertEquals("مرحبا", result.blocks.first { it.id == 1 }.arabic)
+        assertEquals("خذ يدي", result.blocks.first { it.id == 2 }.arabic)
+    }
+
+    @Test
+    fun ambiguousPositionalReplyIsRejectedInsteadOfShifted() {
+        val api = FakeGeminiApi(
+            result = GeminiHttpResult(200, jsonEnvelope("مرحبا\nخذ يدي\nسطر ثالث زائد"))
+        )
+        val result = translatorWith(api).translatePage(blocks) as PageTranslation.Failure
+        assertEquals(FailureReason.PARSE_ERROR, result.reason)
+        // No re-ask is possible (every bubble is missing), so the page fails honestly
+        // instead of painting a shifted translation.
+        assertEquals(1, api.requestBodies.size)
+    }
 }

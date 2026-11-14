@@ -185,4 +185,139 @@ class GeminiWireTest {
         assertFalse(body, body.contains("null"))
         assertTrue(body, body.contains(pageSheet))
     }
+
+    // ------------------------------------------------------------------
+    // P2-04: a positional ("one Arabic line per id") reply may only be
+    // mapped when the structure is unambiguous. Every test below asserts
+    // the ACTUAL id → translation mapping, so a shifted mapping fails.
+    // ------------------------------------------------------------------
+
+    private val twoIds = listOf(1, 2)
+
+    private fun positional(reply: String, ids: List<Int> = twoIds) =
+        GeminiWire.parseJsonTranslations(reply, ids)
+
+    @Test
+    fun exactPositionalReplyMapsEachBubbleInOrder() {
+        assertEquals(
+            mapOf(1 to "مرحبا بك", 2 to "خذ يدي"),
+            positional("مرحبا بك\nخذ يدي")
+        )
+    }
+
+    @Test
+    fun arabicStandaloneLabelIsDroppedInsteadOfBecomingABubble() {
+        // With the previous `>=` fallback bubble 1 became "الترجمة:" and every real
+        // translation moved down by one bubble.
+        val parsed = positional("الترجمة:\nمرحبا بك\nخذ يدي")
+        assertEquals(mapOf(1 to "مرحبا بك", 2 to "خذ يدي"), parsed)
+        assertFalse(
+            "a label must never be mapped to a bubble",
+            parsed!!.values.any { it.contains("الترجمة") }
+        )
+    }
+
+    @Test
+    fun englishStandaloneLabelIsDroppedInsteadOfBecomingABubble() {
+        assertEquals(
+            mapOf(1 to "مرحبا بك", 2 to "خذ يدي"),
+            positional("Translation:\nمرحبا بك\nخذ يدي")
+        )
+    }
+
+    @Test
+    fun labelPrefixedOnARealLineIsStrippedAndKept() {
+        assertEquals(
+            mapOf(1 to "مرحبا بك", 2 to "خذ يدي"),
+            positional("الترجمة: مرحبا بك\nخذ يدي")
+        )
+    }
+
+    @Test
+    fun extraExplanatoryLineRejectsTheReplyInsteadOfShifting() {
+        // A caption plus a trailing remark: the structure is ambiguous, so nothing is mapped.
+        assertNull(positional("هذه هي الترجمة:\nمرحبا بك\nخذ يدي\nملاحظة قبل النهاية"))
+    }
+
+    @Test
+    fun extraTranslationLineIsRejected() {
+        assertNull(positional("مرحبا بك\nخذ يدي\nسطر ثالث زائد"))
+    }
+
+    @Test
+    fun missingTranslationLineIsRejected() {
+        assertNull(positional("مرحبا بك"))
+    }
+
+    @Test
+    fun blankLinesAndFormattingArtifactsAreIgnored() {
+        assertEquals(
+            mapOf(1 to "مرحبا بك", 2 to "خذ يدي"),
+            positional("\n\n- مرحبا بك\n***\n\n«خذ يدي»\n___\n")
+        )
+    }
+
+    @Test
+    fun explicitIdReplyIsHonouredEvenOutOfOrder() {
+        assertEquals(
+            mapOf(1 to "مرحبا بك", 2 to "خذ يدي"),
+            positional("[2] خذ يدي\n[1] مرحبا بك")
+        )
+    }
+
+    @Test
+    fun jsonObjectReplyIsStillParsed() {
+        assertEquals(
+            mapOf(1 to "مرحبا بك", 2 to "خذ يدي"),
+            positional("""{"t":{"1":"مرحبا بك","2":"خذ يدي"}}""")
+        )
+    }
+
+    @Test
+    fun bareIdKeyedObjectAndArrayReplyStillParse() {
+        assertEquals(
+            mapOf(3 to "مرحبا"),
+            GeminiWire.parseJsonTranslations("""{"3":"مرحبا"}""", listOf(3))
+        )
+        assertEquals(
+            mapOf(1 to "مرحبا بك", 2 to "خذ يدي"),
+            positional("""[{"id":1,"ar":"مرحبا بك"},{"id":2,"ar":"خذ يدي"}]""")
+        )
+    }
+
+    @Test
+    fun mixedExplicitAndBareLinesKeepsOnlyTheExplicitIds() {
+        // One line carries an id, the other carries none: the bare line must not be
+        // positionally assigned (it could belong to either bubble or be a stray sentence).
+        assertEquals(mapOf(1 to "مرحبا بك"), positional("[1] مرحبا بك\nخذ يدي"))
+    }
+
+    @Test
+    fun numberMarkedLinesAreMappedByTheirOwnNumbers() {
+        assertEquals(
+            mapOf(1 to "مرحبا بك", 2 to "خذ يدي"),
+            positional("1. مرحبا بك\n2. خذ يدي")
+        )
+    }
+
+    @Test
+    fun numberingThatDisagreesWithTheIdsIsRejected() {
+        // 1/3 for ids 1/2 — the numbering cannot be trusted, so nothing is mapped.
+        assertNull(positional("1. مرحبا بك\n3. خذ يدي"))
+    }
+
+    @Test
+    fun partlyNumberedReplyIsRejected() {
+        assertNull(positional("1. مرحبا بك\nخذ يدي"))
+    }
+
+    @Test
+    fun positionalReplyForASingleBubbleStillWorks() {
+        assertEquals(mapOf(7 to "مرحبا"), GeminiWire.parseJsonTranslations("مرحبا", listOf(7)))
+    }
+
+    @Test
+    fun replyWithOnlyLabelsAndArtifactsParsesNothing() {
+        assertNull(positional("الترجمة:\n---\nTranslation:"))
+    }
 }
