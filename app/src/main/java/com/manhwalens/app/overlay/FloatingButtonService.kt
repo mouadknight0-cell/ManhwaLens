@@ -3854,6 +3854,11 @@ class FloatingButtonService : Service() {
          */
         private val areaById = HashMap<Int, com.manhwalens.app.ocr.geometry.Rect2D>()
         private val painted = LinkedHashMap<Int, com.manhwalens.app.render.BubbleRenderBox>()
+        /** Original per-block payloads; composite patches are rebuilt from this map. */
+        private val renderBoxesById = LinkedHashMap<Int, com.manhwalens.app.render.BubbleRenderBox>()
+        /** Monotonic generation per area prevents an older worker build replacing newer text. */
+        private val areaGeneration = HashMap<Int, Int>()
+        private val areaPlanById = HashMap<Int, com.manhwalens.app.render.PatchPlanner.Area>()
         private val remoteWins = HashSet<Int>()
         /**
          * v0.11.0: one patch area per visual bubble, decided up-front from EVERY kept block
@@ -3871,7 +3876,10 @@ class FloatingButtonService : Service() {
             )
         init {
             // Every member of an area resolves to the same cover rect.
-            for (a in areas) for (id in a.memberIds) areaById[id] = a.cover
+            for (a in areas) for (id in a.memberIds) {
+                areaById[id] = a.cover
+                areaPlanById[id] = a
+            }
         }
         private val paintLedger = com.manhwalens.app.render.PaintLedger(keptBlocks.size)
 
@@ -3891,18 +3899,17 @@ class FloatingButtonService : Service() {
         private fun paint(tb: com.manhwalens.app.translate.TranslatedBlock, remote: Boolean) {
             if (tb.arabic.isBlank()) return
             val block = blocksById[tb.id] ?: return
-            // P0/C2: the painter is the last line of defence. Whatever path produced this text —
-            // progressive callback, remote upgrade, final reconciliation, cache — an English
-            // echo or a half-translated sentence is never drawn over the art. The guard is the
-            // same object every engine is judged by, so a preserved Latin name still passes.
             val verdict = com.manhwalens.app.translate.ArabicValidator.issue(block.text, tb.arabic)
             if (verdict != null) {
                 Log.w(TAG, "patch refused #${tb.id} (${verdict.name.lowercase()}): output is not usable Arabic")
                 return
             }
+
             val r = block.bounds
-            val left = r.left.toInt().coerceIn(0, bitmap.width); val top = r.top.toInt().coerceIn(0, bitmap.height)
-            val right = r.right.toInt().coerceIn(0, bitmap.width); val bottom = r.bottom.toInt().coerceIn(0, bitmap.height)
+            val left = r.left.toInt().coerceIn(0, bitmap.width)
+            val top = r.top.toInt().coerceIn(0, bitmap.height)
+            val right = r.right.toInt().coerceIn(0, bitmap.width)
+            val bottom = r.bottom.toInt().coerceIn(0, bitmap.height)
             val bg = sampleBackground(bitmap, left, top, right, bottom)
             val box = com.manhwalens.app.render.BubbleRenderBox(
                 id = tb.id,
@@ -3912,15 +3919,10 @@ class FloatingButtonService : Service() {
                 backgroundColor = bg,
                 textColor = com.manhwalens.app.render.ColorSampler.bestTextColorOn(bg)
             )
-            // v0.11.0: one visual area = one patch. Every block of an area — owner or folded
-            // sibling — renders over the SAME cover rect, using its own Arabic. The Arabic is
-            // laid out from the cover's top-centre, so two blocks of one bubble stack into one
-            // readable text instead of drawing over each other, and the English of a block
-            // whose Arabic failed is erased anyway (that bubble can never stay English).
-            val area = areaById[tb.id]
-            val cover = area ?: com.manhwalens.app.render.PatchPlanner.coverFor(
-                areas, com.manhwalens.app.render.PatchPlanner.ownerOf(areas, tb.id)
-            )
+
+            val areaPlan = areaPlanById[tb.id]
+            val ownerId = areaPlan?.ownerId ?: tb.id
+            val cover = areaPlan?.cover
             val textBox = if (cover != null) {
                 box.copy(
                     left = cover.left.toInt().coerceIn(0, bitmap.width),
@@ -3929,23 +3931,56 @@ class FloatingButtonService : Service() {
                     bottom = cover.bottom.toInt().coerceIn(0, bitmap.height)
                 )
             } else box
+
+            val composite: com.manhwalens.app.render.BubbleRenderBox
+            val generation: Int
             synchronized(lock) {
                 if (!remote && remoteWins.contains(tb.id)) return
                 if (remote) remoteWins.add(tb.id)
-                paintLedger.record(tb.id)
+                renderBoxesById[tb.id] = box
                 painted[tb.id] = textBox
+                paintLedger.record(tb.id)
+
+                val plan = areaPlan ?: com.manhwalens.app.render.PatchPlanner.Area(
+                    ownerId = tb.id,
+                    memberIds = listOf(tb.id),
+                    cover = com.manhwalens.app.ocr.geometry.Rect2D(
+                        left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat()
+                    )
+                )
+                val members = plan.memberIds.mapNotNull { renderBoxesById[it] }
+                val composed = com.manhwalens.app.render.PatchPlanner.compose(listOf(plan), members)
+                    .firstOrNull() ?: box
+                // Use a stable sample from the area's owner, not whichever sibling happened
+                // to finish first; this keeps flood expansion and patch geometry deterministic.
+                val ownerBlock = blocksById[ownerId] ?: block
+                val ob = ownerBlock.bounds
+                val ownerBg = sampleBackground(
+                    bitmap,
+                    ob.left.toInt().coerceIn(0, bitmap.width),
+                    ob.top.toInt().coerceIn(0, bitmap.height),
+                    ob.right.toInt().coerceIn(0, bitmap.width),
+                    ob.bottom.toInt().coerceIn(0, bitmap.height)
+                )
+                composite = composed.copy(
+                    backgroundColor = ownerBg,
+                    textColor = com.manhwalens.app.render.ColorSampler.bestTextColorOn(ownerBg)
+                )
+                generation = (areaGeneration[ownerId] ?: 0) + 1
+                areaGeneration[ownerId] = generation
             }
             Log.i(TAG, paintLedger.line())
-            // Rasterize the patch HERE (worker thread) — small bitmap, bounded work.
+
+            // One opaque bitmap per area: it contains every sibling translation known so far.
             val patch = try {
                 com.manhwalens.app.render.PatchSurface.build(
-                    applicationContext, bitmap, textBox, cover = cover, band = r
+                    applicationContext, bitmap, composite, cover = cover, band = null
                 )
             } catch (oom: OutOfMemoryError) {
-                Log.e("ManhwaLens", "patch build OOM for #${textBox.id} — bubble skipped", oom)
+                Log.e("ManhwaLens", "patch build OOM for area #$ownerId — bubble skipped", oom)
                 null
             } catch (e: Exception) {
-                Log.e("ManhwaLens", "patch build failed for #${textBox.id} — ${e.javaClass.name}: ${e.message}", e)
+                Log.e("ManhwaLens", "patch build failed for area #$ownerId — ${e.javaClass.name}: ${e.message}", e)
                 null
             }
             if (patch != null) {
@@ -3957,12 +3992,16 @@ class FloatingButtonService : Service() {
             if (patch != null && !attached && !attachRequested) attachRequested = true
             mainHandler.post {
                 if (patch == null) return@post
+                val stillLatest = synchronized(lock) { areaGeneration[ownerId] == generation }
+                if (!stillLatest) {
+                    runCatching { patch.bitmap.recycle() }
+                    return@post
+                }
                 statusPill?.hide()
                 val po = patchOverlayEnsure()
                 if (!attached) {
                     attached = true
                     firstBubbleMs = elapsed
-                    // A fresh tap capture invalidates the previous page's patches.
                     po.beginSession("page change")
                     if (firstBubbleMs >= 0) {
                         PipelineTracer.span(
@@ -3975,7 +4014,11 @@ class FloatingButtonService : Service() {
                         "transparent patch overlay attached (tap→overlay ${firstBubbleMs} ms)"
                     )
                 }
-                po.upsert(patch, bitmap.width, bitmap.height)
+                if (po.patchRect(ownerId) != null) {
+                    po.replaceBitmap(ownerId, patch.bitmap)
+                } else {
+                    po.upsert(patch, bitmap.width, bitmap.height)
+                }
             }
         }
 
@@ -3986,46 +4029,50 @@ class FloatingButtonService : Service() {
         fun finish(translations: List<com.manhwalens.app.translate.TranslatedBlock>) {
             synchronized(lock) {
                 for (t in translations) {
-                    if (t.arabic.isBlank() || painted.containsKey(t.id)) continue
+                    if (t.arabic.isBlank() || painted.containsKey(t.id) || remoteWins.contains(t.id)) continue
                     val block = blocksById[t.id] ?: continue
                     val r = block.bounds
-                    val left = r.left.toInt().coerceIn(0, bitmap.width); val top = r.top.toInt().coerceIn(0, bitmap.height)
-                    val right = r.right.toInt().coerceIn(0, bitmap.width); val bottom = r.bottom.toInt().coerceIn(0, bitmap.height)
+                    val left = r.left.toInt().coerceIn(0, bitmap.width)
+                    val top = r.top.toInt().coerceIn(0, bitmap.height)
+                    val right = r.right.toInt().coerceIn(0, bitmap.width)
+                    val bottom = r.bottom.toInt().coerceIn(0, bitmap.height)
                     val bg = sampleBackground(bitmap, left, top, right, bottom)
-                    // Same cover rect the progressive path uses, so a late bubble cannot
-                    // repaint a narrower area than its siblings.
-                    val area = areaById[t.id]
-                    painted[t.id] = com.manhwalens.app.render.BubbleRenderBox(
+                    val box = com.manhwalens.app.render.BubbleRenderBox(
                         id = t.id,
-                        left = area?.left?.toInt() ?: left, top = area?.top?.toInt() ?: top,
-                        right = area?.right?.toInt() ?: right, bottom = area?.bottom?.toInt() ?: bottom,
+                        left = left, top = top, right = right, bottom = bottom,
                         english = block.text,
                         arabic = t.arabic,
                         backgroundColor = bg,
                         textColor = com.manhwalens.app.render.ColorSampler.bestTextColorOn(bg)
                     )
+                    renderBoxesById[t.id] = box
+                    val area = areaById[t.id]
+                    painted[t.id] = if (area != null) {
+                        box.copy(
+                            left = area.left.toInt(), top = area.top.toInt(),
+                            right = area.right.toInt(), bottom = area.bottom.toInt()
+                        )
+                    } else box
                     paintLedger.record(t.id)
                 }
             }
             Log.i(TAG, paintLedger.line())
             val snap = snapshot()
             if (snap.isNotEmpty() && !attachRequested) attachRequested = true
-            if (snap.isNotEmpty() && patchOverlay?.hasPatches() != true) {
-                // Progressive path produced nothing (e.g. all patch builds failed or were
-                // winners of a late race) — paint the whole page in one batch instead.
-                val patches = buildPatches(bitmap, snap)
-                val builtIds = patches.map { it.id }.toHashSet()
-                snap.filter { it.id in builtIds }.forEach { box ->
-                    diagnostics?.recordOverlayText(
-                        box.id, box.english, box.arabic, "final-reconcile", patchBuilt = true
-                    )
-                }
-                val elapsed = SystemClock.elapsedRealtime() - tapStartMs
-                mainHandler.post {
-                    if (patches.isNotEmpty()) {
-                        patchOverlayEnsure().replaceAll(patches, bitmap.width, bitmap.height)
-                        Log.i(TAG, "painter finish: batch-swapped ${patches.size} patch(es) (elapsed=${elapsed} ms)")
-                    }
+            // Final reconciliation always emits one composite bitmap per area. This repairs
+            // progressive builds that raced, failed, or temporarily contained only one sibling.
+            val patches = buildPatches(bitmap, snap, areas)
+            val builtIds = patches.map { it.id }.toHashSet()
+            snap.filter { it.id in builtIds }.forEach { box ->
+                diagnostics?.recordOverlayText(
+                    box.id, box.english, box.arabic, "final-reconcile", patchBuilt = true
+                )
+            }
+            val elapsed = SystemClock.elapsedRealtime() - tapStartMs
+            mainHandler.post {
+                if (patches.isNotEmpty()) {
+                    patchOverlayEnsure().replaceAll(patches, bitmap.width, bitmap.height)
+                    Log.i(TAG, "painter finish: composite-swapped ${patches.size} patch area(s) (elapsed=${elapsed} ms)")
                 }
             }
         }
@@ -4044,16 +4091,10 @@ class FloatingButtonService : Service() {
      */
     private fun buildPatches(
         source: Bitmap,
-        boxes: List<com.manhwalens.app.render.BubbleRenderBox>
+        boxes: List<com.manhwalens.app.render.BubbleRenderBox>,
+        plannedAreas: List<com.manhwalens.app.render.PatchPlanner.Area>? = null
     ): List<com.manhwalens.app.render.BubblePatch> {
-        val byId = boxes.associateBy { it.id }
-        // Blocks that share one area keep their Arabic inside their own band of the cover.
-        val blockBounds = boxes.associate { b ->
-            b.id to com.manhwalens.app.ocr.geometry.Rect2D(
-                b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat()
-            )
-        }
-        val areas = com.manhwalens.app.render.PatchPlanner.areas(
+        val areas = plannedAreas ?: com.manhwalens.app.render.PatchPlanner.areas(
             boxes.map {
                 it.id to com.manhwalens.app.ocr.geometry.Rect2D(
                     it.left.toFloat(), it.top.toFloat(), it.right.toFloat(), it.bottom.toFloat()
@@ -4061,28 +4102,29 @@ class FloatingButtonService : Service() {
             },
             source.width, source.height
         )
-        val planned = com.manhwalens.app.render.PatchPlanner.renders(areas)
-        if (planned.size != boxes.size) {
+        val composed = com.manhwalens.app.render.PatchPlanner.compose(areas, boxes)
+        if (composed.size != boxes.size) {
             com.manhwalens.app.util.PipelineTracer.span(
                 "patch fold", 0,
                 com.manhwalens.app.render.PatchPlanner.describe(boxes.size, areas)
             )
         }
-        val out = ArrayList<com.manhwalens.app.render.BubblePatch>(planned.size)
-        for ((ownerId, cover) in planned) {
-            val box = byId[ownerId] ?: continue
+        val out = ArrayList<com.manhwalens.app.render.BubblePatch>(composed.size)
+        for (box in composed) {
+            val area = areas.firstOrNull { it.ownerId == box.id }
             try {
                 com.manhwalens.app.render.PatchSurface.build(
-                    applicationContext, source, box, cover = cover, band = blockBounds[box.id]
+                    applicationContext, source, box, cover = area?.cover, band = null
                 )?.let { out += it }
             } catch (oom: OutOfMemoryError) {
-                Log.e("ManhwaLens", "patch build OOM for #${box.id} — bubble skipped", oom)
+                Log.e("ManhwaLens", "patch build OOM for area #${box.id} — bubble skipped", oom)
             } catch (e: Exception) {
-                Log.e("ManhwaLens", "patch build failed for #${box.id} — ${e.javaClass.name}: ${e.message}", e)
+                Log.e("ManhwaLens", "patch build failed for area #${box.id} — ${e.javaClass.name}: ${e.message}", e)
             }
         }
         return out
     }
+
 
     /**
      * Part D — AI cleanup (experimental, cloud): AFTER the local patches are on
