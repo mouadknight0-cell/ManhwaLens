@@ -1,15 +1,15 @@
 # ManhwaLens — repository report
 
-**Report revision:** 3.3 · **Updated:** 2026-11-13 (session date; commit clock 2026-11-14 UTC)
+**Report revision:** 3.4 · **Updated:** 2026-11-13 (session date; commit clock 2026-11-14 UTC)
 **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — **OPEN**, not draft, not merged
 **Base:** `main` @ `560705d55012f1549449ca3230184b4b5beda991` (the PR branch carries the whole app; `main` holds the initial commit)
-**HEAD at this revision:** `eac0d0c` — *fix(names, gemini): P2-18 ambiguity gate, P2-17 non-JSON 400 retry,
-P2-19 dead path* (verified by run 43585853784; the commit that publishes this revision is `docs`-only on top of
-it, and **its own run is not claimed** here)
-**Latest verified CI run:** [43585853784](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43585853784), workflow *Android build*,
-**success** at `eac0d0c` (2026-11-14 10:33:33 → 10:36:40 UTC, 3m07s), steps *Unit tests* ✅ and *Build debug APK* ✅.
-Earlier green runs behind it: `3c1f64c` → 43575632319 (the §5.12 review, docs), `de77ef1a` → 43574339617
-(report 3.1, docs), `a2882f16` → 43573847121 (P2-B code), `e0e6c7d` → 43572172053.
+**HEAD at this revision:** `e449beb` — *docs: record the P2 review fixes (P2-18, P2-17, P2-19) — revision 3.3*
+(verified by run 43586291558; this revision adds one `docs`-only commit on top of it — the P2-C analysis — and
+**its own run is not claimed** here). The last commit that **changed code** is still `eac0d0c`.
+**Latest verified CI run:** [43586291558](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43586291558), workflow *Android build*,
+**success** at `e449beb` (2026-11-14 10:39:12 → 10:42:24 UTC), steps *Unit tests* ✅ and *Build debug APK* ✅.
+Earlier green runs behind it: `eac0d0c` → 43585853784 (P2-18/P2-17/P2-19 **code**), `3c1f64c` → 43575632319
+(the §5.12 review, docs), `de77ef1a` → 43574339617 (report 3.1, docs), `a2882f16` → 43573847121 (P2-B code).
 
 > **This is the only official engineering report in this repository.** The per-change reports that existed
 > until 2026-11-13 (`REPORTS.md`, `P0_*`, `P0A_*`, `P0B_*`, `P1_*`, `P1_1_*`, `P2_TRANSLATION_CONTEXT_AUDIT.md`)
@@ -21,13 +21,15 @@ Earlier green runs behind it: `3c1f64c` → 43575632319 (the §5.12 review, docs
 > checklist), `CHANGELOG.md` (version history as written), `PRIVACY.md`, `OPEN_SOURCE_RESEARCH.md`,
 > `V096_PLAN.md` (earlier plan, kept for provenance).
 >
-> **Clock note:** the session date is 2026-11-13; commit timestamps run 2026-11-13 16:21 → 2026-11-14 10:31 UTC.
+> **Clock note:** the session date is 2026-11-13; commit timestamps run 2026-11-13 16:21 → 2026-11-14 10:38 UTC.
 > A date below is the commit clock where a commit or run is cited, the session date otherwise.
 > **Publication note:** the commit that publishes this revision is documentation-only — the code tree is
-> byte-identical to `eac0d0c`, so nothing in `app/`, `gradle/` or `.github/` changes with it. Its own CI run was
-> still pending when this file was written and is therefore **not claimed** here. Every code commit behind it
-> **is** verified green: `eac0d0c` (run 43585853784) is the newest, and before it `3c1f64c` (43575632319),
-> `de77ef1a` (43574339617) and `a2882f16` (43573847121).
+> byte-identical to `e449beb` (itself identical to `eac0d0c` in `app/`), so nothing in `app/`, `gradle/` or
+> `.github/` changes with it. Its own CI run was still pending when this file was written and is therefore
+> **not claimed** here. Every commit behind it **is** verified green: `e449beb` (run 43586291558), `eac0d0c`
+> (43585853784), `3c1f64c` (43575632319) and `de77ef1a` (43574339617).
+> **This revision is analysis only:** P2-05 was investigated and a recommendation is recorded (§5.14); **no
+> application code and no test was written**, and no architectural decision is treated as approved.
 
 ---
 
@@ -81,8 +83,8 @@ unambiguous; otherwise the reply is treated as unparsable and the caller re-asks
 
 | Metric | Value | Command |
 | --- | --- | --- |
-| Commits ahead of `origin/main` | **45** through `eac0d0c`, 46 with this report commit | `git rev-list --count origin/main..HEAD` |
-| Branch diff vs `main` | `220 files changed, 36 821 insertions(+)` at `eac0d0c` (all files are new on the branch, so 0 deletions vs `main`) | `gh pr view 2 --json changedFiles,additions,deletions` |
+| Commits ahead of `origin/main` | **46** through `e449beb`, 47 with this report commit | `git rev-list --count origin/main..HEAD` |
+| Branch diff vs `main` | `220 files changed, 37 016 insertions(+)` at `e449beb` (all files are new on the branch, so 0 deletions vs `main`) | `gh pr view 2 --json changedFiles,additions,deletions` |
 | Kotlin sources | **113** files under `app/src/main` | `find app/src/main -name '*.kt' \| wc -l` |
 | Test sources | **70** files under `app/src/test` (one JVM source set; no instrumented source set) | `find app/src/test -name '*.kt' \| wc -l` |
 | Test methods (`@Test`) | **676** | `grep -rn '@Test' app/src/test \| wc -l` |
@@ -114,12 +116,12 @@ unambiguous; otherwise the reply is treated as unparsable and the caller re-asks
 | Check | Command | Result |
 | --- | --- | --- |
 | Branch | `git rev-parse --abbrev-ref HEAD` | `arena/8a718184-manhwalens` |
-| HEAD | `git log -1 --format='%H %s'` | `eac0d0c19cf2a135cbc14af2196639e4bd997579` — *fix(names, gemini): P2-18 ambiguity gate, P2-17 non-JSON 400 retry, P2-19 dead path* |
+| HEAD | `git log -1 --format='%H %s'` | `e449beba308ade550773be92f138b6324e0a905f` — *docs: record the P2 review fixes (P2-18, P2-17, P2-19) — revision 3.3* (the last **code** commit is `eac0d0c`) |
 | Working tree | `git status --porcelain` | empty (clean) before this revision's edit |
 | Remote sync | `git fetch origin && git status -sb` | in sync with `origin/arena/8a718184-manhwalens` |
-| PR #2 | `gh pr view 2 --json …` | `OPEN`, `isDraft=false`, `headRefName=arena/8a718184-manhwalens`, `headRefOid=eac0d0c…`, `baseRefName=main`, `mergeStateStatus=CLEAN`, `reviewDecision` empty — **0 reviews, 0 review comments, 0 issue comments** (re-checked for this revision), 45 commits, 220 files, +36 821/−0 |
+| PR #2 | `gh pr view 2 --json …` | `OPEN`, `isDraft=false`, `headRefName=arena/8a718184-manhwalens`, `headRefOid=eac0d0c…`, `baseRefName=main`, `mergeStateStatus=CLEAN`, `reviewDecision` empty — **0 reviews, 0 review comments, 0 issue comments** (re-checked for this revision), 46 commits, 220 files, +37 016/−0 |
 | Workflow | `.github/workflows/android.yml` | one workflow, *Android build*, events `pull_request` (all), `push` to `main`/`master`/`arena/cebceb7a-manhwalens` and `v*` tags, `workflow_dispatch`; one job `build` |
-| Runs on this branch | `gh run list --branch … --limit 100` | **38 runs: 34 success, 4 failure** (§7.4); newest `43585853784` at `eac0d0c` ✅ |
+| Runs on this branch | `gh run list --branch … --limit 100` | **39 runs: 35 success, 4 failure** (§7.4); newest `43586291558` at `e449beb` ✅ |
 
 ### 2.2 Commits this revision describes
 
@@ -138,7 +140,8 @@ unambiguous; otherwise the reply is treated as unparsable and the caller re-asks
 | `de77ef1a` | docs | report revision 3.1: P2-B recorded (§5.11) |
 | `3c1f64c` | docs | report revision 3.2: independent review of P2-01…P2-04 (§5.12), three new findings (§8.1), report corrections (§5.0, §5.9, §8.2, §7.4) — run 43575632319 ✅ |
 | `eac0d0c` | **code + tests** | **P2-18** (the name planner no longer offers an ambiguous English word as a character name), **P2-17** (the HTTP-400 retry now sends a genuinely different, non-JSON body), **P2-19** (dead glossary path deleted) + 8 new tests (§5.13) |
-| *this commit* | docs | report revision 3.3: the three review findings recorded as fixed (§5.13), register/status/tests/next-action re-verified at `eac0d0c` |
+| `e449beb` | docs | report revision 3.3: the three review findings recorded as fixed (§5.13), register/status/tests/next-action re-verified at `eac0d0c` — run 43586291558 ✅ |
+| *this commit* | docs | report revision 3.4: **P2-05 analyzed** (§5.14 — lifecycle, four divergence chains, options A–E, recommendation C′, 10 designed tests), status set to *ANALYZED — AWAITING USER ARCHITECTURAL APPROVAL*; no code, no test |
 
 ### 2.3 Verification limits (stated, not papered over)
 
@@ -203,7 +206,7 @@ phase. "CI-verified" means *the JVM suites and the debug build pass*, nothing mo
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | **P0** | — | ✅ `0e6d5ff` | ✅ P0-A `fba87c6`/`1940487`; C2 `c008f62` | ✅ 8 + 10 tests | ✅ 43514608722, 43563394305…43564884208 | ❌ | ❌ (open items C3/C4/C5, RTL, offline, perf) |
 | **P1** | — | ✅ design + review | ✅ `6a71f77`…`fee9d9e` | ✅ +102 tests (517→619 cumulative: 73 + 9 + 5 + 11 + 4) | ✅ 43518604612…43561668957 | ❌ | ❌ (series UI never exercised on a device) |
-| **P2** | ✅ P2-C…P2-D | ✅ `01e12a6` | ◐ **P2-A** `25b15c2` + **P2-B** `a2882f16` + **review fixes** `eac0d0c` | ◐ 47 new tests (15 + 24 + 8) | ◐ 43569302435 (`a7b276f`), 43573847121 (`a2882f16`), 43585853784 (`eac0d0c`) | ❌ | ❌ (P2-A/P2-B reviewed in §5.12 — **not approved**; the three findings are now fixed, §5.13; P2-C/P2-D untouched) |
+| **P2** | ◐ P2-C analyzed (§5.14) · ✅ P2-D scope | ✅ `01e12a6` | ◐ **P2-A** `25b15c2` + **P2-B** `a2882f16` + **review fixes** `eac0d0c`; P2-C analysis only | ◐ 47 new tests (15 + 24 + 8) | ◐ 43569302435 (`a7b276f`), 43573847121 (`a2882f16`), 43585853784 (`eac0d0c`) | ❌ | ❌ (P2-A/P2-B reviewed in §5.12 — **not approved**; the three findings are fixed, §5.13; **P2-C awaits architectural approval**, no code; P2-D untouched) |
 | **P3** | ✅ candidates only | — | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **P4** | ✅ candidates only | — | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **P5** | ✅ candidates only | — | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -256,7 +259,7 @@ verified number is used here.
 ### 5.0 Branch history before P0 (verified for this revision)
 
 The branch does not begin at the P0 audit; it begins with the v0.11.0 import. Comparing every commit on the
-branch against this file (§10.3a row 6 of revision 3.2) found that three of these early commits had **never been recorded**.
+branch against this file (§10.3b row 6 of revision 3.2) found that three of these early commits had **never been recorded**.
 They are listed here — not re-graded, just documented, since this review is not allowed to change code.
 
 | Commit | Date (UTC) | What it is | Size (`git show --stat`) |
@@ -753,6 +756,195 @@ command could be found in your PATH"*). It was executed by **CI run 43585853784*
 success, *Unit tests* ✅, *Build debug APK* ✅. Discovered `@Test` 668 → **676** (+8). Per-test
 executed/passed/skipped counts remain **UNVERIFIED** (§2.3), and **no device claim** is made anywhere.
 
+
+### 5.14 P2-05 — name-authority architecture decision (analysis only, no code)
+
+**Status: ANALYZED — AWAITING USER ARCHITECTURAL APPROVAL.**
+**Scope of this entry:** read the current implementation end to end, reconstruct the name lifecycle,
+evaluate the architectural options, recommend one, and design (not write) the regression tests. **No Kotlin
+file and no test file was modified**; P2-06/P2-08/P2-14/P2-16, P2-A, P2-B, P2-17/18/19, dependencies, Gradle and
+CI were not touched (§9.3).
+
+#### 5.14.1 What the code actually does today (verified at `e449beb`)
+
+| # | Step | Where | What happens |
+| --- | --- | --- | --- |
+| 1 | Detect | `NameMemory.plan` (`NameMemory.kt:251-342`), pinning loop `:277-329` | candidates from `phrases()` + `scan()`; each is resolved through `Glossary.effective()` (`userHit`) or a transliteration, then gated by P2-18's ambiguity rule (`:324`) |
+| 2 | Read memory | `CharacterResolver.resolve` (`CharacterResolver.kt:96-147`) | loads `store.records(seriesId)` **once**, indexes by `normalizedName` and by alias (`:108-115`) |
+| 3 | Decide | `CharacterResolver.decide` (`:151-247`) | the 7-step ladder: **locked** → **USER record** → **USER glossary pin** → **BUILT_IN** → **trusted series record** → **PAGE_AI** → **TRANSLITERATION** → **Latin kept** (`arabic = null`) |
+| 4 | Sheet text | `PageNameTable.sheet` (`:49-54`) | `"Name = عربي; …"`, ≤ 20 entries, **only** names whose Arabic is non-null |
+| 5 | Prompt | `GeminiTranslator.translatePage` (`GeminiTranslator.kt:92-101`) | `sheetProvider(texts)` → `NameSession.tableFor(texts).sheet`; the page-local `NameMemory.sheet(plan)` is used **only when the series sheet is blank** (all-or-nothing) |
+| 6 | Post-processing | `GeminiTranslator.kt:133-141` | **recomputes** `NameMemory.plan(translatable).table` from scratch and calls `NameMemory.applyPinned(arabic, english, pinned)` (`NameMemory.kt:449-462`): Latin remnant → Arabic |
+| 7 | Decorator | `CachingTranslator.kt:92-99` (cache hits) and `:190-200` (fresh output) → `NameSession.rewrite` (`CharacterMemory.kt:141-158`) | trusted records only: Latin→Arabic with **all spellings** (`NameForm.replaceLatin`), then `previousArabic`→current (`replaceArabic`); the result is what gets painted and cached |
+| 8 | Write | `NameSession.tableFor` (`CharacterMemory.kt:118-135`) → `CharacterWriter.commit` (`CharacterResolver.kt:231-269`) | persists eligible detections; **never overwrites** an existing record (`:245`), and never fills `previousArabic` |
+
+So the Gemini path has **two independent computations of "the page's names"**: step 5/8 (`PageNameTable`, the
+ladder — series authority) and step 6 (`NameMemory.plan(...).table`, the planner — page authority). Only the
+first one is told to the model; only the second one repairs the reply. Step 7 then applies a **third** pass with
+richer data but narrower scope (trusted records only, and only for blocks whose English contains the name).
+
+The two tables are *usually* equal — which is why this has never produced a visible bug report — but nothing in
+the code makes them equal. They diverge exactly where a series record or a lock **overrides** the planner,
+i.e. in the only cases the memory exists for.
+
+#### 5.14.2 Divergence chains (static proof from the current code; nothing executed)
+
+**D-A — the reader's locked spelling can be overwritten, then cached.**
+A locked record `Han Ji-woo = هان جيو` (`CharacterRecord.locked = true`, `source = USER`) is resolved at ladder
+step 1 ⇒ the sheet says `Han Ji-woo = هان جيو` (`CharacterResolver.kt:155-160`), and the model is asked to use it.
+The step-6 table is computed from `Glossary.effective()` only: the series record is **not** in it, so
+`Han Ji-woo` is pinned as a Korean transliteration (`NameMemory.kt:308`, `KoreanRomanizer`) — `هان جي وو`.
+If the reply keeps the Latin spelling (the exact situation `applyPinned` exists for), the repair inserts
+`هان جي وو`, i.e. **it violates the lock**. Step 7 cannot repair it: `replaceLatin` finds no Latin left, and
+`previousArabic` is empty because `CharacterWriter.commit` never records one and `withArabic` only appends when
+an explicit correction replaces a value. The wrong spelling is then written to the cache
+(`CachingTranslator.kt:196-201`), so it survives future pages.
+*Same chain, second instance:* any name that is **both** a built-in table key and a reader-corrected series
+record (e.g. `Song Lan = سونغ لآن` locked, built-in `سونغ لان`) — step 6 prefers the built-in value because
+`userHit` comes from the glossary, not from the series memory.
+
+**D-B — the page pass is alias-blind, the series pass is alias-aware.**
+`applyPinned` matches the table key against the **page text** (`english.contains(name)`, `:454`) and against the
+**output** with that exact spelling. A page that writes `Han Ji Woo` while the record's canonical original is
+`Han Ji-woo` gets a sheet line for a spelling that does not occur (`CharacterResolver.kt:135-146` re-adds the
+record by *any* spelling via `NameForm.appearsIn`), no repair from step 6, and a repair only from step 7
+(`NameForm.replaceLatin` over `allSpellings`). The weaker authority is silent; the stronger one does the work.
+
+**D-C — the engine can never learn the per-name authority, and pays for the plan twice.**
+`sheetProvider` returns a `String`, so the only thing the engine receives is text: it cannot know which name was
+locked, which came from the built-in table and which was detected on this page. It therefore recomputes — with
+different inputs (`Glossary.effective()` instead of `PageNameTable`) — and the two computations can drift.
+`NameMemory.plan` is in fact called on every Gemini page at `GeminiTranslator.kt:98` **and** `:134` (and again
+inside `CharacterResolver.kt:102`), which is audit item **C5**.
+
+**D-D — a "sheet getter" has write side effects.**
+Step 5 is not a read: `NameSession.tableFor` commits new records (`CharacterMemory.kt:121`). Two authorities
+mean the write decision (which names are eligible) is taken by the ladder, while the painted spelling can be
+decided by the planner — different owners of the same character record.
+
+**What is *not* a defect (stated so the analysis is not overclaimed):** `applyPinned` never rewrites correct
+Arabic (it only replaces Latin remnants, `:455-459`); in an **unassigned** session the two tables are computed
+from identical inputs and are therefore identical today; and the ML Kit path has no such conflict at all
+(§5.14.3, precedent). No user-visible defect has been reproduced on a device — this is a static proof of a
+reachable inconsistency, not an observed symptom.
+
+#### 5.14.3 The precedent already in the codebase: ML Kit
+
+`MlKitTranslator` does **not** have two authorities. It merges hierarchically, once per page, and applies the
+merged table **before** the engine (`MlKitTranslator.kt:124-152`): `seriesTable` first (locked/user/built-in/
+series), page detections fill the gaps via `putIfAbsent`, and the merged map is then sorted longest-first and
+substituted into the source text (`SceneNames.apply`). One table, one application point, series wins on
+conflict, page local fills in. This is a working, tested implementation of the ordering the recommendation
+below chooses, which is the strongest available argument that it is consistent with P1's product requirement.
+
+#### 5.14.4 Options evaluated
+
+**A — series memory is the only authority.** The engine would use only `PageNameTable` and page detections
+would no longer contribute anything.
+*Pros:* one source, maximum cross-page stability, no planner in the pipeline. *Cons:* an unassigned session has
+no memory at all, so every name falls back to Latin (P1 would regress the default configuration); a brand-new
+character on the current page would never be named until the reader opens Settings; P0-A/P2-18's page-sheet
+work would become dead; `CharacterWriter` would have nothing to learn from. *Accuracy:* worse on first pages,
+better only after many pages. *Compatibility:* no schema change, but a behavioural regression for the
+unassigned case. *Size:* medium (remove the page layer, rewrite the resolver's second pass). **Rejected.**
+
+**B — the current page is the only authority.** `applyPinned`/`NameMemory.plan` would own the final text.
+*Pros:* simplest possible rule, no coupling to storage. *Cons:* discards the reader's locked spelling whenever
+the planner disagrees (D-A, proven above) and breaks the P1 promise "the same person is spelled the same in the
+next page and after a restart"; it would contradict `CharacterResolverTest`'s locked-name tests and
+`NameSessionTest`'s rewrite tests, and would make the series UI pointless. *Accuracy:* worse for recurring
+characters. *Compatibility:* no schema change, but a semantic break of P1. **Rejected.**
+
+**C — explicit hierarchical authority.** One resolved table per page, built by the existing ladder, consumed by
+**both** the prompt and the post-processing. *Pros:* preserves every current guarantee, removes the second
+computation, matches the ML Kit precedent, keeps P1's order untouched, and is the smallest change that makes
+"the sheet and the repair cannot disagree" true by construction. *Cons:* the engine's seam changes from a
+`String` to a small value object (compile-time break in one call site); page-detected names keep the same
+authority they have today (they are still outranked by memory). *Accuracy:* identical or better (the repair can
+no longer contradict the prompt). *Compatibility:* no schema, no settings, no store change. **Recommended.**
+
+**D — pre-substitute the names into the source text for Gemini too (ML Kit's mechanism).** *Pros:* one
+application point, no post-pass at all. *Cons:* throws away the instructable-model advantage P0-A was built for,
+degrades grammar (Arabic names inside an English prompt with case/position), invalidates the P2-A/P2-B prompt
+contract and its 24 tests, and cannot express "keep this Latin name". *Size:* large. **Rejected.**
+
+**E — simply delete `applyPinned`.** Tempting given D-A, but wrong: in an **unassigned** session
+`NameSession.rewrite` returns immediately (`records.isEmpty()`, `CharacterMemory.kt:142`), so `applyPinned` is
+the *only* Latin-remnant repair there; deleting it would regress the default configuration. **Rejected as a
+standalone option**; under C it stays, driven by the resolved table.
+
+#### 5.14.5 Recommendation (C′ — "one resolved table, two consumers")
+
+1. **Final authority:** the `PageNameTable` produced by `NameSession.tableFor(texts)` for that page. Its policy
+   is *unchanged* — the 7-step ladder of `CharacterResolver.decide` (`:151-247`), which already is a strict
+   total order. No new ranking is invented, so P1's approved behaviour cannot change.
+2. **Precedence on conflict:** (1) locked record → (2) reader-created record (`source = USER`) → (3) the
+   reader's Settings/glossary pin → (4) curated built-in table → (5) trusted series record
+   (`isTrusted`, confidence ≥ 0.6) → (6) the model's own page spelling (`PAGE_AI`) → (7) deterministic
+   transliteration → (8) keep Latin (no Arabic in the table, and therefore no sheet line and no repair).
+3. **A manually pinned name** (`locked`) is applied to the prompt *and* to the repair, and nothing automatic can
+   replace it in either place (today only the prompt honours it).
+4. **A saved series name** is used exactly as the ladder returns it; the store is still never overwritten by an
+   automatic pass (`CharacterWriter.commit:245`), and corrections still flow through `lock`/`updateArabic`.
+5. **A page-detected name** keeps its current role: it fills the table only where no higher step applies, it is
+   persisted only when `persistable` allows it, and it never outranks memory.
+6. **Mechanism that makes divergence impossible:** the engine stops computing names. `GeminiTranslator` receives
+   **one value** — the sheet text *and* the table it came from — and uses both (`sheet` for the prompt, `table`
+   for `applyPinned`). Concretely: a small holder in the `translate` package (e.g.
+   `data class NameSheet(val sheet: String, val table: Map<String, String>)`), built in `TranslatorFactory` from
+   `session.tableFor(texts)` (`.sheet` + `.table`); `GeminiTranslator.sheetProvider` becomes
+   `nameSheetProvider: ((List<String>) -> NameSheet)?`; the `NameMemory.plan(...)` call at `:133-134` is deleted;
+   `NameSession.rewrite` stays unchanged for **cache hits** and becomes an idempotent safety net for fresh
+   output. Two details matter: (a) the holder lives in `translate` because `names` already imports
+   `translate.NameMemory`, so passing `PageNameTable` itself into the engine would create a package cycle for no
+   benefit; (b) passing only the `Map` (the shape ML Kit's `nameTableProvider` already uses) and deriving the
+   sheet from it would change the prompt's line order and its 20-line cap (`PageNameTable.sheet` is ordered by
+   `names`, `table` by length), i.e. it would perturb the P0-A/P2-A prompt contract for no gain — so the holder
+   carries the **exact** current sheet string.
+7. **Why this is minimal:** one application file + one factory line + doc comments (≈ 25-40 lines), **no** change
+   to the ladder, the store, the schema, `previousArabic`, the cache, ML Kit, LibreTranslate or the settings UI;
+   unassigned sessions are byte-identical because their resolved table equals today's page plan.
+
+Expected diff (for the implementation round, not done here): `GeminiTranslator.kt` (seam + delete the second
+plan + comments), `TranslatorFactory.kt` (one line), possibly a new tiny file for `NameSheet`, plus tests.
+
+#### 5.14.6 Required regression tests (designed now, to be written only after approval)
+
+Pure-JVM, no device, no new dependency; the fake provider pattern already used by `GeminiTranslatorTest`.
+
+| # | Test (file) | Property pinned |
+| --- | --- | --- |
+| 1 | `theSheetAndTheRepairComeFromTheSameTable` (`GeminiTranslatorTest`) | a provided `NameSheet` appears verbatim in the request body **and** is the table used by the repair (same value in both places) |
+| 2 | `aSeriesSpellingWinsOverThePagePlanner` (`GeminiTranslatorTest`) | `Han Ji-woo = هان جيو` in the provided table + a Latin remnant in the reply → output carries `هان جيو` (not the transliteration) — the D-A chain, inverted |
+| 3 | `aLockedSpellingIsNeverReplacedByAPageDetection` (`CharacterResolverTest` + engine) | locked record + ambiguous/page-detected spelling → resolution and repair both use the locked value |
+| 4 | `aPageNameThatTheSeriesDoesNotKnowIsStillNamed` (`GeminiTranslatorTest`) | provided table contains a page-only name → prompt carries it, repair uses it, nothing is persisted |
+| 5 | `noSeriesSelectedKeepsThePageLocalBehaviour` (`GeminiTranslatorTest`) | provider returns the page-local `NameSheet` (series-free) → request body and output identical to today's unassigned behaviour |
+| 6 | `twoPagesOfOneSeriesShareSpellingsAndLeakNothing` (`NameSessionTest`) | page 1's detection is in the table for page 2; page 1-only names are **not** mutated into page 2's text and `pageNames`-style state never leaks |
+| 7 | `anAliasInThePageIsRepairedByTheRecord` (`GeminiTranslatorTest`) | page spelling `Han Ji Woo` + record `Han Ji-woo` → repaired through the record's spellings (D-B) |
+| 8 | `theRepairNeverRewritesCorrectArabic` (`NameMemoryTest`, existing behaviour) | guard: no Arabic→Arabic rewrite by the engine pass (kept from `applyPinned`'s contract) |
+| 9 | `cacheHitsStillTakeTheCorrectedSpelling` (`CachingNameOverrideTest`, existing) | step 7 still repairs cached text after the seam change — P1 must not regress |
+| 10 | `p218P217P219BehavioursAreUnchanged` (`NameMemoryTest`/`GeminiTranslatorTest`, existing suites) | the previous round's fixes stay green (no-name sheet for `Sun`/`Long`, non-JSON 400 retry, one glossary path) |
+
+Test 2 and 3 are the ones that would have caught D-A; test 7 catches D-B; test 1 makes the whole class of
+divergence impossible rather than fixed case by case.
+
+#### 5.14.7 Risks and limits of this decision
+
+* **Not executed:** this is a static analysis. No test was written or run for it, no build was produced here,
+  and no device was used; the recommendation's equivalence claim for unassigned sessions rests on reading the
+  code (same `known`, same texts, same planner) and must be confirmed by test 5 before it is trusted.
+* **Seam change is a compile-time break** in exactly one call site (`TranslatorFactory.kt:110`) plus the KDoc of
+  the constructor; a stale call would fail the build, not the behaviour.
+* **`PAGE_AI` remains effectively unreachable** because the resolver never passes `pageArabic` (P2-13, latent);
+  the recommendation does not change that and must not be read as fixing it.
+* **A page-only name still cannot outrank memory** — that is the current product decision and stays; the
+  decision is about *who applies the decision*, not about changing it.
+* **The write side effect stays inside `tableFor`.** Moving it out (e.g. commit after a successful page) is a
+  separate, larger question and is explicitly **not** part of this decision.
+* **`applyPinned` remains Latin-only.** If the model spells a name in a *different Arabic* form, only
+  `previousArabic` repair can catch it; that is P2-14/P2-15 territory and untouched here.
+* **No device validation** exists for any of this (as always, §7.7).
+
 ---
 
 ## 6. Verified implementation status for each phase
@@ -799,7 +991,7 @@ Levels follow §3.2; **no phase reaches "Completed"** because device verificatio
 | **P2-18 (review fix)** — no ambiguous English word becomes a page name | Implemented · Tested · CI-verified (§5.13.1) | `Glossary.isAmbiguousEnglish` (`Glossary.kt:103-108`), `NameMemory.isAmbiguousAutomaticName` / gate (`NameMemory.kt:318-324`, `:344-359`); 7 new tests; run 43585853784 ✅ |
 | **P2-17 (review fix)** — the 400 retry is a genuinely different, non-JSON body | Implemented · Tested · CI-verified (§5.13.2) | `GeminiTranslator.kt:258-266`; 1 new test + 2 tightened; run 43585853784 ✅ |
 | **P2-19 (review fix)** — no second glossary replacement path | Removed · Tested · CI-verified (§5.13.3) | `Glossary.kt` −29 lines, no caller existed; `GlossaryTest` 19 tests green in run 43585853784 ✅ |
-| P2-C (P2-05 name authority) | **Proposed** | `GeminiTranslator.kt:87-99` vs `:128-136` |
+| **P2-C / P2-05** — one name authority on the Gemini path | **Analyzed — awaiting user architectural approval** (§5.14: recommendation C′, 10 tests designed, no code written) | `GeminiTranslator.kt:92-101` (series sheet) vs `:133-141` (page-local repair); ladder in `CharacterResolver.kt:151-247`; ML Kit's hierarchical merge `MlKitTranslator.kt:124-152` as precedent |
 | P2-D (P2-06, P2-08, P2-14, P2-16) | **Proposed** | §8.2 |
 
 The 15 tests added by P2-A (all present at `81919f9`):
@@ -846,7 +1038,7 @@ attributing pre-existing v0.11.0 features to them — would be invented progress
 | --- | --- | --- |
 | P0 | CI-verified (C1, C2) | C3/C4/C5, RTL, offline, perf; device validation |
 | P1 | CI-verified | device validation of the series UI |
-| P2 | CI-verified + reviewed (P2-A, P2-B); the 3 review findings are fixed and CI-verified (`eac0d0c`) | human approval, P2-C/P2-D, device validation |
+| P2 | CI-verified + reviewed (P2-A, P2-B); the 3 review findings fixed (`eac0d0c`); **P2-C analyzed, awaiting architectural approval** (§5.14) | human approval, the P2-C decision, P2-D, device validation |
 | P3–P6 | Proposed only | not started |
 
 ---
@@ -895,11 +1087,12 @@ sandbox). The last run with a readable executed count is `25b15c2` (*"644 tests 
 which proves the older suite size. **Skipped = UNVERIFIED everywhere** (a skipped test does not fail the task,
 and no annotation reports skips).
 
-### 7.4 Every CI run on this branch (38 runs: 34 success, 4 failure)
+### 7.4 Every CI run on this branch (39 runs: 35 success, 4 failure)
 
 | Run | Commit | Created (UTC) | Result |
 | --- | --- | --- | --- |
-| [43585853784](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43585853784) | `eac0d0c` | 2026-11-14 10:33:33 → 10:36:40 | ✅ **current head — P2-18 + P2-17 + P2-19 (§5.13)** |
+| [43586291558](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43586291558) | `e449beb` | 2026-11-14 10:39:12 → 10:42:24 | ✅ **current head — docs revision 3.3** |
+| [43585853784](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43585853784) | `eac0d0c` | 2026-11-14 10:33:33 → 10:36:40 | ✅ last **behaviour** change — P2-18 + P2-17 + P2-19 (§5.13) |
 | [43575632319](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43575632319) | `3c1f64c` | 2026-11-14 08:23:50 → 08:28:00 | ✅ §5.12 review (docs, revision 3.2) |
 | [43574339617](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43574339617) | `de77ef1a` | 2026-11-14 08:08:03 → 08:12:12 | ✅ docs revision 3.1 |
 | [43573847121](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43573847121) | `a2882f16` | 2026-11-14 08:01:57 → 08:05:29 | ✅ P2-B code (§5.11) |
@@ -939,9 +1132,9 @@ and no annotation reports skips).
 | [43513473811](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43513473811) | `0e6d5ff` | 2026-11-13 21:45:14 | ❌ 1 failed test (§5.2) |
 
 All four failures are pre-fix states of later-green commits and are analysed in §5; none is open. Every commit
-listed above is an ancestor of `eac0d0c` (checked with `git merge-base --is-ancestor`).
+listed above is an ancestor of `e449beb` (checked with `git merge-base --is-ancestor`).
 
-**Seven of the 45 commits on this branch have no run of their own** — `ec59e7e`, `6296f80`, `f28f56c`
+**Seven of the 46 commits on this branch have no run of their own** — `ec59e7e`, `6296f80`, `f28f56c`
 (pre-P0, §5.0), `b8e37de` (README), and three code commits: `fba87c6` (P0-A fix), `c008f62` (C2 fix),
 `fee9d9e` (P1.1-A fix). A run is created per pushed head, so an intermediate commit of a multi-commit push is
 executed only as part of the next verified tree that contains it (that is exactly what §3.2's "ancestor" wording
@@ -989,7 +1182,7 @@ only**.
 | **P2-02** | Bug | High | Remote chunks built from visual-priority order while the prompt claims page order | **Implemented · tested · CI-verified (P2-A) · reviewed (§5.12): correct — not approved** |
 | **P2-03** | Bug | Medium | `jsonReply` never reached the primary request (`GeminiTranslator.kt:232` at the audit baseline) | **Fixed in P2-B (`a2882f16`) · tested · CI-verified · reviewed (§5.12): correct — not approved; follow-up P2-17 fixed (§5.13)** |
 | **P2-04** | Bug | Medium | Positional "one line per id" parse could misalign bubbles (`GeminiWire.kt:325` at the audit baseline) | **Fixed in P2-B (`a2882f16`) · tested · CI-verified · reviewed (§5.12): correct, one limitation — not approved** |
-| **P2-05** | Risk | High | Two name authorities on the Gemini path (series sheet vs page-local `applyPinned`) | **Open (needs a decision — P2-C)** |
+| **P2-05** | Risk | High | Two name authorities on the Gemini path (series sheet vs page-local `applyPinned`) | **ANALYZED — AWAITING USER ARCHITECTURAL APPROVAL (§5.14)**: four divergence chains proven statically, options A–E evaluated, recommendation C′ (one resolved table, two consumers) with 10 tests designed; **no code written** |
 | **P2-06** | Risk | Medium | One failing long-block chunk aborts the whole ML Kit page | **Open** |
 | **P2-07** | Risk | Medium | `pageNames` survives early returns (audit C3) | **Open** |
 | **P2-08** | Risk | Medium | LibreTranslate fails the page on one rejected bubble, no name sheet | **Open** |
@@ -1016,7 +1209,7 @@ actually built against what had been proposed. Every other row is still open.
 | --- | --- | --- | --- |
 | P2-03 **(fixed, `a2882f16`)** | `GeminiTranslator.kt:232` (`jsonReply = false`), KDoc `:47-52` | pass the field through and document which body is primary | `jsonReply = true` → body contains `responseMimeType`; `false` → legacy body; land before P2-16 |
 | P2-04 **(fixed, `a2882f16`)** | `GeminiWire.kt:316-330`, fallback `:321-328` | positional mapping only on an exact count match, after stripping labels/artifacts — a changed comparison alone is not a fix | equal-count reply maps by position; a label line maps nothing; missing/extra lines map nothing |
-| P2-05 | `GeminiTranslator.kt:87-99` vs `:128-136` | one authority: give the engine the same series table the sheet used | a series table + Gemini post-processing test (none exists) |
+| P2-05 **(analyzed, §5.14 — implementation awaiting approval)** | `GeminiTranslator.kt:92-101` (series sheet via `sheetProvider`) vs `:133-141` (page-local `NameMemory.plan(...).table` + `applyPinned`); ladder `CharacterResolver.kt:151-247` | one authority: hand the engine the **resolved** table (sheet **and** table from the same `PageNameTable`), delete the engine's second plan, keep `NameSession.rewrite` for cache hits (recommendation C′, §5.14.5) | a series table + Gemini post-processing test (none exists today; 10 designed in §5.14.6, incl. locked-vs-page conflict, alias repair, unassigned equivalence) |
 | P2-06 | `MlKitTranslator.kt:154-181`, abort `:174-176` | omit the failed long block (empty) and continue | a failing chunk leaves one empty block, page still `Success` |
 | P2-07 | `MlKitTranslator.kt:246` clears `pageNames`; early returns `:103-108` | `try/finally` (or clear at entry) | two pages on one translator instance never share names |
 | P2-08 | `LibreTranslateTranslator.kt:57-58`, `:80-100` | per-bubble triage like ML Kit; attach the sheet | one rejected bubble does not fail the page |
@@ -1104,46 +1297,57 @@ Gemini/Libre traffic (no key, no network); executed/skipped test counts unreadab
 
 ### 9.1 Current active phase
 
-**P2 — translation quality and context management.** Three sub-steps are delivered:
+**P2 — translation quality and context management.** Three sub-steps are delivered and CI-verified:
 **P2-A** = P2-01 + P2-02 (`25b15c2`, test fix `a7b276f`, 15 tests, run 43569302435 ✅),
 **P2-B** = P2-03 + P2-04 (`a2882f16`, 24 tests, run 43573847121 ✅) and the **review fixes**
 `eac0d0c` = P2-18 + P2-17 + P2-19 (8 new tests, 2 tightened, run 43585853784 ✅, §5.13).
-The independent review of 2026-11-13 (§5.12) found the four earlier fixes **correct as implemented** and raised
-three findings; **all three are now fixed and CI-verified**. Nothing is approved: GitHub still holds
-**0 reviews**, and nothing is device-verified. **P2 is not complete and no phase is "Completed"** (§3.2).
-P2-C (P2-05, needs a decision), P2-D (P2-06/P2-08/P2-14/P2-16) and P3–P6 remain untouched.
+**P2-C** (P2-05, the name-authority conflict) is now **ANALYZED — AWAITING USER ARCHITECTURAL APPROVAL**
+(§5.14): the lifecycle was traced end to end at `e449beb`, four divergence chains were proven statically, five
+options were evaluated, and the recommendation is **C′ — one resolved table, two consumers** (the
+`PageNameTable` from `NameSession.tableFor`, driven by the unchanged 7-step ladder, feeding both the Gemini
+prompt and the post-processing repair; the engine's private `NameMemory.plan` call disappears; 10 regression
+tests designed). **No code was written in this round**, nothing is approved: GitHub still holds **0 reviews**,
+no phase is "Completed" (§3.2), and nothing is device-verified. P2-D (P2-06/P2-08/P2-14/P2-16) and P3–P6 remain
+untouched.
 
 ### 9.2 Exact next action
 
-1. **~~Decide the three review findings~~ — done in `eac0d0c` (§5.13)**, in the required order
-   P2-18 → P2-17 → P2-19, each with the regression test §8.2 had prescribed.
-2. **Obtain the human approval that does not exist yet** for P2-A, P2-B **and the review fixes** (evidence: §5.9, §5.11, §5.12,
-   §6.4, runs 43568984747 ❌, 43569302435 ✅, 43573847121 ✅). A green run is not an approval.
-3. **Only then** P2-C = P2-05 (series sheet vs page-local `applyPinned`): open with a decision, not with code.
-   P2-18 removed one *consumer* of the page-local table (the ambiguous words), but the two-authority question
-   itself is untouched: the series sheet still competes with `applyPinned`.
-4. **Device validation** of P2-A (ordering, glossary output on a real page) and P2-B (reply parsing against a
-   real model) is still outstanding for both; `MANUAL_TESTS.md` is the only checklist.
-5. P2-D (P2-06, P2-08, P2-14, P2-16) and P3–P6 stay unstarted; each needs its own scope approval.
+1. **The user approves (or rejects) recommendation C′ in §5.14.5.** That is the only gate blocking P2-C. If C′
+   is rejected, options A / B / D in §5.14.4 are fully specified alternatives, each with its own cost; options
+   A and B are recorded as **not** recommended, with the evidence for why.
+2. **On approval only:** implement C′ — the `NameSheet` holder, the Gemini seam swap (`sheetProvider` →
+   `nameSheetProvider`), deletion of the engine's second `NameMemory.plan` call (`GeminiTranslator.kt:133-134`)
+   and the one-line `TranslatorFactory` wiring — then write the 10 tests of §5.14.6 and run
+   `./gradlew :app:testDebugUnitTest :app:assembleDebug` through CI. Nothing of this is started yet.
+3. **Obtain the human approval that does not exist yet** for P2-A, P2-B and the review fixes (evidence: §5.9,
+   §5.11, §5.12, §5.13, §6.4, runs 43569302435 ✅, 43573847121 ✅, 43585853784 ✅). A green run is not an
+   approval, and 0 reviews is the current GitHub state.
+4. **Device validation** of P2-A (ordering, glossary output on a real page), P2-B (reply parsing against a real
+   model) and now P2-18 (an ambiguous word on a real page) is still outstanding; `MANUAL_TESTS.md` is the only
+   checklist.
+5. **After P2-C lands**: P2-D (P2-06, P2-08, P2-14, P2-16) and P3–P6 stay unstarted; each needs its own scope
+   approval.
 
 ### 9.3 Explicitly not done by this task
 
-*No documentation-only restriction this time:* this revision's work package **is code** (commit `eac0d0c`).
-The bounds that were respected:
+This round is **analysis only**. Concretely, and by design:
 
-* exactly the three findings, in the order P2-18 → P2-17 → P2-19 — no other P2 item was touched;
-* **no** dependency/Gradle/workflow change, **no** UI, OCR or other-engine change, **no** broad refactoring;
-* **no** character-memory scope change and **no** change to D1/D3/D6 or to the P1 priority ladder;
-* **no** name-authority redesign (P2-05) and **no** P2-C or P2-D work;
-* **no** extra retry, no change of the error policy (only the *body* of the single 400 retry changed);
-* **no** second glossary replacement path — the dead one was removed instead;
-* PR #2 was **not** merged, closed, renamed or re-drafted; `main` was not touched;
-* the report commit that follows `eac0d0c` is documentation-only, so every application and test file is
-  byte-identical to the CI-verified tree — and its own run is not claimed here.
+* **no Kotlin file and no test file was modified** (`git status --porcelain` lists only this report), so the
+  code tree is byte-identical to `e449beb` / `eac0d0c`;
+* **no P2-05 code** was written — the recommendation is recorded, not applied; the status is *ANALYZED —
+  AWAITING USER ARCHITECTURAL APPROVAL*, never "fixed";
+* **no** test was added, edited or executed; §5.14.6 *designs* ten tests and stops there;
+* **no** architectural decision was entered in `DECISIONS.md` — a decision log entry (D12) is written **after**
+  the user approves, so the log never records an unapproved choice;
+* P2-06 (P2-D), P2-08, P2-14, P2-16 were **not** started; P2-A, P2-B and P2-17/18/19 were **not** reopened or
+  altered;
+* **no** dependency, Gradle, workflow or CI change; **no** Benchmark run; **no** device claim;
+* PR #2 was not merged, closed, renamed or re-drafted; `main` was not touched; `PLAN.md` was **not** updated
+  because the product roadmap contains no P2 phases to change (§10.3 row 13).
 
-**Test-execution honesty:** the new and old tests were executed **only in CI** (run 43585853784). Nothing was
-executed in this sandbox — it has no JDK, no Gradle, no `kotlinc` and no Android SDK (§7.2) — and **no device
-claim** is made for any change (§7.7).
+**Test-execution honesty:** the last code round's tests were executed **only in CI** (run 43585853784); this
+round executes nothing at all, because it writes no code and no test. The sandbox has no JDK, no Gradle, no
+`kotlinc` and no Android SDK (§7.2), and **no device claim** is made anywhere (§7.7).
 
 ---
 
@@ -1177,7 +1381,30 @@ claim** is made for any change (§7.7).
    in the report, not a detail.
 4. Deleting a document requires prior transfer of its content into this file and a link check afterwards.
 
-### 10.3 Validation performed for revision 3.3 (commands and exact outcomes)
+### 10.3 Validation performed for revision 3.4 (commands and exact outcomes)
+
+This revision changed **one file** (this report) and executed **nothing**: the entries below are the checks that
+support the P2-05 analysis, each with the command actually run in this sandbox.
+
+| # | Check | Command | Outcome |
+| --- | --- | --- | --- |
+| 1 | Branch / HEAD / tree | `git rev-parse --abbrev-ref HEAD`, `git log --oneline -3`, `git status --porcelain` | `arena/8a718184-manhwalens`, HEAD `e449beb` (parent `eac0d0c`), tree clean before this report edit |
+| 2 | Remote sync (no re-clone needed) | `git ls-remote origin refs/heads/arena/8a718184-manhwalens` | `e449beba…` — identical to local HEAD, so the earlier sandbox re-clone pitfall did not recur |
+| 3 | PR state and reviews | `gh pr view 2 --json …` | `OPEN`, `isDraft=false`, `CLEAN`, head `e449beb…`, **0 reviews / 0 review comments**, 46 commits, 220 files, +37 016/−0 |
+| 4 | Run inventory | `gh run list --branch … --limit 100 --json databaseId,headSha,conclusion` (Python count) | **39 runs: 35 ✅ / 4 ❌**; failures unchanged (`43513473811`, `43517478032`, `43517986742`, `43568984747`) |
+| 5 | CI on the current head | `gh api repos/…/actions/runs/43586291558`, earlier `gh run watch … --exit-status` | `success` at `e449beb`, 2026-11-14 10:39:12 → 10:42:24, steps *Unit tests* ✅ + *Build debug APK* ✅ |
+| 6 | HEAD is code-identical to the last verified code commit | `git diff --stat eac0d0c e449beb -- app/ gradle/ .github/` | empty — the two commits between them touch only `REPOSITORY_REPORT.md` |
+| 7 | Name lifecycle anchors (re-derived, not copied from older revisions) | `grep -n` in `GeminiTranslator.kt`, `CharacterResolver.kt`, `CharacterMemory.kt`, `NameMemory.kt`, `MlKitTranslator.kt`, `CachingTranslator.kt`, `TranslatorFactory.kt` | `GeminiTranslator.kt:67` (`sheetProvider`), `:92-101` (sheet selection), `:133-141` (second plan + `applyPinned`); `CharacterResolver.kt:96-147` (`resolve`), `:119-124` (plan candidates), `:127-146` (records pass), `:151-247` (`decide`); `PageNameTable.sheet` `:49-54`; `CharacterMemory.kt:118-135` (`tableFor` + commit), `:141-158` (`rewrite`); `NameMemory.kt:251-342` (`plan`), `:449-462` (`applyPinned`); `MlKitTranslator.kt:124-152` (hierarchical merge), `:63` (`nameTableProvider`); `CachingTranslator.kt:92-99`, `:190-200`; `TranslatorFactory.kt:110` (Gemini wiring), `:146/160/185/204` (ML Kit wiring); `CharacterWriter.commit` `:231-269` — **all present at `e449beb`** |
+| 8 | Two-authority claim | `grep -n "NameMemory.plan(" app/src/main` | 4 call sites: `CharacterResolver.kt:102`, `SceneNames.kt:29`, `GeminiTranslator.kt:98`, `GeminiTranslator.kt:134` — the last two are the same page computed twice (audit item C5) |
+| 9 | "No test covers the series sheet" claim | `grep -rn "sheetProvider" app/src/test` | **0 hits** — the P1 seam that hands the model the authoritative sheet has no unit test, and no test asserts sheet/repair agreement |
+| 10 | `applyPinned` semantics | read `NameMemory.kt:449-462` + `CharacterMemory.kt:141-158` + `NameForm.kt:66-91` | engine pass rewrites **Latin remnants only**; the decorator pass is alias-aware and also repairs `previousArabic`; `CharacterWriter.commit` never fills `previousArabic` (`:246-266`) — the D-A chain in §5.14.2 |
+| 11 | Unassigned-session equivalence argument | read `CharacterMemory.kt:105-135` + `GeminiTranslator.kt:92-101` | with `seriesId = null` / `store = null` the records list is empty and the resolved table is plan-only, i.e. equal to today's page-local table — the basis of recommendation C′ and of test 5 |
+| 12 | Scope of this revision | `git status --porcelain`, `git diff --stat` | **one file**: `REPOSITORY_REPORT.md`; no `app/`, `gradle/`, `.kts`, `.github/` change; no test added or edited |
+| 13 | `PLAN.md` decision | `grep -n "P2" PLAN.md` | no P2/P2-C entry exists in the product roadmap (it is milestone-based, M0–M6), so there was nothing to update; recorded rather than invented |
+| 14 | Markdown integrity | Python scan of every `*.md` for local link targets (code spans ignored) and a backslash-aware pipe/cell count per table | run **after** the edits: 0 broken links, 0 table-cell mismatches, §10.3a/b/c/d renumbered consistently |
+| 15 | Build / test execution | `java -version`, `./gradlew …` (not attempted for this revision — nothing changed) | no JDK/Gradle/`kotlinc`/Android SDK in this sandbox (§7.2); **no test was run and none is claimed**; no device exists |
+
+### 10.3a Validation performed for revision 3.3 (kept for provenance)
 
 | # | Check | Command | Outcome |
 | --- | --- | --- | --- |
@@ -1199,7 +1426,7 @@ claim** is made for any change (§7.7).
 | 16 | Markdown integrity | Python scan of every `*.md` for local link targets (inline code spans ignored) and a backslash-aware pipe/cell count per table | run **after** this revision's edits: 0 broken links, 0 table-cell mismatches, §10.3a/b/c renumbered consistently |
 | 17 | Scope of the report commit itself | `git status --porcelain`, `git diff --stat` | **one file**: `REPOSITORY_REPORT.md` — no `app/`, `gradle/`, `.kts` or `.github/` change |
 
-### 10.3a Validation performed for revision 3.2 (kept for provenance)
+### 10.3b Validation performed for revision 3.2 (kept for provenance)
 
 | # | Check | Command | Outcome |
 | --- | --- | --- | --- |
@@ -1219,7 +1446,7 @@ claim** is made for any change (§7.7).
 | 14 | Scope of this revision | `git status --porcelain`, `git diff --stat` | **one file**: `REPOSITORY_REPORT.md`; no `app/`, `.github/`, `.kts`, `gradle/` or dependency change |
 | 15 | Build/test execution here | `which java javac gradle`, `$ANDROID_HOME` | absent/unset — no local run possible, none claimed; CI remains the only executor |
 
-### 10.3b Validation performed for revision 3.1 (kept for provenance)
+### 10.3c Validation performed for revision 3.1 (kept for provenance)
 
 | # | Check | Command | Outcome |
 | --- | --- | --- | --- |
@@ -1238,7 +1465,7 @@ claim** is made for any change (§7.7).
 | 13 | Local Markdown link check / table integrity | Python scan of every `*.md` for local link targets (inline code spans ignored); backslash-aware pipe/cell count per table | **re-run and passed**: 0 broken links, 0 table-cell mismatches |
 | 14 | Build/test execution here | `which java javac gradle`, `$ANDROID_HOME` | absent/unset — no local run possible, none claimed; CI run 43573847121 is the executor |
 
-### 10.3c Validation performed for revision 3.0 (kept for provenance)
+### 10.3d Validation performed for revision 3.0 (kept for provenance)
 
 | # | Check | Command | Outcome |
 | --- | --- | --- | --- |
@@ -1261,6 +1488,7 @@ claim** is made for any change (§7.7).
 
 | Revision | Date | Head | What changed |
 | --- | --- | --- | --- |
+| **3.4** | 2026-11-13 (UTC 2026-11-14) | `e449beb` (run 43586291558 ✅) + this doc-only refresh | **P2-05 analyzed (§5.14), no code written.** The Gemini name lifecycle was traced end to end at `e449beb` (detect → series read → ladder → sheet → prompt → page-local repair → decorator rewrite → write), and **four divergence chains** were proven statically: a locked/user spelling can be overwritten by the page-local `applyPinned` and then cached (D-A), the page pass is alias-blind while the series pass is alias-aware (D-B), the `String` seam denies the engine the per-name authority and pays for `NameMemory.plan` twice (D-C/C5), and the "sheet getter" has write side effects (D-D). Options A–E evaluated (series-only, page-only, hierarchical, pre-substitution, delete-the-repair), **recommendation C′: one resolved `PageNameTable` per page feeding both the prompt and the repair** — the ladder (`CharacterResolver.decide`) unchanged, the engine's second plan deleted, `NameSession.rewrite` kept for cache hits, 10 regression tests designed (§5.14.6), expected diff ≈ 25-40 lines in two application files. Status **ANALYZED — AWAITING USER ARCHITECTURAL APPROVAL**; no `DECISIONS.md` entry until approval; `PLAN.md` unchanged (nothing to change); P2-D/P3–P6 untouched. Documentation only. |
 | **3.3** | 2026-11-13 (UTC 2026-11-14) | `eac0d0c` (run 43585853784 ✅) + this doc-only refresh | **The three §5.12 findings fixed, in the mandated order.** P2-18: `Glossary.isAmbiguousEnglish` + an `NameMemory.plan` gate stop a single-token ambiguous English word from becoming a page name (USER entries, multi-word spellings and series memory exempt); P2-17: the HTTP-400 retry now sends the legacy non-JSON body, so it is a genuinely different request; P2-19: the caller-less `applyToSource`/`replaceWord`/`ambiguousShort` path deleted. New §5.13, §8.6; §3.3/§6.4/§6.6/§7.3/§7.4/§7.5/§8.1/§8.2/§9/§10.3 re-verified at `eac0d0c` (38 runs, 676 `@Test`, +8 tests). Application source changed in three files (+51/−32) and four test files; `DECISIONS.md` H4 notes the dead-code removal. **The mandatory Gradle command could not run locally** (no JDK) and was executed by CI only (run 43585853784 ✅). No dependency, Gradle, workflow or PR change; no device claim. |
 | **3.2** | 2026-11-13 (UTC 2026-11-14) | `de77ef1a` (run 43574339617 ✅) + this doc-only refresh | **Independent technical review of P2-01…P2-04** (§5.12): all four fixes judged correct as implemented, **not approved**; three new findings recorded and left unfixed — P2-17 (degenerate 400 retry when `jsonReply = true`), P2-18 (the name planner/sheet is still not ambiguity-gated), P2-19 (dead glossary path bypasses the gate). Corrections: §5.0 documents three previously unrecorded pre-P0 commits (`ec59e7e`, `6296f80`, `f28f56c`); P2-A's diff is +347/−13 not +348/−13; P2-11's scope is both capture call sites, not only Live; §7.4 adds the 36th run and the seven commits with no run of their own; §8.5 gained the JSON-renumbering limitation and the PR-dependent CI trigger; §9 and §10.3 rewritten. **Documentation only** — no source, test, dependency, workflow or PR change. |
 | **3.1** | 2026-11-13 (UTC 2026-11-14) | `a2882f16` (run 43573847121 ✅) + this doc-only refresh | **P2-B** recorded: P2-03 (`jsonReply` reaches the primary request) and P2-04 (safe positional parsing) implemented with 24 new tests; new §5.11, §8.5 risks, §9 rewritten, §6.4/§8.1/§8.2/§7.3/§7.4 re-graded and re-verified (35 runs, 668 `@Test`), §10.3 re-run for this revision. Application source changed in exactly four Gemini files (+385/−11); no dependency, workflow or PR change. |
