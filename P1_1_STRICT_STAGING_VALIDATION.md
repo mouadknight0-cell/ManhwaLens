@@ -112,9 +112,9 @@ handling and retry, no staging file after success, stray copy never shadowing a 
 corrupt/newer live handling, locked immunity, series isolation, restart persistence, and every
 non-store test in the module. Test methods in the module: **615** (604 + 11).
 
-Results: the suite and `assembleDebug` run on GitHub Actions for the commit cited in
-[REPORTS.md](REPORTS.md) and in the review thread — the authoring sandbox has no JDK/Android SDK, so
-no local run is possible and none is claimed.
+Results: **CI run [43531030306](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43531030306)
+— success** at `e6598a82f61d696335b7bfc075fa45b8dd905d43` (suite + `assembleDebug`, 3m56s). The
+authoring sandbox has no JDK/Android SDK, so no local run is possible and none is claimed.
 
 ---
 
@@ -124,9 +124,9 @@ no local run is possible and none is claimed.
 ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --console=plain
 ```
 
-Executed by GitHub Actions (`.github/workflows/android.yml`, triggered by the open pull request),
-against the exact commit of this change. Run URL and SHA are recorded in [REPORTS.md](REPORTS.md)
-under this report.
+Executed by GitHub Actions (`.github/workflows/android.yml`, triggered by the open pull request):
+**run 43531030306 — success**, commit `e6598a8` (the code, tests and this report were pushed
+together; the commit recording the run id is docs-only).
 
 ---
 
