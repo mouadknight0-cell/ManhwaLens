@@ -51,7 +51,13 @@
     <string name="lens_tap_menu">Menu</string>
     <string name="lens_tap_translate">Translate now</string>
 
-    <string name="debug_mode_summary">After each lens tap, show the pipeline trace and save the last frame with OCR boxes. While Debug mode is ON, the Last error report also contains page OCR text, OCR confidence and coordinates, exact ML Kit inputs and raw outputs, and the Arabic text for which an overlay patch bitmap was built. The report remains in app-private storage until another report replaces it; turn Debug mode OFF after collecting the evidence.</string>
+    <string name="debug_mode_summary">While enabled, ManhwaLens records recent English-to-Arabic translation pairs locally for tap and Live mode, including the engine and quality-check result. It also keeps the existing pipeline diagnostics. Nothing is uploaded automatically.</string>
+    <string name="translation_pairs_note">Saved on this device: %1$d recent pairs (maximum 200). Includes OCR English, final Arabic, engine and quality status. No automatic upload.</string>
+    <string name="translation_pairs_copy">Copy translation pairs</string>
+    <string name="translation_pairs_clear">Clear</string>
+    <string name="translation_pairs_empty">No translation pairs saved yet. Enable Debug mode and translate a page.</string>
+    <string name="translation_pairs_copied">Translation pairs copied</string>
+    <string name="translation_pairs_cleared">Translation pairs cleared</string>
     <!-- v0.9.5 Part 2: Live self-check -->
     <string name="self_check_button">Live self-check</string>
     <string name="self_check_title">Live self-check</string>
