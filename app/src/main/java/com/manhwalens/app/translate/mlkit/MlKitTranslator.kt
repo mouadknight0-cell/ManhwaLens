@@ -6,6 +6,7 @@ import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.TranslatorOptions
 import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.common.model.DownloadConditions
 import com.manhwalens.app.translate.FailureReason
 import com.manhwalens.app.translate.BatchAutoSelect
 import com.manhwalens.app.translate.BatchPolicyHolder
@@ -106,7 +107,11 @@ class MlKitTranslator(
             val tModel = System.currentTimeMillis()
             try {
                 Log.i(TAG, "en->ar model not present yet; requesting download (one-time, ~30 MB)")
-                Tasks.await(client.downloadModelIfNeeded(), MODEL_TIMEOUT_SEC, TimeUnit.SECONDS)
+                Tasks.await(
+                    client.downloadModelIfNeeded(DownloadConditions.Builder().requireWifi().build()),
+                    MODEL_TIMEOUT_SEC,
+                    TimeUnit.SECONDS
+                )
                 sharedModelReady = true
                 val ms = System.currentTimeMillis() - tModel
                 PipelineTracer.span("mlkit model download", ms, "EN→AR ~30 MB (one-time)")
