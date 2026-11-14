@@ -62,7 +62,7 @@ class LibreTranslateTranslator(
         val nameTable = runCatching { nameTableProvider?.invoke(translatable.map { it.english }) }
             .getOrNull().orEmpty()
         val prepared = translatable.map { block ->
-            SceneNames.apply(Glossary.prepare(block.english), nameTable)
+            Glossary.prepare(SceneNames.apply(block.english, nameTable))
         }
         val requestBody = LibreTranslateWire.buildRequestBody(prepared, apiKey)
         val response = try {
