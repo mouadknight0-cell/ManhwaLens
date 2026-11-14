@@ -58,6 +58,9 @@ object PipelineTracer {
     private var spans = ArrayList<SpanTrace>()
     private var tapAtMs = 0L
 
+    @Volatile
+    var eventSink: ((String, String) -> Unit)? = null
+
     private const val MAX_STAGES = 100
     private const val MAX_SPANS = 40
 
@@ -73,9 +76,13 @@ object PipelineTracer {
     }
 
     fun record(stage: Stage, status: StageTrace.Status, durationMs: Long, detail: String) {
+        val safeDetail = sanitize(detail).take(600)
         synchronized(lock) {
-            stages.add(StageTrace(stage.wire, status, durationMs.coerceAtLeast(0), sanitize(detail).take(600)))
+            stages.add(StageTrace(stage.wire, status, durationMs.coerceAtLeast(0), safeDetail))
             if (stages.size > MAX_STAGES) stages = ArrayList(stages.takeLast(MAX_STAGES))
+        }
+        if (status == StageTrace.Status.FAILED) {
+            try { eventSink?.invoke("pipeline.${stage.wire.lowercase()}", safeDetail) } catch (_: Throwable) { }
         }
     }
 
