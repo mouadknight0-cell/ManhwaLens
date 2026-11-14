@@ -67,6 +67,32 @@ class PatchPlannerTest {
     }
 
     @Test
+    fun composeCombinesEveryTranslatedMemberIntoOneOwnerPatch() {
+        val areas = PatchPlanner.areas(
+            listOf(
+                4 to Rect2D(100f, 100f, 240f, 124f),
+                5 to Rect2D(100f, 128f, 250f, 150f),
+                6 to Rect2D(420f, 700f, 560f, 760f)
+            ),
+            page.first, page.second
+        )
+        val boxes = listOf(
+            BubbleRenderBox(4, 100, 100, 240, 124, "FIRST LINE", "السطر الأول", 0xFFFFFFFF.toInt(), 0xFF000000.toInt()),
+            BubbleRenderBox(5, 100, 128, 250, 150, "SECOND LINE", "السطر الثاني", 0xFFFFFFFF.toInt(), 0xFF000000.toInt()),
+            BubbleRenderBox(6, 420, 700, 560, 760, "OTHER BUBBLE", "فقاعة أخرى", 0xFFFFFFFF.toInt(), 0xFF000000.toInt())
+        )
+
+        val composed = PatchPlanner.compose(areas, boxes)
+
+        assertEquals(listOf(4, 6), composed.map { it.id })
+        assertEquals("FIRST LINE SECOND LINE", composed.first().english)
+        assertEquals("السطر الأول السطر الثاني", composed.first().arabic)
+        assertEquals(areas.first().cover.left.toInt(), composed.first().left)
+        assertEquals(areas.first().cover.bottom.toInt(), composed.first().bottom)
+        assertEquals("فقاعة أخرى", composed.last().arabic)
+    }
+
+    @Test
     fun unknownIdAnswersItselfAndHasNoCover() {
         val areas = PatchPlanner.areas(listOf(1 to Rect2D(0f, 0f, 10f, 10f)), 50, 50)
         assertEquals(42, PatchPlanner.ownerOf(areas, 42))
