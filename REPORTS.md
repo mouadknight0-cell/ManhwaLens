@@ -45,8 +45,8 @@ chat-only record.
 
 **Latest versions / statuses:** every link above resolves to a file present at head `3674ebf`; the
 Status column uses the vocabulary fixed in [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) §8 and agrees with
-it row for row. The most recent repository-level consistency sync is dated 2026-11-13 and recorded in
-that file's §9 (no code changed by it).
+it row for row. The most recent repository-level consistency sync is dated 2026-11-13 (commit `05fa1ab`, run
+43565553808) and recorded in that file's §9 (no code changed by it).
 
 Supporting documents that are **not** per-change reports: [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md)
 (the repository-level snapshot — branch state, phases, verification, blockers, what is next),

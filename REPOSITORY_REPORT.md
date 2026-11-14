@@ -1,9 +1,9 @@
 # ManhwaLens — repository report
 
 **Snapshot:** session date 2026-11-13 · **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — **OPEN**, not draft
-**Head:** `3674ebf22cff69db134631036454c926314891c6` (*docs: refresh the report after every prompt (rule S6)*, commit clock 2026-11-14 06:08 UTC)
+**Head at this snapshot:** `05fa1ab` (*docs: repository documentation consistency audit*, commit clock 2026-11-14 UTC) — the last **code** commit remains `3674ebf` (*docs: refresh the report after every prompt (rule S6)*, 2026-11-14 06:08 UTC); the last commit that changed application code is `c008f62` (P0/C2)
 **Base:** `main` @ `560705d55012f1549449ca3230184b4b5beda991` · **Branch ahead (at `3674ebf`):** 29 commits, 228 files, +36 706 / −0 · **Working tree:** clean before this documentation commit, which adds Markdown only
-**Latest verified run:** [43564884208](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564884208) — workflow *Android build*, conclusion **success** at this head (steps *Unit tests* ✅, *Build debug APK* ✅, APK artifact uploaded)
+**Latest verified run:** [43565553808](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43565553808) — workflow *Android build*, conclusion **success** at `05fa1ab` (steps *Unit tests* ✅, *Build debug APK* ✅, APK artifact uploaded); the run before it, [43564884208](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564884208), verified `3674ebf`
 
 This is the repository-level view and the authoritative current-state document: what the branch contains,
 what has been verified and how, what cannot be verified in this environment, and what is next. Per-change
@@ -287,7 +287,7 @@ report before any code change.
 
 | Updated | Head | What changed in this snapshot |
 | --- | --- | --- |
-| 2026-11-13 (audit commit on top of `3674ebf`; commit clock 2026-11-14) | documentation consistency audit | Re-derived every current-state claim from git and the GitHub API: head/commit count/PR state, the full 22-run CI table, the eight test-count boundaries with explicit scope, the discovered-vs-executed split, and the authoritative phase status table. Corrected the stale header, inventory, run table, C2 status, rules range and a non-existent run id; added §4 (test counts) and §9 (this audit); preserved historical rows with annotations. **No application source, test, Gradle or dependency change.** |
+| 2026-11-13 (audit commit `05fa1ab` on top of `3674ebf`; commit clock 2026-11-14, green in run 43565553808) | documentation consistency audit | Re-derived every current-state claim from git and the GitHub API: head/commit count/PR state, the full 22-run CI table, the eight test-count boundaries with explicit scope, the discovered-vs-executed split, and the authoritative phase status table. Corrected the stale header, inventory, run table, C2 status, rules range and a non-existent run id; added §4 (test counts) and §9 (this audit); preserved historical rows with annotations. **No application source, test, Gradle or dependency change.** |
 | 2026-11-13 (doc-only, on top of `7b30804`) | standing rule S6 recorded | Rule S6 in `DECISIONS.md` and `REPORTS.md`; no code change, no test run claimed beyond the CI run of that documentation commit (43564060458 green at `7b30804`). |
 | 2026-11-13 (`b82fb6f`) | P0/C2 merged into the branch | Added the P0/C2 work package, refreshed the inventory (629 tests) — *historical: the commit count printed here as 25 was 27 at that head; corrected in the 2026-11-14 audit row* |
 | 2026-11-13 (`e546470`) | P1.1-A merged into the branch | Added the canonical normalized-name invariant, refreshed the inventory (619 tests) — *historical: the commit count printed here as 21 was 23 at that head; corrected in the 2026-11-14 audit row* |
