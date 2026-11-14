@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.common.model.DownloadConditions
@@ -40,7 +39,6 @@ import java.util.concurrent.TimeUnit
  */
 @Composable
 fun OfflineTranslationModelCard() {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val manager = remember { RemoteModelManager.getInstance() }
     val model = remember {
