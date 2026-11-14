@@ -3808,7 +3808,7 @@ class FloatingButtonService : Service() {
             ErrorLog.writeRaw(
                 applicationContext,
                 "pipeline+ocr-translation",
-                combined.take(com.manhwalens.app.util.CaptureDiagnostics.MAX_REPORT_CHARS + 2_000)
+                combined.take(com.manhwalens.app.util.CaptureDiagnostics.MAX_REPORT_CHARS + 20_000)
             )
         } else {
             PipelineTracer.persistToErrorLog(applicationContext)
