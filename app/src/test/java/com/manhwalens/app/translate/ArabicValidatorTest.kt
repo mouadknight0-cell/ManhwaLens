@@ -45,7 +45,7 @@ class ArabicValidatorTest {
     fun rejectsOneOrTwoUntranslatedEnglishWordsInsideArabic() {
         assertEquals(
             ArabicValidator.Issue.UNTRANSLATED_FRAGMENT,
-            ArabicValidator.issue("I will help you tomorrow.", "سأساعدك will غدًا")
+            ArabicValidator.issue("I will help you tomorrow.", "سأساعدك will you غدًا")
         )
         assertEquals(
             ArabicValidator.Issue.UNTRANSLATED_FRAGMENT,
