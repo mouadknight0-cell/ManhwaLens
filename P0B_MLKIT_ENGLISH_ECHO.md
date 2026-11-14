@@ -154,6 +154,14 @@ run is the evidence that the suite — including the 10 new tests — compiled a
 * Audit flip: C2 is marked **fixed** in [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md) only after this run.
 * Run-record commit `b82fb6f` (27th) — green at its own head in run 43563800508 (unit tests +
   debug APK), so the branch tip carrying these documents is CI-verified too.
+* Later documentation-only commits: `7b30804` (28th, run 43564060458 green) and `3674ebf` (29th, run
+  43564884208 green — the current branch tip). Ordinals and the tip recorded here are refreshed by the
+  2026-11-14 consistency audit ([REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) §8/§9); the code claim is
+  unchanged and still verified by runs 43563394305 / 43563800508 / 43564060458 / 43564884208.
+* **Status:** **VERIFIED COMPLETE** (CI-verified unit tests + debug APK; device behaviour unverified) —
+  the same classification as [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) §8. Executed test counts for the
+  green runs are not observable from the authoring sandbox (artifact host outside the allowlist); the
+  discovered count at the tip is 629 `@Test` (`619` at the base `6eb8974`).
 
 ### Diff
 

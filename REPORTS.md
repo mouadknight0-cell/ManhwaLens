@@ -33,15 +33,20 @@ chat-only record.
 
 ## Index
 
-| Date | Phase | Report | Base → final | Verified by |
-| --- | --- | --- | --- | --- |
-| 2026-11-13 | P0/C2 ML Kit English echo eliminated | [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) | `6eb8974` → `c008f62` (docs `b82fb6f`) | CI 43563394305, 43563800508 |
-| 2026-11-13 | P1.1 strict staging validation · P1.1-A canonical keys (§8) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `feb20ef` → `e546470` | CI 43531030306, 43531550380, 43561318751 |
-| 2026-11-13 | P1 persistence safety (recovery never writes the live file) | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `345715d` | CI 43526686657 |
-| 2026-11-13 | P1 review corrections | [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) | `1c0c270` → `e99dd93` (docs `06b3d84`) | CI 43523522645, 43524129101 |
-| 2026-11-13 | P1 series character memory | [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) · design: [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md) | `528d629` → `8d5cc9e` (docs `1c0c270`) | CI 43518604612, 43520783453 |
-| 2026-11-13 | P0-A Gemini name sheet | [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md) | `b8e37de` → `528d629` | CI 43514068424, 43514608722 |
-| 2026-11-13 | P0 architecture audit (read-only) | [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md) | v0.11.0 `b8e37de` | none (no code changed) |
+| Date | Phase | Report | Base → final | Verified by | Status |
+| --- | --- | --- | --- | --- | --- |
+| 2026-11-13 | P0/C2 ML Kit English echo eliminated | [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) | `6eb8974` → `c008f62` (docs `08004c4`, `b82fb6f`, `7b30804`, `3674ebf`) | CI 43563394305, 43563800508, 43564060458, 43564884208 | **VERIFIED COMPLETE** |
+| 2026-11-13 | P1.1 strict staging validation · P1.1-A canonical keys (§8) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `723f101` · P1.1-A `feb20ef` → `fee9d9e` (docs `e546470`, `6eb8974`) | CI 43531030306, 43531550380, 43561318751, 43561668957 | **VERIFIED COMPLETE** |
+| 2026-11-13 | P1 persistence safety (recovery never writes the live file) | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `87830b7` (docs `345715d`) | CI 43526686657, 43527227407 | **VERIFIED COMPLETE** |
+| 2026-11-13 | P1 review corrections | [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) | `1c0c270` → `e99dd93` (docs `06b3d84`) | CI 43523522645, 43524129101 | **VERIFIED COMPLETE** |
+| 2026-11-13 | P1 series character memory | [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) · design: [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md) | `528d629` → `8d5cc9e` (docs `1c0c270`) | CI 43518604612, 43520783453 | **VERIFIED COMPLETE** |
+| 2026-11-13 | P0-A Gemini name sheet | [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md) | `b8e37de` → `528d629` | CI 43514068424 (attempt 2), 43514608722 | **VERIFIED COMPLETE** |
+| 2026-11-13 | P0 architecture audit (read-only) | [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md) | v0.11.0 `b8e37de` | none (no code changed) | **VERIFIED COMPLETE** (audit delivered; its open items stay PENDING — see `REPOSITORY_REPORT.md` §10) |
+
+**Latest versions / statuses:** every link above resolves to a file present at head `3674ebf`; the
+Status column uses the vocabulary fixed in [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md) §8 and agrees with
+it row for row. The most recent repository-level consistency sync is dated 2026-11-13 and recorded in
+that file's §9 (no code changed by it).
 
 Supporting documents that are **not** per-change reports: [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md)
 (the repository-level snapshot — branch state, phases, verification, blockers, what is next),

@@ -440,6 +440,25 @@ The app ships an HTTPS client only. Run a LibreTranslate server with an installe
 **Expected:** ordinary English echoes, empty replies, and malformed control/replacement characters fail before caching; pre-guard remote cache entries are retried and purged; an unfamiliar single-word character name may remain Latin.
 **Pass:** invalid output is rejected and existing ML Kit fallback behavior is retained.
 
+## M0.4b ML Kit English echo withheld (P0/C2, device)
+**Why:** P0/C2 stops ordinary untranslated English from being painted as Arabic on the on-device path.
+The unit tests prove the rules (`MlKitEnglishEchoTest`, `ArabicValidatorTest`, `CachingTranslatorTest`);
+the *visual* result of a withheld bubble has never been seen on a device, so this is the check that
+closes it.
+
+1. Translate a page on the on-device engine (no Gemini/Libre), on a device whose EN→AR model may answer
+   a short bubble with the source text unchanged.
+2. Repeat the same page twice: once cold, once after the first pass has filled the caches.
+3. Contrast: pick a page where a character name legitimately stays Latin (`Hanwoo`, `Wei Wuxian`).
+
+**Expected:** a bubble whose Arabic is an English echo keeps the **original art** (no English painted in
+Cairo Bold, no half-translated sentence); its neighbours still paint instantly as they finish; a later
+remote upgrade can still replace a valid local patch. A preserved Latin name inside Arabic dialogue
+still paints, and a lone name bubble is not blanked.
+**Pass:** no bubble on the page shows untranslated English as Arabic, the second pass does not resurrect
+one from cache, and progressive painting is still visibly progressive (first bubble before the page ends).
+**Evidence to record:** device model, engine, page id, and before/after screenshots.
+
 ## M0.5 Permissions and privacy
 **Steps:** Inspect app permissions and both privacy-policy versions; run one LibreTranslate test with a trusted HTTPS server.
 **Expected:** `INTERNET` permission is present for optional network engines; request is HTTPS-only; API keys are never logged or put in the URL; only recognized text is sent to LibreTranslate.
