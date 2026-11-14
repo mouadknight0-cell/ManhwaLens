@@ -3993,6 +3993,10 @@ class FloatingButtonService : Service() {
                 diagnostics?.recordOverlayText(
                     tb.id, block.text, tb.arabic, if (remote) "remote" else engineId, patchBuilt = true
                 )
+                diagnostics?.recordOverlayPatch(
+                    ownerId, patch.left, patch.top, patch.right, patch.bottom,
+                    cover, areaPlan?.memberIds ?: listOf(tb.id)
+                )
             }
             val elapsed = SystemClock.elapsedRealtime() - tapStartMs
             if (patch != null && !attached && !attachRequested) attachRequested = true
@@ -4096,6 +4100,13 @@ class FloatingButtonService : Service() {
             }.forEach { box ->
                 diagnostics?.recordOverlayText(
                     box.id, box.english, box.arabic, "final-reconcile", patchBuilt = true
+                )
+            }
+            patches.forEach { patch ->
+                val area = staleAreas.firstOrNull { it.ownerId == patch.id }
+                diagnostics?.recordOverlayPatch(
+                    patch.id, patch.left, patch.top, patch.right, patch.bottom,
+                    area?.cover, area?.memberIds ?: listOf(patch.id)
                 )
             }
             val elapsed = SystemClock.elapsedRealtime() - tapStartMs
