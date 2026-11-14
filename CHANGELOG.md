@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.5 — 2026-11-14 (experimental)
+
+### P5-A — composite overlay patches
+- Compose all available translations belonging to one planned patch area into a single opaque bitmap. Progressive sibling results now rebuild the same stable patch ID instead of drawing overlapping opaque bitmaps that erase earlier Arabic.
+- Added per-area generation checks so a late worker result cannot replace newer text; final reconciliation retries only areas whose latest patch build failed or was superseded.
+- Keep the complete planned cover even when only some member translations are usable, while rendering only the available Arabic text.
+- Added JVM tests for composite text order, one-patch-per-area behavior, and retaining the full cover when a sibling translation is missing.
+
+### P4-C — ManhuaPlus OCR watermark
+- Filter the diacritic-corrupted ManhuaPlus watermark using Unicode normalization before matching known site marks; dialogue near the mark remains eligible for OCR translation.
+
+
 ## 0.11.2 — 2026-11-14 (experimental)
 
 ### P4-A — opt-in OCR and translation diagnostics
