@@ -4,8 +4,8 @@
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `arena/8a718184-manhwalens`  
 **طلب الدمج:** [PR #2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — مفتوح، غير مدمج  
-**آخر commit على فرع التجربة:** `6670a089222572dae76c5b17a172f5fa7cd1de57` (P5-A composite patches + تشخيص هندسة الرقع؛ تجهيز v0.11.5).  
-**آخر CI ناجح مكتمل:** [43627790075](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43627790075) على `7622589f3cdf343ba752f94a3e39c8e7aedc5eec` — نجح Unit tests وBuild debug APK ونشر v0.11.4. تشغيل v0.11.5 الحالي [43629908422](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
+**آخر commit للكود على فرع التجربة:** `c9ae6ffcdefbec9ce58a0717c7c7ba218846eb98` (P5-A composite patches + تشخيص هندسة الرقع؛ تجهيز v0.11.5).  
+**آخر CI ناجح مكتمل:** [43627790075](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43627790075) على `7622589f3cdf343ba752f94a3e39c8e7aedc5eec` — نجح Unit tests وBuild debug APK ونشر v0.11.4. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
 > هذا الملف هو التقرير الهندسي الرسمي الوحيد للمشروع. يستبدل النسخة السابقة من `REPOSITORY_REPORT.md` بالكامل. لا تُنشئ تقارير منفصلة لكل مرحلة أو إصلاح؛ أضف جميع الأعمال المستقبلية إلى هذا الملف مع الاحتفاظ بالتواريخ والأدلة والقرارات وسجل التغييرات.
@@ -978,9 +978,9 @@ Tap / Live scan
 ### 17.4 الإصدار والتحقق
 
 - الإصدار المجهز: v0.11.5، versionCode = 35.
-- آخر commit للكود: 6670a089222572dae76c5b17a172f5fa7cd1de57.
+- آخر commit للكود: c9ae6ffcdefbec9ce58a0717c7c7ba218846eb98.
 - CI push: [43629908422](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) — قيد التنفيذ وقت تحديث هذا التقرير.
-- CI PR: [43629912061](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629912061) — قيد التنفيذ وقت تحديث هذا التقرير.
+- CI PR: [43630232918](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629912061) — قيد التنفيذ وقت تحديث هذا التقرير.
 - لا يُعلن الإصلاح متحققاً عبر CI ولا يُعتمد APK حتى تنجح اختبارات Unit tests وبناء Debug APK والنشر.
 - v0.11.4 منشور بالفعل: [صفحة الإصدار](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.11.4) — [تحميل APK](https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.11.4/ManhwaLens-v0.11.4-debug.apk).
 
