@@ -199,6 +199,15 @@ class CachingTranslator(
                             ))
                         }
                     }
+                    val returnedIds = polished.map { it.id }.toHashSet()
+                    misses.filterNot { it.id in returnedIds }.forEach { block ->
+                        runCatching {
+                            onTranslationPair?.invoke(TranslationPairTrace(
+                                block.id, block.english, "", "", engineId, "MISSING_RESULT",
+                                "engine returned no block for this id", result.elapsedMs
+                            ))
+                        }
+                    }
                     if (rejectedIds.isNotEmpty()) {
                         val summary = rejectedIds.take(4).joinToString { "#${it.first}:${it.second.name.lowercase()}" }
                         com.manhwalens.app.util.PipelineTracer.span(
