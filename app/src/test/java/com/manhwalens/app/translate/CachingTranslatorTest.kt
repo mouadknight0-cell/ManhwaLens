@@ -205,6 +205,21 @@ class CachingTranslatorTest {
     }
 
     @Test
+    fun appliesPinnedCharacterNamesBeforeTheRemoteQualityGuard() {
+        val remote = FakeRemoteTranslator("انتظر يا Will، أريدك أن تستمع لما حدث بعد المعركة")
+        val caching = CachingTranslator(
+            delegate = remote,
+            cache = TranslationCache(),
+            pinnedOverride = { _, arabic -> arabic.replace("Will", "ويل") }
+        )
+        val source = "Will, I need you to listen to what happened after the battle yesterday."
+
+        val result = caching.translatePage(blocks(1 to source)) as PageTranslation.Success
+
+        assertEquals("انتظر يا ويل، أريدك أن تستمع لما حدث بعد المعركة", result.blocks.single().arabic)
+    }
+
+    @Test
     fun emptyInputReturnsEmptyInputFailure() {
         val fake = FakeTranslator()
         val caching = CachingTranslator(fake, TranslationCache())
