@@ -54,6 +54,66 @@ class GeminiTranslatorTest {
 
     private fun translatorWith(api: FakeGeminiApi) = GeminiTranslator(api)
 
+    private fun finishedBody(reason: String, vararg lines: Pair<Int, String>): String {
+        val text = lines.joinToString("\\n") { "[${it.first}] ${it.second}" }
+        return """{"candidates":[{"finishReason":"$reason","content":{"parts":[{"text":"$text"}]}}]}"""
+    }
+
+    @Test
+    fun maxTokensRetriesOnlyMissingIdsInSmallerChunksAndKeepsCompletedBubbles() {
+        val api = FakeGeminiApi(
+            queue = ArrayDeque(
+                listOf(
+                    GeminiHttpResult(200, finishedBody("MAX_TOKENS", 1 to "مرحبا")),
+                    GeminiHttpResult(200, okBody(2 to "خذ يدي"))
+                )
+            )
+        )
+
+        val result = translatorWith(api).translatePage(blocks) as PageTranslation.Success
+
+        assertEquals(listOf("مرحبا", "خذ يدي"), result.blocks.map { it.arabic })
+        assertEquals(2, api.requestBodies.size)
+        assertTrue(api.requestBodies[0].contains("[1] Hello!"))
+        assertTrue(api.requestBodies[0].contains("[2] Take my hand."))
+        assertTrue(api.requestBodies[1].contains("[2] Take my hand."))
+        assertFalse("completed id must not be requested again", api.requestBodies[1].contains("[1] Hello!"))
+    }
+
+    @Test
+    fun maxTokensWithNoUsableTextStillRetriesTheEntireMissingChunk() {
+        val api = FakeGeminiApi(
+            queue = ArrayDeque(
+                listOf(
+                    GeminiHttpResult(200, """{"candidates":[{"finishReason":"MAX_TOKENS","content":{"parts":[]}}]}"""),
+                    GeminiHttpResult(200, okBody(1 to "مرحبا", 2 to "خذ يدي"))
+                )
+            )
+        )
+
+        val result = translatorWith(api).translatePage(blocks) as PageTranslation.Success
+
+        assertEquals(listOf("مرحبا", "خذ يدي"), result.blocks.map { it.arabic })
+        assertEquals(2, api.requestBodies.size)
+        assertTrue(api.requestBodies[1].contains("[1] Hello!"))
+        assertTrue(api.requestBodies[1].contains("[2] Take my hand."))
+    }
+
+    @Test
+    fun safetyFinishWithoutTextIsNotMisclassifiedAsTokenLimit() {
+        val api = FakeGeminiApi(
+            result = GeminiHttpResult(
+                200,
+                """{"candidates":[{"finishReason":"SAFETY","content":{"parts":[]}}]}"""
+            )
+        )
+
+        val result = translatorWith(api).translatePage(blocks) as PageTranslation.Failure
+
+        assertEquals(FailureReason.PARSE_ERROR, result.reason)
+        assertEquals(1, api.requestBodies.size)
+    }
+
     @Test
     fun successReturnsOrderedArabicBlocksInOneRequest() {
         val api = FakeGeminiApi(result = GeminiHttpResult(200, okBody(1 to "مرحبا", 2 to "خذ يدي")))
