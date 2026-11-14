@@ -98,6 +98,14 @@ object ErrorLog {
         null
     }
 
+    fun readLastError(context: Context): String? = try {
+        File(context.filesDir, FILE_NAME)
+            .takeIf { it.exists() && it.length() > 0L }
+            ?.readText()
+    } catch (_: Throwable) {
+        null
+    }
+
     fun readEvents(context: Context): String? = try {
         File(context.filesDir, EVENTS_FILE_NAME)
             .takeIf { it.exists() && it.length() > 0L }
