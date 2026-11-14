@@ -38,7 +38,7 @@ class BatchPolicyTest {
     }
 
     @Test
-    fun oneFailure_bansThatSeparatorOnly_secondFailureEndsTheSession() {
+    fun eachFailureQuarantinesOnlyItsSeparator_andOtherStrategiesRemainEligible() {
         val p = policy()
         p.recordChoice(SplitStrategy.PIPE, "fastest")
         p.noteJoinedFailure(SplitStrategy.PIPE, "count 3 != 4")
@@ -54,12 +54,13 @@ class BatchPolicyTest {
         p.recordChoice(SplitStrategy.BULLET, "self-test")
         assertEquals(SplitStrategy.BULLET, p.current())
         assertTrue(p.describe().contains("banned 7 d: |"))
-        // Second mismatch in the same session: joined is off until restart.
+        // A second mismatch quarantines BULLET too, but HASH remains eligible.
         p.noteJoinedFailure(SplitStrategy.BULLET, "count 2 != 3")
-        assertTrue(p.isJoinedBlocked())
-        assertFalse(p.needsSelfTest())
+        assertFalse(p.isJoinedBlocked())
+        assertTrue(p.needsSelfTest())
+        assertFalse(SplitStrategy.BULLET in p.allowedStrategies())
         p.recordChoice(SplitStrategy.HASH, "benchmark")
-        assertNull(p.current())
+        assertEquals(SplitStrategy.HASH, p.current())
     }
 
     @Test
@@ -114,12 +115,24 @@ class BatchPolicyTest {
     }
 
     @Test
-    fun upgradeToRules3_dropsANoisyParallelLevel_andOldBans() {
+    fun upgradeFromRules2_dropsLegacyBans_andNoisyParallelLevel() {
         store.longs[BatchPolicy.KEY_RULES] = 2L
         store.longs[BatchPolicy.KEY_PARALLEL_LEVEL] = 6L
+        store.longs[BatchPolicy.KEY_BAN_PREFIX + SplitStrategy.PIPE.id] = now + 6 * BatchPolicy.DAY_MS
         store.longs[BatchPolicy.KEY_BLOCK_UNTIL] = now + 6 * BatchPolicy.DAY_MS
         val p = policy()
         assertEquals(2, p.parallelLevel())
+        assertFalse(p.isJoinedBlocked())
+        assertFalse(p.isBanned(SplitStrategy.PIPE))
+        assertTrue(p.needsSelfTest())
+    }
+
+    @Test
+    fun upgradeFromRules3_preservesAValidPerSeparatorBan() {
+        store.longs[BatchPolicy.KEY_RULES] = 3L
+        store.longs[BatchPolicy.KEY_BAN_PREFIX + SplitStrategy.PIPE.id] = now + 6 * BatchPolicy.DAY_MS
+        val p = policy()
+        assertTrue(p.isBanned(SplitStrategy.PIPE))
         assertFalse(p.isJoinedBlocked())
         assertTrue(p.needsSelfTest())
     }

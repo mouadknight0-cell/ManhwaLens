@@ -22,6 +22,20 @@ class BatchAutoSelectTest {
     private val isJoined: (String) -> Boolean = { it.length > 40 } // 4 strings joined are > 40 chars
 
     @Test
+    fun candidateRankingUsesMeasuredSpeed_withoutBulletPreference() {
+        val trials = listOf(
+            BatchAutoSelect.Trial(SplitStrategy.BULLET, true, 100, 0, "ok"),
+            BatchAutoSelect.Trial(SplitStrategy.ANGLE_NUM, true, 80, 0, "ok"),
+            BatchAutoSelect.Trial(SplitStrategy.PIPE, true, 90, 0, "ok"),
+            BatchAutoSelect.Trial(SplitStrategy.HASH, false, 10, 1, "mismatch")
+        )
+        assertEquals(
+            listOf(SplitStrategy.ANGLE_NUM, SplitStrategy.PIPE, SplitStrategy.BULLET),
+            BatchAutoSelect.rankCandidates(trials).map { it.strategy }
+        )
+    }
+
+    @Test
     fun picksFastestStrategyThatMaps() {
         val clock = Clock()
         // PIPE is the cheapest joined call; single per-block calls are expensive.

@@ -4,13 +4,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Tiny on-device self-test (v0.9.9): 4 short strings per [SplitStrategy], each strategy run
- * [RUNS] times. A strategy qualifies only when EVERY run maps 100 % ([BatchSplitter.validate]).
- * The fastest qualifying strategy wins — unless plain parallel per-block calls are at least
- * as fast on the same strings, in which case parallel stays (joined would buy nothing).
- * Before a separator is adopted it must also survive ONE full benchmark-page call ([CONFIRM], 20
- * bubbles): on the test device "@@@" lost its markers at exactly that size, and a 4-string
- * pass alone would have sent the first real page into a failed joined attempt.
+ * On-device self-test: short strings pre-screen each [SplitStrategy] with median timings.
+ * Every run must map 100 %. Before adoption, a candidate must also pass two full 20-bubble
+ * confirmations. The fastest qualifying strategy wins unless parallel is at least as fast.
  * No qualifying strategy ⇒ parallel.
  *
  * Pure logic: [translateOne] is the raw engine call (throws on failure).
@@ -27,13 +23,14 @@ object BatchAutoSelect {
     /** Full-page confirmation sample (all 20 benchmark bubbles used by the device benchmark). */
     val CONFIRM: List<String> get() = BenchmarkRunner.SAMPLE.map { it.english }
 
-    const val RUNS = 2
+    const val RUNS = 3
+    const val CONFIRM_RUNS = 2
     const val PARALLEL_LIMIT = 2
 
     data class Trial(
         val strategy: SplitStrategy,
         val ok: Boolean,
-        /** Fastest run, ms. */
+        /** Median run time, ms. */
         val elapsedMs: Long,
         val mismatched: Int,
         val reason: String
@@ -59,7 +56,7 @@ object BatchAutoSelect {
 
         val firstTrials = strategies.map { s ->
             var ok = true
-            var best = Long.MAX_VALUE
+            val durations = ArrayList<Long>(RUNS)
             var mismatched = 0
             var reason = "ok"
             for (run in 0 until RUNS) {
@@ -69,7 +66,7 @@ object BatchAutoSelect {
                 } catch (e: Exception) {
                     BatchSplitter.Result(false, emptyList(), sample.size, "error: ${e.javaClass.simpleName}")
                 }
-                best = minOf(best, clock() - t0)
+                durations += (clock() - t0).coerceAtLeast(0L)
                 if (!v.ok) {
                     ok = false
                     mismatched = maxOf(mismatched, v.mismatched)
@@ -77,7 +74,7 @@ object BatchAutoSelect {
                     break
                 }
             }
-            Trial(s, ok, best, mismatched, reason)
+            Trial(s, ok, median(durations), mismatched, reason)
         }
 
         val parallelMs = timeParallel(translateOne, sample, clock)
@@ -86,22 +83,29 @@ object BatchAutoSelect {
         var confirmedTrials = firstTrials
         var winner: Trial? = null
         for (candidate in rankCandidates(firstTrials)) {
-            val v = if (confirmSample.isEmpty()) null else try {
-                BatchSplitter.validate(
-                    candidate.strategy, confirmSample,
-                    translateOne(BatchSplitter.join(candidate.strategy, confirmSample))
-                )
-            } catch (e: Exception) {
-                BatchSplitter.Result(false, emptyList(), confirmSample.size, "error: ${e.javaClass.simpleName}")
+            var pageFailure: BatchSplitter.Result? = null
+            repeat(if (confirmSample.isEmpty()) 0 else CONFIRM_RUNS) { pageRun ->
+                if (pageFailure == null) {
+                    val v = try {
+                        BatchSplitter.validate(
+                            candidate.strategy, confirmSample,
+                            translateOne(BatchSplitter.join(candidate.strategy, confirmSample))
+                        )
+                    } catch (e: Exception) {
+                        BatchSplitter.Result(false, emptyList(), confirmSample.size, "error: ${e.javaClass.simpleName}")
+                    }
+                    if (!v.ok) pageFailure = v.copy(reason = "confirmation ${pageRun + 1}/$CONFIRM_RUNS: ${v.reason}")
+                }
             }
-            if (v == null || v.ok) {
+            if (pageFailure == null) {
                 winner = candidate
                 break
             }
+            val failure = pageFailure!!
             rejected += candidate.strategy.label
             confirmedTrials = confirmedTrials.map {
                 if (it.strategy == candidate.strategy) {
-                    it.copy(ok = false, mismatched = v.mismatched, reason = "page-size check: ${v.reason}")
+                    it.copy(ok = false, mismatched = failure.mismatched, reason = "page-size check: ${failure.reason}")
                 } else it
             }
         }
@@ -125,35 +129,29 @@ object BatchAutoSelect {
         }
     }
 
-    /**
-     * Passing candidates, fastest first — except that "•" goes first whenever it is within
-     * [BULLET_SLACK] of the fastest. Field evidence (Redmi 13C): " | " won a 4-string timing
-     * by noise and then lost a separator on a real page, while "•" mapped 20/20 in every
-     * benchmark pass; on 4 short strings the timings differ by less than their jitter.
-     */
-    fun rankCandidates(trials: List<Trial>): List<Trial> {
-        val byTime = trials.filter { it.ok }.sortedBy { it.elapsedMs }
-        val fastest = byTime.firstOrNull() ?: return byTime
-        val bullet = byTime.firstOrNull { it.strategy == SplitStrategy.BULLET } ?: return byTime
-        return if (bullet.elapsedMs <= fastest.elapsedMs * BULLET_SLACK) {
-            listOf(bullet) + byTime.filter { it !== bullet }
-        } else byTime
+    /** Passing candidates, fastest first; no separator receives a hard-coded preference. */
+    fun rankCandidates(trials: List<Trial>): List<Trial> =
+        trials.filter { it.ok }.sortedBy { it.elapsedMs }
+
+    private fun median(values: List<Long>): Long {
+        if (values.isEmpty()) return -1L
+        val sorted = values.sorted()
+        val mid = sorted.size / 2
+        return if (sorted.size % 2 == 1) sorted[mid] else (sorted[mid - 1] + sorted[mid]) / 2
     }
 
-    const val BULLET_SLACK = 1.5
-
-    /** Best of [RUNS] parallel per-block passes, or -1 when a call fails. */
+    /** Median of [RUNS] parallel per-block passes, or -1 when a call fails. */
     private fun timeParallel(translateOne: (String) -> String, sample: List<String>, clock: () -> Long): Long {
         val pool = Executors.newFixedThreadPool(PARALLEL_LIMIT)
         return try {
-            var best = Long.MAX_VALUE
+            val durations = ArrayList<Long>(RUNS)
             for (run in 0 until RUNS) {
                 val t0 = clock()
                 val futures = sample.map { text -> pool.submit<String> { translateOne(text) } }
                 if (futures.any { it.get(30, TimeUnit.SECONDS).isBlank() }) return -1L
-                best = minOf(best, clock() - t0)
+                durations += (clock() - t0).coerceAtLeast(0L)
             }
-            best
+            median(durations)
         } catch (e: Exception) {
             -1L
         } finally {
