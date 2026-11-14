@@ -69,7 +69,14 @@ internal class AiCleanupCoordinator(
             box to Rect(left, top, right, bottom)
         }
 
-        executor.execute {
+        // The capture service retains this same bitmap for Review mode and recycles
+        // it when the next capture arrives. The cleanup worker is asynchronous, so it
+        // must own an immutable snapshot rather than borrowing that short-lived frame.
+        val snapshot = runCatching { frame.copy(Bitmap.Config.ARGB_8888, false) }.getOrNull()
+            ?: return
+        val submitted = runCatching {
+            executor.execute {
+                try {
             // Re-read mutable preferences after queueing. A user may have enabled
             // Offline mode, disabled cleanup or removed the key while this task waited.
             val currentSettings = SettingsPrefs(appContext)
@@ -109,7 +116,7 @@ internal class AiCleanupCoordinator(
                     break
                 }
                 val cropped = try {
-                    Bitmap.createBitmap(frame, rect.left, rect.top, rect.width(), rect.height())
+                    Bitmap.createBitmap(snapshot, rect.left, rect.top, rect.width(), rect.height())
                 } catch (e: Exception) {
                     Log.i(TAG, "ai cleanup: crop failed for #${box.id} — kept local patch (${e.javaClass.simpleName})")
                     null
@@ -165,6 +172,14 @@ internal class AiCleanupCoordinator(
             val elapsedMs = SystemClock.elapsedRealtime() - t0
             Log.i(TAG, "ai cleanup used (cloud) · replaced $replaced/${plans.size} bubble(s) · model=$model · $elapsedMs ms")
             PipelineTracer.span("ai cleanup", elapsedMs, "AI cleanup used (cloud) · replaced $replaced/${plans.size} · model=$model")
+                } finally {
+                    runCatching { if (!snapshot.isRecycled) snapshot.recycle() }
+                }
+            }
+        }
+        submitted.exceptionOrNull()?.let { error ->
+            runCatching { if (!snapshot.isRecycled) snapshot.recycle() }
+            Log.w(TAG, "ai cleanup: worker could not be scheduled — ${error.javaClass.simpleName}")
         }
     }
 
