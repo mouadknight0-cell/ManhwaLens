@@ -13,6 +13,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +46,7 @@ fun OfflineTranslationModelCard() {
         TranslateRemoteModel.Builder(TranslateLanguage.ARABIC).build()
     }
     var ready by remember { mutableStateOf<Boolean?>(null) }
+    var offlineMode by remember { mutableStateOf(com.manhwalens.app.data.TranslationPrefs(androidx.compose.ui.platform.LocalContext.current).offlineMode) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("جارٍ التحقق من نموذج الترجمة…") }
 
@@ -74,6 +76,29 @@ fun OfflineTranslationModelCard() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(Modifier.size(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("فرض الترجمة دون إنترنت", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "عند التفعيل: ML Kit فقط، مع تعطيل Gemini وLibreTranslate والترقية السحابية.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = offlineMode,
+                    onCheckedChange = { enabled ->
+                        offlineMode = enabled
+                        com.manhwalens.app.data.TranslationPrefs(
+                            androidx.compose.ui.platform.LocalContext.current
+                        ).offlineMode = enabled
+                    }
+                )
+            }
             Spacer(Modifier.size(8.dp))
             Text(message, style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.size(10.dp))
