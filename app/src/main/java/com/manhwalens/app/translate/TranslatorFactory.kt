@@ -127,7 +127,10 @@ object TranslatorFactory {
             LibreTranslateTranslator(
                 api = HttpUrlConnectionLibreTranslateApi(),
                 endpointProvider = { prefs.libreTranslateUrl },
-                apiKeyProvider = { prefs.libreTranslateApiKey }
+                apiKeyProvider = { prefs.libreTranslateApiKey },
+                // P2-08: LibreTranslate has no prompt channel; apply the same resolved
+                // page/series name table to its source text before the HTTP request.
+                nameTableProvider = { texts -> session.tableFor(texts).table }
             ),
             sharedCache,
             disk(context),
