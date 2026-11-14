@@ -3858,6 +3858,8 @@ class FloatingButtonService : Service() {
         private val renderBoxesById = LinkedHashMap<Int, com.manhwalens.app.render.BubbleRenderBox>()
         /** Monotonic generation per area prevents an older worker build replacing newer text. */
         private val areaGeneration = HashMap<Int, Int>()
+        /** Last generation successfully rasterized; finish retries only missing/failed areas. */
+        private val builtGenerationByArea = HashMap<Int, Int>()
         private val areaPlanById = HashMap<Int, com.manhwalens.app.render.PatchPlanner.Area>()
         private val remoteWins = HashSet<Int>()
         /**
@@ -3984,6 +3986,11 @@ class FloatingButtonService : Service() {
                 null
             }
             if (patch != null) {
+                synchronized(lock) {
+                    if (areaGeneration[ownerId] == generation) {
+                        builtGenerationByArea[ownerId] = generation
+                    }
+                }
                 diagnostics?.recordOverlayText(
                     tb.id, block.text, tb.arabic, if (remote) "remote" else engineId, patchBuilt = true
                 )
@@ -4031,6 +4038,8 @@ class FloatingButtonService : Service() {
                 for (t in translations) {
                     if (t.arabic.isBlank() || painted.containsKey(t.id) || remoteWins.contains(t.id)) continue
                     val block = blocksById[t.id] ?: continue
+                    val verdict = com.manhwalens.app.translate.ArabicValidator.issue(block.text, t.arabic)
+                    if (verdict != null) continue
                     val r = block.bounds
                     val left = r.left.toInt().coerceIn(0, bitmap.width)
                     val top = r.top.toInt().coerceIn(0, bitmap.height)
@@ -4054,26 +4063,68 @@ class FloatingButtonService : Service() {
                         )
                     } else box
                     paintLedger.record(t.id)
+                    val ownerId = areaPlanById[t.id]?.ownerId ?: t.id
+                    areaGeneration[ownerId] = (areaGeneration[ownerId] ?: 0) + 1
                 }
             }
             Log.i(TAG, paintLedger.line())
             val snap = snapshot()
-            if (snap.isNotEmpty() && !attachRequested) attachRequested = true
-            // Final reconciliation always emits one composite bitmap per area. This repairs
-            // progressive builds that raced, failed, or temporarily contained only one sibling.
-            val patches = buildPatches(bitmap, snap, areas)
+            val generationSnapshot: Map<Int, Int>
+            val staleAreas: List<com.manhwalens.app.render.PatchPlanner.Area>
+            synchronized(lock) {
+                generationSnapshot = areaGeneration.toMap()
+                staleAreas = areas.filter { area ->
+                    val current = areaGeneration[area.ownerId] ?: 0
+                    val built = builtGenerationByArea[area.ownerId] ?: -1
+                    current > 0 && built != current
+                }
+            }
+            if (snap.isEmpty() || staleAreas.isEmpty()) return
+            if (!attachRequested) attachRequested = true
+
+            // Retry only areas whose latest composite failed or was superseded. Successful
+            // progressive composites are already on screen and need no second raster pass.
+            val patches = buildPatches(bitmap, snap, staleAreas)
             val builtIds = patches.map { it.id }.toHashSet()
-            snap.filter { it.id in builtIds }.forEach { box ->
+            snap.filter { box ->
+                val owner = com.manhwalens.app.render.PatchPlanner.ownerOf(staleAreas, box.id)
+                owner in builtIds
+            }.forEach { box ->
                 diagnostics?.recordOverlayText(
                     box.id, box.english, box.arabic, "final-reconcile", patchBuilt = true
                 )
             }
             val elapsed = SystemClock.elapsedRealtime() - tapStartMs
             mainHandler.post {
-                if (patches.isNotEmpty()) {
-                    patchOverlayEnsure().replaceAll(patches, bitmap.width, bitmap.height)
-                    Log.i(TAG, "painter finish: composite-swapped ${patches.size} patch area(s) (elapsed=${elapsed} ms)")
+                if (patches.isEmpty()) return@post
+                val po = patchOverlayEnsure()
+                if (!attached) {
+                    attached = true
+                    firstBubbleMs = elapsed
+                    po.beginSession("page change")
+                    PipelineTracer.span(
+                        "first bubble shown at", firstBubbleMs,
+                        "patch 1 painted (final reconciliation)"
+                    )
+                    PipelineTracer.record(
+                        PipelineTracer.Stage.OVERLAY, StageTrace.Status.OK, 0L,
+                        "transparent patch overlay attached (tap→overlay ${firstBubbleMs} ms)"
+                    )
                 }
+                for (patch in patches) {
+                    val expected = generationSnapshot[patch.id] ?: 0
+                    val stillLatest = synchronized(lock) { areaGeneration[patch.id] == expected }
+                    if (!stillLatest) {
+                        runCatching { patch.bitmap.recycle() }
+                        continue
+                    }
+                    if (po.patchRect(patch.id) != null) {
+                        po.replaceBitmap(patch.id, patch.bitmap)
+                    } else {
+                        po.upsert(patch, bitmap.width, bitmap.height)
+                    }
+                }
+                Log.i(TAG, "painter finish: reconciled ${patches.size} composite area(s) (elapsed=${elapsed} ms)")
             }
         }
     }
