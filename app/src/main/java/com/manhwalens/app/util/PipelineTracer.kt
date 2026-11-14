@@ -82,7 +82,8 @@ object PipelineTracer {
             if (stages.size > MAX_STAGES) stages = ArrayList(stages.takeLast(MAX_STAGES))
         }
         if (status == StageTrace.Status.FAILED) {
-            try { eventSink?.invoke("pipeline.${stage.wire.lowercase()}", safeDetail) } catch (_: Throwable) { }
+            // Persist only structural metadata automatically; never mirror OCR/translation text.
+            try { eventSink?.invoke("pipeline.${stage.wire.lowercase()}", "failed duration_ms=${durationMs.coerceAtLeast(0)}") } catch (_: Throwable) { }
         }
     }
 
