@@ -65,6 +65,9 @@ class ManhwaLensApp : Application() {
     override fun onCreate() {
         super.onCreate()
         ErrorLog.record(this, "startup", "Application.onCreate entered")
+        com.manhwalens.app.util.PipelineTracer.eventSink = { source, detail ->
+            ErrorLog.record(this, source, detail)
+        }
         // Idempotent re-install (no-op once attachBaseContext installed it).
         try {
             ErrorLog.install(this)
