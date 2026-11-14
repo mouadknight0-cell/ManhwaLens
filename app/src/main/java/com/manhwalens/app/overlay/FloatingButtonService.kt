@@ -2775,8 +2775,14 @@ class FloatingButtonService : Service() {
             // PagePlan.engineBlocks keeps each item's FIRST original id, so the engine ids are
             // real block ids and the painter can still map them back to OCR bounds. Priority
             // order therefore sorts the engine blocks by their own rank directly.
-            val blocksToSend = com.manhwalens.app.translate.PagePlan.engineBlocks(dedupePlan)
-                .sortedBy { rankById[it.id] ?: Int.MAX_VALUE }
+            //
+            // P2-02: two orders, two purposes. The local progressive pass paints in visual
+            // priority order (short → biggest → most central first) so the most useful bubbles
+            // land first; every request that may reach a REMOTE engine uses page/reading order,
+            // because the remote prompt tells the model that consecutive blocks are consecutive
+            // page dialogue and its chunker slices that list sequentially.
+            val remoteBlocks = com.manhwalens.app.translate.PagePlan.remoteOrder(dedupePlan)
+            val blocksToSend = com.manhwalens.app.translate.PagePlan.progressiveOrder(dedupePlan, rankById)
 
             // Progressive display (Part C): paint each bubble the moment its Arabic lands.
             val painter: BubblePainter? = if (pageBlocks.isNotEmpty()) {
@@ -2810,7 +2816,7 @@ class FloatingButtonService : Service() {
                     if (useProgressive && painter != null) {
                         val relayPlan = dedupePlan
                         val relayOriginal = pageBlocks
-                        val relayUnique = blocksToSend
+                        val relayUnique = remoteBlocks
                         val relayPainter = painter
                         // Keep remote work on its own executor; model warm-up cannot queue ahead of it.
                         remoteExecutor.execute {
@@ -2838,7 +2844,8 @@ class FloatingButtonService : Service() {
                                 "progressive switch", 0,
                                 "ml kit first pass failed — factory order"
                             )
-                            com.manhwalens.app.translate.TranslatorFactory.create(applicationContext).translatePage(blocksToSend)
+                            // May resolve to a remote engine → page order (P2-02).
+                            com.manhwalens.app.translate.TranslatorFactory.create(applicationContext).translatePage(remoteBlocks)
                         }
                     } else if (useProgressive) {
                         val mlkit = com.manhwalens.app.translate.TranslatorFactory.createOffline(applicationContext)
@@ -2847,11 +2854,13 @@ class FloatingButtonService : Service() {
                             usedProgressiveMlKit = true
                             fast
                         } else {
-                            com.manhwalens.app.translate.TranslatorFactory.create(applicationContext).translatePage(blocksToSend)
+                            // May resolve to a remote engine → page order (P2-02).
+                            com.manhwalens.app.translate.TranslatorFactory.create(applicationContext).translatePage(remoteBlocks)
                         }
                     } else {
                         Log.i(TAG, "translating ${blocksToSend.size} unique blocks")
-                        tr = com.manhwalens.app.translate.TranslatorFactory.create(applicationContext).translatePage(blocksToSend)
+                        // May resolve to a remote engine → page order (P2-02).
+                        tr = com.manhwalens.app.translate.TranslatorFactory.create(applicationContext).translatePage(remoteBlocks)
                     }
                     when (tr) {
                         is com.manhwalens.app.translate.PageTranslation.Success -> {

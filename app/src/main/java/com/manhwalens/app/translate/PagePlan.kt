@@ -119,6 +119,26 @@ object PagePlan {
         plan.items.map { item -> TranslationBlock(item.ids.first(), item.text) }
 
     /**
+     * P2-02 — the order a REMOTE engine must see: page / reading order.
+     *
+     * A remote prompt (Gemini) tells the model that consecutive blocks are one page's
+     * consecutive dialogue, so the list handed to it — and therefore the chunk boundaries its
+     * chunker computes — has to be page order ([engineBlocks]). Sorting that list by how good a
+     * bubble looks (short, large, central) scrambles the reading sequence and costs the model
+     * the context the prompt promises.
+     */
+    fun remoteOrder(plan: Plan): List<TranslationBlock> = engineBlocks(plan)
+
+    /**
+     * P2-02 — the order the LOCAL progressive pass paints in: visual priority (rank from
+     * [BlockPriority], lower is earlier; unranked ids last). This is what makes the biggest,
+     * most useful bubbles appear first on a slow device, and it must never reach a remote
+     * request — it is not reading order.
+     */
+    fun progressiveOrder(plan: Plan, rankById: Map<Int, Int>): List<TranslationBlock> =
+        engineBlocks(plan).sortedBy { rankById[it.id] ?: Int.MAX_VALUE }
+
+    /**
      * Restore every original id from the engine answers (keyed by representative block id).
      * Blocks dropped as meaningless, and answers the guard rejected, come back EMPTY so
      * the overlay paints nothing over them (it must never paint English).

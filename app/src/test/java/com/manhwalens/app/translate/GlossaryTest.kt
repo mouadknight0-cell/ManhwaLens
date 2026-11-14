@@ -86,6 +86,107 @@ class GlossaryTest {
         org.junit.Assert.assertTrue("100 blocks took ${'$'}ms ms", ms < 400)
     }
 
+    // ---------------------------------------------------------------- P2-01: false positives
+
+    @Test
+    fun ordinaryLongAndSunStayEnglish() {
+        Glossary.refresh("", true)
+        // Both are real table keys ("Long" لونغ, "Sun" سون); neither is a name here.
+        assertEquals(
+            "How long until the sun sets?",
+            Glossary.prepare("How long until the sun sets?")
+        )
+        assertEquals(
+            "The long road was hot and the sun was in his eyes.",
+            Glossary.prepare("The long road was hot and the sun was in his eyes.")
+        )
+        assertFalse(Glossary.prepare("How long?").contains("لونغ"))
+        assertFalse(Glossary.prepare("The sun rose.").contains("سون"))
+    }
+
+    @Test
+    fun sentenceInitialLongAndSunAreStillOrdinaryWords() {
+        Glossary.refresh("", true)
+        // Capitalisation and sentence position are NOT evidence of a name (P2-01).
+        assertEquals(
+            "Long ago, the road was empty.",
+            Glossary.prepare("Long ago, the road was empty.")
+        )
+        assertEquals(
+            "Sun was in his eyes and the road was long.",
+            Glossary.prepare("Sun was in his eyes and the road was long.")
+        )
+        assertFalse(Glossary.prepare("Long before you were born.").contains("لونغ"))
+        assertFalse(Glossary.prepare("Sun poured through the window.").contains("سون"))
+    }
+
+    @Test
+    fun shortCollisionsStayEnglish() {
+        Glossary.refresh("", true)
+        assertEquals(
+            "She put the pan on the fire and used the tan cloth.",
+            Glossary.prepare("She put the pan on the fire and used the tan cloth.")
+        )
+        assertEquals("He heard a ding from the bell.", Glossary.prepare("He heard a ding from the bell."))
+        // "Song" is a table key (سونغ) and an ordinary noun; the genre term next to it still works.
+        assertEquals("He sang a Song for the sect.", Glossary.prepare("He sang a Song for the sect."))
+        assertFalse(Glossary.prepare("A Song in the hall.").contains("سونغ"))
+    }
+
+    @Test
+    fun termsStillTranslateInAnyCase() {
+        Glossary.refresh("", true)
+        // P2-01 must not weaken the term dictionary: these are the table's subject matter.
+        val out = Glossary.prepare("The sect kept the core warm for his qi.")
+        assertTrue(out, out.contains("طائفة"))
+        assertTrue(out, out.contains("الجوهرة"))
+        assertTrue(out, out.contains("تشي"))
+        assertTrue(Glossary.prepare("Yes, shidi.").contains("الأخ الأصغر"))
+    }
+
+    @Test
+    fun genuineNamesStillTranslate() {
+        Glossary.refresh("", true)
+        val out = Glossary.prepare("Song Lan waited for Wei Wuxian.")
+        assertTrue(out, out.contains("سونغ لان"))
+        assertTrue(out, out.contains("وي ووشيان"))
+        assertFalse("the Latin name must be gone: $out", out.contains("Wuxian"))
+        assertFalse("the Latin name must be gone: $out", out.contains("Song Lan"))
+        // A one-word name keeps working when it is written as a two-word name.
+        assertEquals("سونغ لان drew his sword.", Glossary.prepare("Song Lan drew his sword."))
+    }
+
+    @Test
+    fun aPinnedNameIsAlwaysHonoured() {
+        // The reader's own Settings line is explicit evidence: it wins over every rule above.
+        Glossary.refresh("Long = لونغ", true)
+        assertEquals("لونغ is here.", Glossary.prepare("Long is here."))
+        // Only what the reader pinned is affected.
+        assertEquals("A Song in the hall.", Glossary.prepare("A Song in the hall."))
+    }
+
+    @Test
+    fun thePinIsScopedToTheCurrentSettings() {
+        Glossary.refresh("Long = لونغ", true)
+        assertTrue(Glossary.prepare("Long is here.").contains("لونغ"))
+        Glossary.refresh("", true)
+        assertEquals("Long is here.", Glossary.prepare("Long is here."))
+    }
+
+    @Test
+    fun theTableStillCarriesTheNameForTheMemory() {
+        Glossary.refresh("", true)
+        // P2-01 only refuses the replacement, it does not forget the name: the memory planner
+        // (SceneNames.pin / NameMemory) reads effective(), so "Long" is still offerable.
+        assertEquals("لونغ", Glossary.effective()["Long"])
+        assertEquals("سونغ", Glossary.effective()["Song"])
+        // …and the memory path still converts a name the glossary now leaves alone.
+        assertEquals(
+            "قال لونغ ذلك",
+            com.manhwalens.app.names.NameForm.replaceLatin("قال Long ذلك", "لونغ", listOf("Long"))
+        )
+    }
+
     @Test
     fun cacheKeyFollowsThePreparedText() {
         Glossary.refresh("", true)

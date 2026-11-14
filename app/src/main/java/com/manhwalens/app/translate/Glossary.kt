@@ -22,7 +22,13 @@ object Glossary {
     var config: Config = Config()
         private set
 
-    private class Compiled(val map: Map<String, String>, val patterns: List<Pair<Regex, String>>)
+    /**
+     * One compiled replacement rule. [pinned] is true only for an entry the reader wrote in
+     * Settings: an explicit pin always wins (see [accepts]).
+     */
+    private class Rule(val pattern: Regex, val arabic: String, val pinned: Boolean)
+
+    private class Compiled(val map: Map<String, String>, val rules: List<Rule>)
 
     @Volatile
     private var compiledCache: Compiled? = null
@@ -36,10 +42,15 @@ object Glossary {
     private fun compiled(): Compiled = compiledCache ?: synchronized(this) {
         compiledCache ?: run {
             val map = buildEffective(config.userText)
-            val patterns = map.entries.sortedByDescending { it.key.length }.map { (key, arabic) ->
-                Regex("(?i)(?<![\\p{L}])" + Regex.escape(key) + "(?![\\p{L}])") to arabic
+            val userKeys = userEntries(config.userText).keys.map { it.lowercase() }.toSet()
+            val rules = map.entries.sortedByDescending { it.key.length }.map { (key, arabic) ->
+                Rule(
+                    Regex("(?i)(?<![\\p{L}])" + Regex.escape(key) + "(?![\\p{L}])"),
+                    arabic,
+                    key.lowercase() in userKeys
+                )
             }
-            Compiled(map, patterns).also { compiledCache = it }
+            Compiled(map, rules).also { compiledCache = it }
         }
     }
 
@@ -57,6 +68,10 @@ object Glossary {
      * Everything an engine would otherwise have to guess: line breaks/hyphenation fixed,
      * (optionally) a multi-line bubble collapsed to one sentence, names resolved to Arabic.
      * Idempotent — an already prepared string comes back unchanged.
+     *
+     * Since P2-01 a word is only replaced when [accepts] can tell it apart from
+     * ordinary English: an ordinary "long"/"sun"/"song" is left for the engine instead of
+     * being swapped for Arabic letters.
      */
     fun prepare(text: String, mergeLines: Boolean = config.mergeLines): String {
         val c = compiled()
@@ -84,11 +99,54 @@ object Glossary {
     private fun applyCompiled(text: String, c: Compiled): String {
         if (text.isEmpty()) return text
         var out = text
-        for ((pattern, arabic) in c.patterns) {
-            if (!pattern.containsMatchIn(out)) continue
-            out = pattern.replace(out) { m -> if (ambiguousShort(m.value)) m.value else arabic }
+        for (rule in c.rules) {
+            if (!rule.pattern.containsMatchIn(out)) continue
+            out = rule.pattern.replace(out) { m -> if (accepts(m.value, rule)) rule.arabic else m.value }
         }
         return transliterateUnknown(out, c.map)
+    }
+
+    /**
+     * P2-01 — is this occurrence really the name/term, or an ordinary English word?
+     *
+     * The table is matched case-insensitively, and several keys are also everyday English words
+     * ("long", "song", "sun", "pan", "tan", "ding", "ma", "ye", "li"…). Replacing those turned
+     * "How long until the sun sets?" into "How لونغ until the سون sets?" before any engine saw it.
+     * The rules below are deliberately conservative — an ambiguous word is left alone and the
+     * engine translates it:
+     *
+     *  1. an entry the reader wrote in Settings is an explicit pin → always honoured;
+     *  2. a multi-word or hyphenated key ("Wei Wuxian", "young master", "Mobei-Jun") is
+     *     unambiguous → always replaced;
+     *  3. a lower-case genre term ("sect", "core", "qi", "shidi" — [TERMS]) is the table's
+     *     subject matter, not a name: replaced in any case, exactly as before;
+     *  4. any other single word must be written capitalised in the source ("Wei", never "wei")
+     *     and must not be ALL CAPS (sound effect / acronym);
+     *  5. its lower-case form must not be an ordinary English word ([AMBIGUOUS_ENGLISH] — the
+     *     stop-word list plus the English words that collide with table keys).
+     *
+     * Sentence position is deliberately NOT used: "Long ago…" at the start of a bubble is the
+     * same ordinary word as in the middle, so capitalisation alone cannot separate the two.
+     *
+     * TRADE-OFF (documented in REPOSITORY_REPORT.md): a character actually named "Long",
+     * "Song", "Sun"… keeps the Latin spelling on the glossary path, because a one-word token
+     * gives no deterministic signal and corrupting prose is the worse failure. Every escape
+     * hatch stays open and needs no code change: the reader's own Settings line (explicit pin →
+     * rule 1), a multi-word spelling ("Long Wei"), and the series name memory the model builds
+     * ([SceneNames], which runs after [prepare] and never sees a name the glossary already
+     * converted). Nothing here can be made both deterministic and context-aware without a
+     * model, and this object is pure Kotlin by design.
+     */
+    private fun accepts(matched: String, rule: Rule): Boolean {
+        if (rule.arabic.isBlank()) return false
+        if (rule.pinned) return true
+        if (matched.contains(' ') || matched.contains('-')) return true
+        val lower = matched.lowercase()
+        if (lower in TERMS) return true
+        if (matched.length < 2) return false
+        if (!matched.first().isUpperCase()) return false
+        if (matched.none { it.isLowerCase() }) return false
+        return lower !in AMBIGUOUS_ENGLISH
     }
 
     private fun replaceWord(text: String, key: String, arabic: String): String {
@@ -270,6 +328,28 @@ object Glossary {
         "fire", "water", "wind", "light", "dark", "darkness", "power", "strength", "magic",
         "sect", "clan", "family", "empire", "army", "soldier", "general", "captain", "guard",
         "swear", "promise", "remember", "forget", "understand", "believe", "think", "know"
+    )
+
+    /**
+     * P2-01 — single-word genre terms the table exists to translate ("the sect", "his core",
+     * "her qi", "yes, shidi"). They are the table's subject matter, so they are replaced in any
+     * case, exactly as before this fix. Everything else single-word has to earn its replacement.
+     */
+    private val TERMS: Set<String> = setOf(
+        "alchemy", "array", "core", "cultivation", "cultivator", "dantian", "demon",
+        "ghost", "immortal", "pill", "qi", "sect", "spirit", "talisman",
+        "shidi", "shifu", "shijie", "shimei", "shixiong"
+    )
+
+    /**
+     * P2-01 — table keys that are also ordinary English words. A capitalised occurrence of one of
+     * these is still not evidence of a name ("Long ago", "the Sun set", "a Song in the hall", "a
+     * pan of water"), so the glossary leaves it to the engine. Multi-word entries built from them
+     * ("Song Lan", "Long Wei"), the reader's own entries and the series name memory are unaffected.
+     */
+    private val AMBIGUOUS_ENGLISH: Set<String> = ENGLISH_WORDS + setOf(
+        "long", "song", "sun", "pan", "tan", "ding", "tang", "fang",
+        "ma", "mo", "ye", "tao", "dong", "wang", "li", "ren"
     )
 
     /** Built-in Chinese-style names and terms as they appear in English translations. */
