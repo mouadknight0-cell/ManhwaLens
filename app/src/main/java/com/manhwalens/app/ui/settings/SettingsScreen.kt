@@ -52,6 +52,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.manhwalens.app.data.CharacterMemory
 import com.manhwalens.app.util.ErrorLog
+import com.manhwalens.app.util.TranslationPairLog
 import com.manhwalens.app.ui.theme.LensVioletSoft
 import com.manhwalens.app.ui.theme.PanelAmber
 
@@ -106,6 +107,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var fontScale by remember { mutableStateOf(prefs.fontScale) }
     var autoCapture by remember { mutableStateOf(prefs.autoCaptureOnScroll) }
     var debugMode by remember { mutableStateOf(prefs.debugMode) }
+    var pairLogCount by remember { mutableStateOf(TranslationPairLog.count(context)) }
     var liveMode by remember { mutableStateOf(prefs.liveMode) }
     var liveApps by remember { mutableStateOf(prefs.liveAllowedApps) }
     var ignoreTop by remember { mutableStateOf(prefs.ignoreTopPct) }
@@ -566,6 +568,42 @@ fun SettingsScreen(onBack: () -> Unit) {
                         prefs.debugMode = checked
                     }
                 )
+            }
+            Spacer(Modifier.size(8.dp))
+            Text(
+                text = stringResource(R.string.translation_pairs_note, pairLogCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.size(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    enabled = pairLogCount > 0,
+                    onClick = {
+                        val report = TranslationPairLog.readReport(context)
+                        if (report.isNullOrBlank()) {
+                            pairLogCount = 0
+                            Toast.makeText(context, R.string.translation_pairs_empty, Toast.LENGTH_SHORT).show()
+                        } else {
+                            runCatching {
+                                val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                                clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("ManhwaLens translation pairs", report))
+                            }.onSuccess {
+                                Toast.makeText(context, R.string.translation_pairs_copied, Toast.LENGTH_SHORT).show()
+                            }.onFailure {
+                                Toast.makeText(context, R.string.toast_capture_failed, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                ) { Text(stringResource(R.string.translation_pairs_copy)) }
+                TextButton(
+                    enabled = pairLogCount > 0,
+                    onClick = {
+                        TranslationPairLog.clear(context)
+                        pairLogCount = 0
+                        Toast.makeText(context, R.string.translation_pairs_cleared, Toast.LENGTH_SHORT).show()
+                    }
+                ) { Text(stringResource(R.string.translation_pairs_clear), color = MaterialTheme.colorScheme.error) }
             }
             Spacer(Modifier.size(10.dp))
             // ---- Live self-check (v0.9.5 Part 2) ----
