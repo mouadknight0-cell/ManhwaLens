@@ -271,6 +271,8 @@ class FloatingButtonService : Service() {
     private lateinit var captureThread: HandlerThread
     private lateinit var captureHandler: Handler
     private val ocrClient by lazy { TextRecognizerClient() }
+    /** Non-null only for the current tap when the user explicitly enabled Debug mode. */
+    @Volatile private var activeCaptureDiagnostics: com.manhwalens.app.util.CaptureDiagnostics? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val captureInFlight = AtomicBoolean(false)
     private var mediaProjection: android.media.projection.MediaProjection? = null
@@ -2518,6 +2520,7 @@ class FloatingButtonService : Service() {
         var stage = "screen"
         var captureStageDone = false
         val debugMode = com.manhwalens.app.data.SettingsPrefs(applicationContext).debugMode
+        activeCaptureDiagnostics = null
         try {
             val screen = screenSize()
             val densityDpi = resources.displayMetrics.densityDpi
@@ -2552,6 +2555,9 @@ class FloatingButtonService : Service() {
                     dark = isNearlyBlack(bitmap)
                 }
             }
+            activeCaptureDiagnostics = if (debugMode && !dark) {
+                com.manhwalens.app.util.CaptureDiagnostics(bitmap.width, bitmap.height)
+            } else null
             val totalMs = SystemClock.elapsedRealtime() - startedAt
             PipelineTracer.record(
                 PipelineTracer.Stage.CAPTURE, StageTrace.Status.OK,
@@ -2599,7 +2605,7 @@ class FloatingButtonService : Service() {
             var ocrError: String? = null
             var ocrLineCount = 0
             var ocrBlocks: List<BubbleBlock> = emptyList()
-            ocrBlocks = recognizeAndFilterBlocks(bitmap)
+            ocrBlocks = recognizeAndFilterBlocks(bitmap, diagnostics = activeCaptureDiagnostics)
             ocrMs = lastOcrMs
             ocrLineCount = lastOcrLines
             // Part 2: retry once after longer hide if OCR output looks cut (incomplete sentence).
@@ -2613,7 +2619,7 @@ class FloatingButtonService : Service() {
                     val oldBitmap = bitmap
                     runCatching { if (!oldBitmap.isRecycled) oldBitmap.recycle() }
                     bitmap = retryBitmap
-                    val retryBlocks = recognizeAndFilterBlocks(bitmap)
+                    val retryBlocks = recognizeAndFilterBlocks(bitmap, diagnostics = activeCaptureDiagnostics)
                     if (retryBlocks.isNotEmpty()) {
                         ocrBlocks = retryBlocks
                         ocrMs = lastOcrMs
@@ -2624,13 +2630,9 @@ class FloatingButtonService : Service() {
                 }
             }
             if (ocrError == null) {
-                val previews = ocrBlocks.take(6).joinToString("\n") { b ->
-                    "  #" + b.id + " \"" + b.text.replace("\n", " ").trim().take(60) + "\""
-                }
-                val more = if (ocrBlocks.size > 6) "\n  +${ocrBlocks.size - 6} more" else ""
                 PipelineTracer.record(
                     PipelineTracer.Stage.OCR, StageTrace.Status.OK, ocrMs.coerceAtLeast(0),
-                    "${ocrBlocks.size} blocks / $ocrLineCount lines" + if (previews.isNotEmpty()) "\n$previews$more" else ""
+                    "${ocrBlocks.size} blocks / $ocrLineCount lines"
                 )
             } else {
                 PipelineTracer.record(
@@ -2786,7 +2788,7 @@ class FloatingButtonService : Service() {
 
             // Progressive display (Part C): paint each bubble the moment its Arabic lands.
             val painter: BubblePainter? = if (pageBlocks.isNotEmpty()) {
-                BubblePainter(bitmap, keptForPaint, lastTapAt, "ml_kit_en_ar")
+                BubblePainter(bitmap, keptForPaint, lastTapAt, "ml_kit_en_ar", activeCaptureDiagnostics)
             } else null
 
             var usedProgressiveMlKit = false
@@ -2831,7 +2833,10 @@ class FloatingButtonService : Service() {
                         // Tap path always paints progressively (ML Kit, priority order).
                         val mlkit = com.manhwalens.app.translate.TranslatorFactory.createProgressive(
                             applicationContext,
-                            painter::onBlockReady
+                            painter::onBlockReady,
+                            activeCaptureDiagnostics?.let { diagnostics ->
+                                { trace -> diagnostics.recordTranslation(trace) }
+                            }
                         )
                         Log.i(TAG, "progressive pass: translating ${blocksToSend.size} unique blocks, first bubbles paint as they land")
                         val fast = mlkit.translatePage(blocksToSend)
@@ -2848,7 +2853,12 @@ class FloatingButtonService : Service() {
                             com.manhwalens.app.translate.TranslatorFactory.create(applicationContext).translatePage(remoteBlocks)
                         }
                     } else if (useProgressive) {
-                        val mlkit = com.manhwalens.app.translate.TranslatorFactory.createOffline(applicationContext)
+                        val mlkit = com.manhwalens.app.translate.TranslatorFactory.createOffline(
+                            applicationContext,
+                            activeCaptureDiagnostics?.let { diagnostics ->
+                                { trace -> diagnostics.recordTranslation(trace) }
+                            }
+                        )
                         val fast = mlkit.translatePage(blocksToSend)
                         tr = if (fast is com.manhwalens.app.translate.PageTranslation.Success) {
                             usedProgressiveMlKit = true
@@ -2894,7 +2904,11 @@ class FloatingButtonService : Service() {
                                 }
                                 Log.i(TAG, "${tr.engineId} failed (${tr.reason}); falling back to ML Kit for this capture")
                                 val fallback = try {
-                                    com.manhwalens.app.translate.mlkit.MlKitTranslator().translatePage(blocksToSend)
+                                    com.manhwalens.app.translate.mlkit.MlKitTranslator(
+                                        onRawTranslation = activeCaptureDiagnostics?.let { diagnostics ->
+                                            { trace -> diagnostics.recordTranslation(trace) }
+                                        }
+                                    ).translatePage(blocksToSend)
                                 } catch (e: Exception) {
                                     ErrorLog.write(this, "translate-fallback", e)
                                     Log.e("ManhwaLens", "ml kit fallback crashed — ${e.javaClass.name}: ${e.message}", e)
@@ -2966,8 +2980,7 @@ class FloatingButtonService : Service() {
             run {
                 val sent = dedupePlan.uniqueCount
                 val received = translations.count { it.arabic.isNotBlank() }
-                val first = translations.firstOrNull { it.arabic.isNotBlank() }?.arabic?.take(60)
-                val status = when {
+remove first translation preview                val status = when {
                     sent == 0 -> StageTrace.Status.SKIPPED
                     translateError != null -> StageTrace.Status.FAILED
                     received > 0 -> StageTrace.Status.OK
@@ -2976,7 +2989,6 @@ class FloatingButtonService : Service() {
                 PipelineTracer.record(
                     PipelineTracer.Stage.TRANSLATE, status, translateMs.coerceAtLeast(0),
                     "engine=${translateEngine ?: "none"} sent=$sent received=$received" +
-                        (first?.let { " · first=\"" + it + "\"" } ?: "") +
                         (translateError?.let { " · error=$it" } ?: "")
                 )
             }
@@ -3083,7 +3095,8 @@ class FloatingButtonService : Service() {
      */
     private fun recognizeAndFilterBlocks(
         bitmap: Bitmap,
-        ownedRectsOverride: List<com.manhwalens.app.ocr.geometry.Rect2D>? = null
+        ownedRectsOverride: List<com.manhwalens.app.ocr.geometry.Rect2D>? = null,
+        diagnostics: com.manhwalens.app.util.CaptureDiagnostics? = null
     ): List<BubbleBlock> {
         val (ocrBitmap, cropOffsetY) = cropBarsForOcr(bitmap)
         val canCrop = ocrBitmap !== bitmap
@@ -3128,6 +3141,7 @@ class FloatingButtonService : Service() {
                     } else false
                 }
             }
+            diagnostics?.recordOcr(lines, grouped, filtered, recognized.elapsedMs)
             filtered
         } catch (e: Exception) {
             ErrorLog.write(this, "ocr", e)
@@ -3788,7 +3802,14 @@ class FloatingButtonService : Service() {
                     "not reached — pipeline ended earlier")
             }
         }
-        PipelineTracer.persistToErrorLog(applicationContext)
+        val diagnostics = activeCaptureDiagnostics
+        if (diagnostics != null) {
+            val combined = PipelineTracer.report() + "\n\n" + diagnostics.report()
+            ErrorLog.writeRaw(applicationContext, "pipeline+ocr-translation", combined.take(26_000))
+        } else {
+            PipelineTracer.persistToErrorLog(applicationContext)
+        }
+        activeCaptureDiagnostics = null
     }
 
     /**
@@ -3806,7 +3827,8 @@ class FloatingButtonService : Service() {
         private val bitmap: Bitmap,
         keptBlocks: List<BubbleBlock>,
         private val tapStartMs: Long,
-        private val engineId: String
+        private val engineId: String,
+        private val diagnostics: com.manhwalens.app.util.CaptureDiagnostics?
     ) {
         private val lock = Any()
         private val blocksById = keptBlocks.associateBy { it.id }
@@ -3910,6 +3932,11 @@ class FloatingButtonService : Service() {
                 Log.e("ManhwaLens", "patch build failed for #${textBox.id} — ${e.javaClass.name}: ${e.message}", e)
                 null
             }
+            if (patch != null) {
+                diagnostics?.recordOverlayText(
+                    tb.id, block.text, tb.arabic, if (remote) "remote" else engineId, patchBuilt = true
+                )
+            }
             val elapsed = SystemClock.elapsedRealtime() - tapStartMs
             if (patch != null && !attached && !attachRequested) attachRequested = true
             mainHandler.post {
@@ -3971,6 +3998,12 @@ class FloatingButtonService : Service() {
                 // Progressive path produced nothing (e.g. all patch builds failed or were
                 // winners of a late race) — paint the whole page in one batch instead.
                 val patches = buildPatches(bitmap, snap)
+                val builtIds = patches.map { it.id }.toHashSet()
+                snap.filter { it.id in builtIds }.forEach { box ->
+                    diagnostics?.recordOverlayText(
+                        box.id, box.english, box.arabic, "final-reconcile", patchBuilt = true
+                    )
+                }
                 val elapsed = SystemClock.elapsedRealtime() - tapStartMs
                 mainHandler.post {
                     if (patches.isNotEmpty()) {
