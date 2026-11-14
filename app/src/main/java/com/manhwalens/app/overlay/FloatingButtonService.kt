@@ -4033,7 +4033,10 @@ class FloatingButtonService : Service() {
         }
 
         fun snapshot(): List<com.manhwalens.app.render.BubbleRenderBox> =
-            synchronized(lock) { painted.values.sortedBy { it.top } }
+            synchronized(lock) {
+                com.manhwalens.app.render.PatchPlanner.compose(areas, painted.values.toList())
+                    .sortedBy { it.top }
+            }
 
         /** Fill anything not painted yet (cache-hit path paints earlier; engine call paints via listener). */
         fun finish(translations: List<com.manhwalens.app.translate.TranslatedBlock>) {
@@ -4075,7 +4078,8 @@ class FloatingButtonService : Service() {
             // these reads could otherwise make an old snapshot look current and overwrite it.
             val state = synchronized(lock) {
                 Triple(
-                    painted.values.sortedBy { it.top },
+                    com.manhwalens.app.render.PatchPlanner.compose(areas, painted.values.toList())
+                        .sortedBy { it.top },
                     areaGeneration.toMap(),
                     areas.filter { area ->
                         val current = areaGeneration[area.ownerId] ?: 0
