@@ -3,8 +3,8 @@
 **Report revision:** 2.0 (consolidated) · **Updated:** session date 2026-11-13 (commit clock 2026-11-14 UTC)
 **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — **OPEN**, not draft, not merged
 **Base:** `main` @ `560705d55012f1549449ca3230184b4b5beda991` (the PR branch carries the whole app; `main` holds the initial commit)
-**Head at this revision:** `a7b276f` (*test(P2-A): pin the real expectation in the Song collision test*) — the consolidation commit after it changes Markdown plus one source **comment** (a documentation pointer in `names/JsonCharacterStore.kt`), no behaviour
-**Latest verified run:** [43569302435](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569302435) — workflow *Android build*, conclusion **success** at `a7b276f` (steps *Unit tests* ✅, *Build debug APK* ✅, APK + test-report artifacts uploaded)
+**Head at this revision:** `94cf2f5` (*docs: consolidate every report into REPOSITORY_REPORT.md (revision 2.0)*) — it changes Markdown plus one source **comment** (a documentation pointer in `names/JsonCharacterStore.kt`), no behaviour; the last commit that changed behaviour is `25b15c2` / `a7b276f`
+**Latest verified run:** [43569844274](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569844274) — workflow *Android build*, conclusion **success** at `94cf2f5` (steps *Unit tests* ✅, *Build debug APK* ✅, APK + test-report artifacts uploaded); the P2-A code itself was verified by [43569302435](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569302435) at `a7b276f`, also **success**
 
 > **This is the only authoritative report in the repository.** Since 2026-11-13 (report revision 2.0) the
 > per-change reports (`REPORTS.md`, `P0_*`, `P0A_*`, `P0B_*`, `P1_*`, `P1_1_*`, `P2_TRANSLATION_CONTEXT_AUDIT.md`)
@@ -15,6 +15,9 @@
 >
 > Clock note: the session date is 2026-11-13 while commit timestamps (UTC) are 2026-11-13 16:21 → 2026-11-14 07:20.
 > A date below is the commit clock where a commit is cited, the session date otherwise.
+>
+> The commit that publishes this refresh is documentation-only (it records run 43569844274, verified at
+> `94cf2f5`). Its own CI run is **not claimed** here — it was still pending when this file was published.
 
 ---
 
@@ -65,13 +68,13 @@ tap or Live scan
 
 | | |
 | --- | --- |
-| Commits ahead of `origin/main` | **36** at `a7b276f` (+1 for the consolidation commit) |
-| Branch diff vs `main` | `230 files changed, 37 714 insertions(+)` (`git diff --shortstat origin/main...a7b276f`) |
+| Commits ahead of `origin/main` | **37** at `94cf2f5` |
+| Branch diff vs `main` | `230 files changed, 37 714 insertions(+)` (`git diff --shortstat origin/main...94cf2f5`; the consolidation removes 10 files from the tree and adds none) |
 | Kotlin sources | **113** files under `app/src/main` |
 | Test sources | **70** files under `app/src/test` (one JVM source set; no instrumented source set) |
 | Test methods (`@Test`) | **644** at `a7b276f` (`grep -rn '@Test' app/src/test \| wc -l`) |
 | Root Markdown files | **20** before this consolidation → **10** after (§5.9 lists what was deleted) |
-| Last commit that changed application code | `a7b276f` (P2-A); before it `c008f62` (P0/C2) |
+| Last commit that changed behaviour | `a7b276f` (P2-A); before it `c008f62` (P0/C2) |
 
 ### 2.1 The commits this report describes
 
@@ -80,7 +83,7 @@ tap or Live scan
 | `533ae90` | docs | P2 audit commit recorded (baseline of the P2-A round) |
 | `25b15c2` | **code + tests** | **P2-A / P2-01 + P2-02** implementation and their tests |
 | `a7b276f` | **test fix** | one wrong expectation in the new glossary test (see §7.6) — *verified green* |
-| *(this commit)* | docs | report revision 2.0: single authoritative report, superseded reports deleted, one doc-pointer comment updated |
+| `94cf2f5` | docs | report revision 2.0: single authoritative report, superseded reports deleted, one doc-pointer comment updated — verified green in run 43569844274 |
 
 ---
 
@@ -446,10 +449,11 @@ The authoring sandbox has **no JDK, no `javac`, no `gradle`, no `kotlinc` and no
 (`command -v` → nothing; `ANDROID_HOME` unset), so Gradle cannot run locally. GitHub Actions is the only
 executor. `lint` is unavailable offline, R8 is disabled on this box, and only `assembleDebug` is produced.
 
-### 9.2 All runs on this branch (29 runs: 25 success, 4 failure)
+### 9.2 All runs on this branch (30 runs: 26 success, 4 failure)
 
 | Run | Commit | Result | Note |
 | --- | --- | --- | --- |
+| [43569844274](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569844274) | `94cf2f5` | ✅ | **consolidation verified** (unit tests + APK) |
 | [43569302435](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43569302435) | `a7b276f` | ✅ | **P2-A verified** (unit tests + APK) |
 | [43568984747](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43568984747) | `25b15c2` | ❌ | one wrong test expectation (§7.6), fixed in `a7b276f` |
 | [43567644013](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43567644013) | `533ae90` | ✅ | P2 audit docs |
@@ -563,5 +567,5 @@ and the remote-order change of P2-02 is **build-and-JVM-verified only**. The on-
 
 | Revision | Date | Head | What changed |
 | --- | --- | --- | --- |
-| **2.0** | 2026-11-14 (UTC) | `a7b276f` + this docs commit | **Consolidation**: the nine per-change reports and `REPORTS.md` were folded into §5–§7 and deleted; added the phase table P0–P6 with the milestone/phase distinction (§3/§4), the P2 findings register with per-issue status (§6), the full P2-A record (§7), the open-finding anchors (§6.1) and the rewritten rules (§13). **No behaviour change**: Markdown plus a single documentation-pointer comment in `names/JsonCharacterStore.kt`; no test, Gradle or dependency change. |
-| 1.x | 2026-11-13/14 | `01e12a6`, `05fa1ab`, `3674ebf`, `b82fb6f`, `e546470`, `723f101`, `8140a4b` | Incremental snapshots (branch/PR state, work packages, run tables, test-count boundaries, consistency audits). Superseded by this revision; their content is carried over in §5–§10. |
+| **2.0** | 2026-11-14 (UTC) | `94cf2f5` (+ this doc-only refresh) | **Consolidation**: the nine per-change reports and `REPORTS.md` were folded into §5–§7 and deleted; added the phase table P0–P6 with the milestone/phase distinction (§3/§4), the P2 findings register with per-issue status (§6), the full P2-A record (§7), the open-finding anchors (§6.1) and the rewritten rules (§13). **No behaviour change**: Markdown plus a single documentation-pointer comment in `names/JsonCharacterStore.kt`; no test, Gradle or dependency change. |
+| 1.x | 2026-11-13/14 | `01e12a6`, `05fa1ab`, `3674ebf`, `b82fb6f`, `e546470`, `723f101`, `8140a4b`, `a7b276f` | Incremental snapshots (branch/PR state, work packages, run tables, test-count boundaries, consistency audits). Superseded by this revision; their content is carried over in §5–§10. |
