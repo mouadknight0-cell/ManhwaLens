@@ -166,6 +166,10 @@ class CaptureDiagnostics(
         return "${format(b.left)},${format(b.top)},${format(b.right)},${format(b.bottom)}"
     }
 
+    private fun box(rect: Rect2D): String =
+        "${format(rect.left)},${format(rect.top)},${format(rect.right)},${format(rect.bottom)}"
+
+
     private fun safe(value: String): String =
         value.replace("\r", " ").replace("\n", " ↵ ").take(MAX_TEXT_CHARS)
 
