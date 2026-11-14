@@ -117,6 +117,15 @@ class SettingsMigrationTest {
         assertEquals(emptyList<String>(), untouched.wipe)
     }
 
+    @Test
+    fun ocrEngineIsAKnownStringKeyAndInvalidTypesAreRejected() {
+        assertTrue(SettingsMigration.isKnown("ocr_engine"))
+        assertTrue(SettingsMigration.typeOk("ocr_engine", "ml_kit"))
+        assertTrue(SettingsMigration.typeOk("ocr_engine", "paddle"))
+        assertFalse(SettingsMigration.typeOk("ocr_engine", true))
+        assertFalse(SettingsMigration.typeOk("ocr_engine", null))
+    }
+
     // ---- storedVersion ----
     @Test
     fun storedVersionDefaultsToLegacyWhenMissing() {

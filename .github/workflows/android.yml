@@ -49,6 +49,24 @@ jobs:
           chmod 600 "$HOME/.android/debug.keystore"
           keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey >/dev/null
 
+      - name: Download pinned PaddleOCR Arabic/English models
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets/models/det app/src/main/assets/models/rec
+          curl --fail --location --retry 3 --retry-all-errors \
+            https://huggingface.co/PaddlePaddle/PP-OCRv5_mobile_det_onnx/resolve/df0bd9d/inference.onnx \
+            -o app/src/main/assets/models/det/inference.onnx
+          curl --fail --location --retry 3 --retry-all-errors \
+            https://huggingface.co/PaddlePaddle/arabic_PP-OCRv5_mobile_rec_onnx/resolve/14aaedc/inference.onnx \
+            -o app/src/main/assets/models/rec/inference.onnx
+          curl --fail --location --retry 3 --retry-all-errors \
+            https://huggingface.co/PaddlePaddle/arabic_PP-OCRv5_mobile_rec_onnx/resolve/14aaedc/inference.yml \
+            -o app/src/main/assets/models/rec/inference.yml
+          echo "a431985659dc921974177a95adcfbb90fd9e51989a5e04d70d0b75f597b6e61d  app/src/main/assets/models/det/inference.onnx" | sha256sum --check
+          echo "799113ebf267fbe742deb99eb36e8d42c9ddc5291ceacf92add41b4d52a59110  app/src/main/assets/models/rec/inference.onnx" | sha256sum --check
+          grep -q "model_name: arabic_PP-OCRv5_mobile_rec" app/src/main/assets/models/rec/inference.yml
+          du -h app/src/main/assets/models/det/inference.onnx app/src/main/assets/models/rec/inference.onnx
+
       - name: Make gradlew executable
         run: chmod +x gradlew
 

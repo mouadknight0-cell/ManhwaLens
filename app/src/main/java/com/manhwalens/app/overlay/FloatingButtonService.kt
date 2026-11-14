@@ -270,7 +270,7 @@ class FloatingButtonService : Service() {
     private val captureExecutor = Executors.newSingleThreadExecutor()
     private lateinit var captureThread: HandlerThread
     private lateinit var captureHandler: Handler
-    private val ocrClient by lazy { TextRecognizerClient() }
+    private val ocrClient by lazy { TextRecognizerClient(applicationContext) }
     /** OCR orchestration is isolated from the foreground-service lifecycle. */
     private val captureOcrProcessor by lazy {
         com.manhwalens.app.ocr.CaptureOcrProcessor(

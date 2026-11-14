@@ -107,6 +107,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var fontScale by remember { mutableStateOf(prefs.fontScale) }
     var autoCapture by remember { mutableStateOf(prefs.autoCaptureOnScroll) }
     var debugMode by remember { mutableStateOf(prefs.debugMode) }
+    var ocrEngine by remember { mutableStateOf(prefs.ocrEngine) }
     var pairLogCount by remember { mutableStateOf(TranslationPairLog.count(context)) }
     var liveMode by remember { mutableStateOf(prefs.liveMode) }
     var liveApps by remember { mutableStateOf(prefs.liveAllowedApps) }
@@ -188,6 +189,44 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         // Prepare the EN→AR model before going offline.
         OfflineTranslationModelCard()
+        Spacer(Modifier.size(12.dp))
+
+        // ---------- OCR engine (experimental PaddleOCR path) ----------
+        Section("OCR engine") {
+            Text(
+                text = "Choose the on-device text detector and recognizer. ML Kit remains the default.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.size(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (ocrEngine == SettingsPrefs.OCR_ENGINE_ML_KIT) {
+                    Button(onClick = { ocrEngine = SettingsPrefs.OCR_ENGINE_ML_KIT; prefs.ocrEngine = ocrEngine }) { Text("ML Kit") }
+                } else {
+                    OutlinedButton(onClick = {
+                        ocrEngine = SettingsPrefs.OCR_ENGINE_ML_KIT
+                        prefs.ocrEngine = ocrEngine
+                    }) { Text("ML Kit") }
+                }
+                if (ocrEngine == SettingsPrefs.OCR_ENGINE_PADDLE) {
+                    Button(onClick = { ocrEngine = SettingsPrefs.OCR_ENGINE_PADDLE; prefs.ocrEngine = ocrEngine }) { Text("PaddleOCR") }
+                } else {
+                    OutlinedButton(onClick = {
+                        ocrEngine = SettingsPrefs.OCR_ENGINE_PADDLE
+                        prefs.ocrEngine = ocrEngine
+                    }) { Text("PaddleOCR") }
+                }
+            }
+            Text(
+                text = if (ocrEngine == SettingsPrefs.OCR_ENGINE_PADDLE)
+                    "Experimental: PP-OCRv5 Arabic/English, fully on-device. First inference loads the model and may take longer."
+                else
+                    "Bundled ML Kit Latin OCR. Recommended baseline for comparison.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
         Spacer(Modifier.size(12.dp))
 
         // ---------- Names & terms (v0.9.14) ----------

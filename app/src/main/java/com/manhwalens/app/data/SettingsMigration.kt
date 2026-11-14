@@ -37,11 +37,12 @@ object SettingsMigration {
     internal const val AI_CLEANUP_ENABLED = "ai_cleanup_enabled"
     internal const val AI_CLEANUP_MODEL = "ai_cleanup_model_id"
     internal const val LENS_TAP_MODE = "lens_tap_mode"
+    internal const val OCR_ENGINE = "ocr_engine"
 
     private val BOOL_KEYS = setOf(AUTO_SCROLL, DEBUG_MODE, LIVE_MODE, LIVE_OPT_OUT, AI_CLEANUP_ENABLED)
     private val FLOAT_KEYS = setOf(FONT_SCALE, IGNORE_TOP, IGNORE_BOTTOM)
     private val INT_KEYS = setOf(LIVE_STABLE_MS)
-    private val STRING_KEYS = setOf(LIVE_APPS, LIVE_SENSITIVITY, IGNORE_PHRASES, AI_CLEANUP_MODEL, LENS_TAP_MODE)
+    private val STRING_KEYS = setOf(LIVE_APPS, LIVE_SENSITIVITY, IGNORE_PHRASES, AI_CLEANUP_MODEL, LENS_TAP_MODE, OCR_ENGINE)
     private val KNOWN_KEYS = BOOL_KEYS + FLOAT_KEYS + INT_KEYS + STRING_KEYS + setOf(KEY_SETTINGS_VERSION)
 
     fun isKnown(key: String): Boolean = KNOWN_KEYS.contains(key)

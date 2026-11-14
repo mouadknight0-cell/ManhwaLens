@@ -7,12 +7,18 @@ activityCompose = "1.13.0"
 composeBom = "2025.09.00"
 mlkitTextRecognition = "16.0.1"
 mlkitTranslate = "17.0.3"
+onnxruntime = "1.21.1"
+opencv = "4.5.3.0"
+coroutines = "1.9.0"
 orgjson = "20240303"
 junit = "4.13.2"
 
 [libraries]
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref = "mlkitTranslate" }
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
+opencv-android = { group = "com.quickbirdstudios", name = "opencv", version.ref = "opencv" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 org-json = { group = "org.json", name = "json", version.ref = "orgjson" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

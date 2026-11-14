@@ -74,6 +74,12 @@ class SettingsPrefs(context: Context) {
         }
     }
 
+    /** Selected local OCR backend; ML Kit remains the default and Paddle is experimental. */
+    var ocrEngine: String
+        get() = getString(KEY_OCR_ENGINE, OCR_ENGINE_ML_KIT)
+            .let { if (it == OCR_ENGINE_PADDLE) OCR_ENGINE_PADDLE else OCR_ENGINE_ML_KIT }
+        set(value) = edit { putString(KEY_OCR_ENGINE, if (value == OCR_ENGINE_PADDLE) OCR_ENGINE_PADDLE else OCR_ENGINE_ML_KIT) }
+
     /** Multiplier applied to the auto-fit font size when drawing Arabic in bubbles. */
     var fontScale: Float
         get() = getFloat(KEY_FONT_SCALE, 1.0f)
@@ -206,8 +212,12 @@ class SettingsPrefs(context: Context) {
         private const val KEY_AI_CLEANUP_ENABLED = SettingsMigration.AI_CLEANUP_ENABLED
         private const val KEY_AI_CLEANUP_MODEL = SettingsMigration.AI_CLEANUP_MODEL
         private const val KEY_LENS_TAP_MODE = SettingsMigration.LENS_TAP_MODE
+        private const val KEY_OCR_ENGINE = SettingsMigration.OCR_ENGINE
 
         /** Tap on the lens → open the compact menu (v0.9.4 default). */
+        const val OCR_ENGINE_ML_KIT = "ml_kit"
+        const val OCR_ENGINE_PADDLE = "paddle"
+
         const val TAP_MENU = "menu"
         /** Tap on the lens → one-shot capture + translate (pre-0.9.4 behaviour). */
         const val TAP_TRANSLATE = "translate"
