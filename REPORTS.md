@@ -30,7 +30,7 @@ stated in the report before the code changes.
 
 | Date | Phase | Report | Base → final | Verified by |
 | --- | --- | --- | --- | --- |
-| 2026-11-13 | P1.1 strict staging validation · P1.1-A canonical keys (§8) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `feb20ef` → this commit | CI 43531030306, 43531550380, run at HEAD |
+| 2026-11-13 | P1.1 strict staging validation · P1.1-A canonical keys (§8) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `feb20ef` → `e546470` | CI 43531030306, 43531550380, 43561318751 |
 | 2026-11-13 | P1 persistence safety (recovery never writes the live file) | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `345715d` | CI 43526686657 |
 | 2026-11-13 | P1 review corrections | [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) | `1c0c270` → `e99dd93` (docs `06b3d84`) | CI 43523522645, 43524129101 |
 | 2026-11-13 | P1 series character memory | [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) · design: [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md) | `528d629` → `8d5cc9e` (docs `1c0c270`) | CI 43518604612, 43520783453 |

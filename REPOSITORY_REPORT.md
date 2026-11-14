@@ -2,8 +2,8 @@
 
 **Snapshot date:** 2026-11-13 · **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) · 21 commits
 **Head (last code change):** `fee9d9e371ed3db42c81413c73d4ba12204c7886` · **Base:** `main` @ `560705d` · **Status:** OPEN / MERGEABLE / CLEAN
-**Latest verified run:** recorded in [REPORTS.md](REPORTS.md) under P1.1-A; documentation-only commits
-after the head above are covered by the run at the branch head.
+**Latest verified run:** CI run [43561318751](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43561318751)
+— `build` **success** at `e546470` (branch head, includes the P1.1-A change `fee9d9e`)
 
 This is the repository-level view: what the branch contains, what has been verified and how, what
 cannot be verified here, and what is next. Per-change detail lives in the reports indexed in
@@ -151,5 +151,6 @@ divergence from the audit and is the standing architectural choice for this area
 
 | Updated | Head | What changed in this snapshot |
 | --- | --- | --- |
+| 2026-11-13 (`e546470`) | P1.1-A merged into the branch | Added the canonical normalized-name invariant to the P1.1 entry, refreshed the inventory (619 tests, 21 commits), recorded the fourth hardening pass and the run at head |
 | 2026-11-13 (`723f101`) | P1.1 merged into the branch | Added the P1.1 work package and its two runs, refreshed the inventory (615 tests, 20 commits, 225 files), noted the third hardening pass |
 | 2026-11-13 (`8140a4b`) | first version | Branch/PR state, the five work packages, verification matrix, code and documentation maps, blockers, ranked next steps, merge readiness |

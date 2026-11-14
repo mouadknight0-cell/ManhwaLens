@@ -222,10 +222,11 @@ was added for them.
 ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --console=plain
 ```
 
-Executed by GitHub Actions (`.github/workflows/android.yml`, triggered by the open pull request) —
-run URL and SHA for this follow-up are recorded in [REPORTS.md](REPORTS.md). The authoring sandbox
-has no JDK/Android SDK, so no local run was performed and none is claimed. **615 → 619** test methods
-in the module (+4).
+Executed by GitHub Actions (`.github/workflows/android.yml`, triggered by the open pull request):
+**run [43561318751](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43561318751) —
+success** at `e546470` (branch head; the P1.1-A code is `fee9d9e371ed3db42c81413c73d4ba12204c7886`).
+The authoring sandbox has no JDK/Android SDK, so no local run was performed and none is claimed.
+**615 → 619** test methods in the module (+4); the whole suite and `assembleDebug` ran in that job.
 
 ### 8.6 Remaining limitations
 
