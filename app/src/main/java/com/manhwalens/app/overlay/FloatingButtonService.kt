@@ -3805,7 +3805,11 @@ class FloatingButtonService : Service() {
         val diagnostics = activeCaptureDiagnostics
         if (diagnostics != null) {
             val combined = PipelineTracer.report() + "\n\n" + diagnostics.report()
-            ErrorLog.writeRaw(applicationContext, "pipeline+ocr-translation", combined.take(26_000))
+            ErrorLog.writeRaw(
+                applicationContext,
+                "pipeline+ocr-translation",
+                combined.take(com.manhwalens.app.util.CaptureDiagnostics.MAX_REPORT_CHARS + 2_000)
+            )
         } else {
             PipelineTracer.persistToErrorLog(applicationContext)
         }
