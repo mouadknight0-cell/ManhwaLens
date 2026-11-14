@@ -477,7 +477,14 @@ deterministic code path with line references; the nine risks each have a concret
 
 **Executed evidence used (historical CI, verified through the GitHub API, all ancestors of the baseline):**
 run 43565553808 (`05fa1ab`), 43565915093 (`c528ca2`), 43566212238 (`fe5aa6a`) — *Android build*: success, steps
-*Unit tests* and *Build debug APK* both success. These runs prove the suite passes **with** the defects above, which is
+*Unit tests* and *Build debug APK* both success. These runs executed the suite **at the audit baseline**, i.e. the
+same code this report describes.
+
+**Documentation-only CI for this audit:** commit `01e12a6` (this report + `REPORTS.md` + `REPOSITORY_REPORT.md`)
+→ run [43567398304](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43567398304) — **success**,
+steps *Unit tests* ✅ and *Build debug APK* ✅. The run executed the unchanged application code; it is not
+evidence that any finding is fixed, only that the repository still builds and the suite still passes with the
+defects present. These runs prove the suite passes **with** the defects above, which is
 the point: the gaps are untested behaviour, not failing tests.
 
 **Unresolved questions (need a decision or a device/API test):**

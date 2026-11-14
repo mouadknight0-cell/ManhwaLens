@@ -1,9 +1,9 @@
 # ManhwaLens — repository report
 
 **Snapshot:** session date 2026-11-13 · **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — **OPEN**, not draft
-**Head at this snapshot:** `05fa1ab` (*docs: repository documentation consistency audit*, commit clock 2026-11-14 UTC) — the last **code** commit remains `3674ebf` (*docs: refresh the report after every prompt (rule S6)*, 2026-11-14 06:08 UTC); the last commit that changed application code is `c008f62` (P0/C2)
+**Head at this snapshot:** `01e12a6` (*docs: P2 translation quality & context audit (read-only)*) — the last commit that changed application code is still `c008f62` (P0/C2); everything after it is documentation
 **Base:** `main` @ `560705d55012f1549449ca3230184b4b5beda991` · **Branch ahead (at `3674ebf`):** 29 commits, 228 files, +36 706 / −0 · **Working tree:** clean before this documentation commit, which adds Markdown only
-**Latest verified run:** [43565553808](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43565553808) — workflow *Android build*, conclusion **success** at `05fa1ab` (steps *Unit tests* ✅, *Build debug APK* ✅, APK artifact uploaded); the run before it, [43564884208](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564884208), verified `3674ebf`
+**Latest verified run:** [43567398304](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43567398304) — workflow *Android build*, conclusion **success** at `01e12a6` (steps *Unit tests* ✅, *Build debug APK* ✅, APK artifact uploaded); the run before it, [43565553808](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43565553808), verified `05fa1ab`
 
 This is the repository-level view and the authoritative current-state document: what the branch contains,
 what has been verified and how, what cannot be verified in this environment, and what is next. Per-change
@@ -67,7 +67,8 @@ the `pull_request` event; each report cites the run that validated its commit.
 
 | Run | Commit | Conclusion | Note |
 | --- | --- | --- | --- |
-| [43564884208](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564884208) | `3674ebf` | **success** | current head; unit tests + APK |
+| [43567398304](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43567398304) | `01e12a6` | **success** | P2 audit docs; unit tests + APK |
+| [43564884208](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564884208) | `3674ebf` | success | unit tests + APK |
 | [43564060458](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43564060458) | `7b30804` | success | |
 | [43563800508](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43563800508) | `b82fb6f` | success | |
 | [43563394305](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43563394305) | `08004c4` | success | P0/C2 code + docs |
@@ -90,7 +91,7 @@ the `pull_request` event; each report cites the run that validated its commit.
 | [43514068424](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43514068424) | `1940487` | success | P0-A second attempt |
 | [43513473811](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43513473811) | `0e6d5ff` | ❌ **failure** | 517 tests, 1 failed (the new P0-A test) — analysed in [P0A_GEMINI_NAME_SHEET.md](P0A_GEMINI_NAME_SHEET.md) |
 
-Totals on this branch: **22 runs — 19 success, 3 failure**. The three failures are pre-fix states of
+Totals on this branch: **23 runs — 20 success, 3 failure**. The three failures are pre-fix states of
 later-green commits, each identified and analysed in its report; none is open. The base `main` commit
 `b8e37de` was green on the v0.11.0 tag push (run 43504057987).
 
