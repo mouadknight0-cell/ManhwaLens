@@ -178,9 +178,8 @@ object ArabicValidator {
 
 
     /**
-     * Catch short English leftovers without treating preserved proper names, acronyms, or SFX
-     * as translation failures. A token must occur in the source and either be lower-case
-     * dialogue text or a known common English word (including sentence-initial "The"/"I").
+     * Reject two or more common English dialogue words left untranslated from the source,
+     * while tolerating one isolated Latin token (often a name, SFX, or borrowed term).
      */
     private fun hasUntranslatedEnglishFragment(source: String, output: String): Boolean {
         val sourceTokens = englishToken.findAll(source).map { it.value.lowercase() }.toSet()
@@ -191,7 +190,7 @@ object ArabicValidator {
         val leftovers = englishToken.findAll(output)
             .map { it.value.lowercase() }
             .filter { it in sourceTokens && it in commonEnglishWords }
-        return leftovers.size >= 2
+        return leftovers.count() >= 2
     }
 
     /**
