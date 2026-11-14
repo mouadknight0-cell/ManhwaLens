@@ -47,9 +47,9 @@ class GeminiTranslator(
     private val modelSaver: (String) -> Unit = {},
     /** Max bubbles per HTTP request; the page is split into parallel requests. */
     /**
-     * When true the request asks for a JSON object reply (`responseMimeType`). Default is
-     * the legacy numbered-line format: it is what every already-installed model and every
-     * test double answers, and the parser accepts both anyway.
+     * When true the request asks for a JSON object reply (`responseMimeType`). The direct
+     * constructor keeps legacy mode as its compatibility default; production factory enables
+     * JSON mode and falls back to legacy format once if the API rejects the JSON request.
      *
      * P2-03: this flag now governs the **primary** request. P2-17: the HTTP-400 retry always
      * drops it — the retry asks for the legacy body with `responseMimeType` removed, because a
