@@ -23,8 +23,8 @@ android {
         applicationId = "com.manhwalens.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 38
-        versionName = "0.11.8"
+        versionCode = 39
+        versionName = "0.11.9"
     }
 
     signingConfigs {
