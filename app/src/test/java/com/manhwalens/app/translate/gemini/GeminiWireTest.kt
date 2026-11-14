@@ -32,6 +32,28 @@ class GeminiWireTest {
     }
 
     @Test
+    fun parseReplyPreservesFinishReasonForTokenLimitedResponses() {
+        val reply = GeminiWire.parseReply(
+            """{"candidates":[{"finishReason":"MAX_TOKENS","content":{"parts":[{"text":"partial"}]}}]}"""
+        )
+        assertEquals("partial", reply.text)
+        assertTrue(reply.truncated)
+        assertEquals("MAX_TOKENS", reply.finishReason)
+        assertFalse(reply.blocked)
+    }
+
+    @Test
+    fun parseReplyKeepsSafetyAndRecitationDistinctFromTokenLimit() {
+        for (reason in listOf("SAFETY", "RECITATION")) {
+            val reply = GeminiWire.parseReply(
+                """{"candidates":[{"finishReason":"$reason","content":{"parts":[{"text":"partial"}]}}]}"""
+            )
+            assertTrue(reply.truncated)
+            assertEquals(reason, reply.finishReason)
+        }
+    }
+
+    @Test
     fun extractTextReadsCandidatesPayload() {
         val response = """{"candidates":[{"content":{"parts":[{"text":"[1] مرحبا\n[2] كراك"}]}}]}"""
         assertEquals("[1] مرحبا\n[2] كراك", GeminiWire.extractText(response))
