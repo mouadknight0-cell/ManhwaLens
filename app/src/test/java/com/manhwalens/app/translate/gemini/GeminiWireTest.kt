@@ -140,7 +140,7 @@ class GeminiWireTest {
 
     @Test
     fun legacyRequestBodyCarriesEveryNameSheetLine() {
-        // The production default is the legacy body (jsonReply = false).
+        // This overload stays legacy for compatibility; production factory explicitly opts into JSON.
         val body = GeminiWire.buildRequestBody(
             namedBlocks, GeminiWire.THINKING_LEVEL, pageSheet, jsonReply = false
         )
