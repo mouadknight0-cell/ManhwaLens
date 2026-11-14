@@ -513,7 +513,11 @@ class MlKitTranslator(
          */
         @JvmStatic
         fun warmUp(): Boolean = try {
-            Tasks.await(SHARED_CLIENT.downloadModelIfNeeded(), 30L, TimeUnit.SECONDS)
+            Tasks.await(
+                SHARED_CLIENT.downloadModelIfNeeded(DownloadConditions.Builder().requireWifi().build()),
+                30L,
+                TimeUnit.SECONDS
+            )
             sharedModelReady = true
             // v0.9.9: the model FILE being present is not "warm" — the first translate call
             // still loads it into memory. Pay that here, not on the user's first page.
