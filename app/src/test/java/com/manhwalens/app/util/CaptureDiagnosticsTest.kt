@@ -56,7 +56,12 @@ class CaptureDiagnosticsTest {
                 error = null
             ))
         }
-        assertTrue(diagnostics.report().length <= CaptureDiagnostics.MAX_REPORT_CHARS)
-        assertFalse(diagnostics.report().isEmpty())
+        diagnostics.recordOverlayText(999, "DISPLAY_SENTINEL", "النص المعروض", "ml_kit_en_ar", true)
+        val report = diagnostics.report()
+        assertTrue(report.length <= CaptureDiagnostics.MAX_REPORT_CHARS)
+        assertFalse(report.isEmpty())
+        assertTrue(report.contains("[ML KIT RAW CALLS]"))
+        assertTrue(report.contains("[OVERLAY TEXT]"))
+        assertTrue(report.contains("DISPLAY_SENTINEL"))
     }
 }
