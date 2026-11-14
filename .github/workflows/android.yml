@@ -40,6 +40,15 @@ jobs:
       - name: Install required Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0"
 
+      # Keep one experimental debug certificate across CI runs so Android can
+      # install each APK as an update instead of treating it as a different app.
+      - name: Restore stable experimental debug signing key
+        run: |
+          mkdir -p "$HOME/.android"
+          base64 --decode ci/experimental-debug.keystore.base64 > "$HOME/.android/debug.keystore"
+          chmod 600 "$HOME/.android/debug.keystore"
+          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey >/dev/null
+
       - name: Make gradlew executable
         run: chmod +x gradlew
 
