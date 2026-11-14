@@ -578,8 +578,8 @@ fun SettingsScreen(onBack: () -> Unit) {
             Spacer(Modifier.size(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    enabled = pairLogCount > 0,
                     onClick = {
+                        pairLogCount = TranslationPairLog.count(context)
                         val report = TranslationPairLog.readReport(context)
                         if (report.isNullOrBlank()) {
                             pairLogCount = 0
@@ -597,7 +597,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 ) { Text(stringResource(R.string.translation_pairs_copy)) }
                 TextButton(
-                    enabled = pairLogCount > 0,
                     onClick = {
                         TranslationPairLog.clear(context)
                         pairLogCount = 0
