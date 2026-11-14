@@ -8,6 +8,7 @@ import com.manhwalens.app.translate.NameScript
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -184,15 +185,15 @@ class NameSessionTest {
 
     @Test
     fun `an alias in the page is repaired by the record`() {
-        // Chain D-B: the page spells the name differently from the stored original. The record
-        // knows both spellings, so the repair still finds it — this is the decorator's job, and
-        // it must survive the P2-05 seam change untouched.
+        // Chain D-B: the page names the character by a spelling the stored original does not
+        // match. The record knows the alias, so the repair still finds it — the decorator's job,
+        // which P2-05 must leave untouched.
         correct("Han Ji-woo", from = "هان جي وو", to = "هان جيو")
         val id = store.find("s1", NameForm.normalize("Han Ji-woo"))!!.id
-        store.addAlias(id, "Han Ji Woo", 300L)
+        assertNotNull(store.addAlias(id, "Ji-woo", 300L))
         val session = NameSession(seriesId = "s1", seriesTitle = "Solo", store = store)
 
-        assertEquals("غادر هان جيو", session.rewrite("Han Ji Woo left.", "غادر Han Ji Woo"))
+        assertEquals("غادر هان جيو", session.rewrite("Ji-woo left.", "غادر Ji-woo"))
         // The canonical spelling keeps working too (same record, one answer).
         assertEquals("غادر هان جيو", session.rewrite("Han Ji-woo left.", "غادر Han Ji-woo"))
     }

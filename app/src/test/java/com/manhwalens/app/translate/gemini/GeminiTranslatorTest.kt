@@ -537,22 +537,32 @@ class GeminiTranslatorTest {
     @Test
     fun noSeriesSelectedKeepsThePageLocalBehaviour() {
         Glossary.refresh("", true)
-        val reply = GeminiHttpResult(200, okBody(1 to "Han Ji-woo سحب سيفه.", 2 to "لم يقل شيئا."))
+        val page = listOf(
+            TranslationBlock(1, "Wei Wuxian said nothing."),
+            TranslationBlock(2, "Lan Wangji drew his sword.")
+        )
+        val reply = GeminiHttpResult(
+            200,
+            okBody(1 to "Wei Wuxian لم يقل شيئا.", 2 to "Lan Wangji سحب سيفه.")
+        )
+        // v0.11.0 / P0-A: the page-local plan supplies BOTH halves. Pin that exact sheet.
+        val expectedSheet = NameMemory.sheet(NameMemory.plan(page.map { it.english }), limit = 20)
+        assertTrue(expectedSheet, expectedSheet.contains("Wei Wuxian = وي ووشيان"))
 
         // (a) The pre-P1 wiring: no provider at all → the page-local plan does both jobs.
         val withoutProvider = FakeGeminiApi(result = reply)
-        val a = GeminiTranslator(withoutProvider).translatePage(hanBlocks) as PageTranslation.Success
-        assertEquals("هان جي وو سحب سيفه.", a.blocks.first { it.id == 1 }.arabic)
+        val a = GeminiTranslator(withoutProvider).translatePage(page) as PageTranslation.Success
+        assertEquals("وي ووشيان لم يقل شيئا.", a.blocks.first { it.id == 1 }.arabic)
         assertTrue(
             withoutProvider.requestBodies.single(),
-            withoutProvider.requestBodies.single().contains("Han Ji-woo = هان جي وو")
+            withoutProvider.requestBodies.single().contains(expectedSheet)
         )
 
         // (b) An unassigned session resolves nothing on this page → identical request and output.
         val withEmptyProvider = FakeGeminiApi(result = reply)
         val b = GeminiTranslator(withEmptyProvider, nameSheetProvider = { NameSheet.EMPTY })
-            .translatePage(hanBlocks) as PageTranslation.Success
-        assertEquals("هان جي وو سحب سيفه.", b.blocks.first { it.id == 1 }.arabic)
+            .translatePage(page) as PageTranslation.Success
+        assertEquals(a.blocks.first { it.id == 1 }.arabic, b.blocks.first { it.id == 1 }.arabic)
         assertEquals(
             "an empty resolved sheet must fall back to exactly the old page-local path",
             withoutProvider.requestBodies.single(),
