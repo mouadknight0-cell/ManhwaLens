@@ -1,5 +1,6 @@
 package com.manhwalens.app.translate.mlkit
 
+import android.os.SystemClock
 import android.util.Log
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -23,6 +24,17 @@ import com.manhwalens.app.util.PipelineTracer
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+
+/** One raw ML Kit request, captured only when the caller explicitly enables debug diagnostics. */
+data class MlKitTranslationTrace(
+    val blockId: Int,
+    val sourceText: String,
+    val preparedInput: String,
+    val rawOutput: String,
+    val durationMs: Long,
+    val operation: String,
+    val error: String? = null
+)
 
 /**
  * On-device ML Kit EN→AR translation with a strictly-local fallback chain (v0.9.9):
@@ -61,7 +73,9 @@ class MlKitTranslator(
      * from [SceneNames.pin], so a locked spelling can never be replaced by a new detection.
      * Null keeps the v0.11.0 behaviour (page-local names only).
      */
-    private val nameTableProvider: ((List<String>) -> Map<String, String>)? = null
+    private val nameTableProvider: ((List<String>) -> Map<String, String>)? = null,
+    /** Optional, debug-only observer for exact request input and unmodified engine output. */
+    private val onRawTranslation: ((MlKitTranslationTrace) -> Unit)? = null
 ) : Translator {
 
     override val engineId = "ml_kit_en_ar"
@@ -165,8 +179,8 @@ class MlKitTranslator(
                 for ((index, c) in chunks.withIndex()) {
                     // P2-06: one chunk failure used to abort the whole page. Now the chunk is
                     // retried once, and if it still fails only THIS bubble is left empty.
-                    var out = translateChunkText(b.id, index, c)
-                    if (out == null) out = translateChunkText(b.id, index, c)
+                    var out = translateChunkText(b.id, index, c, b.english, attempt = 1)
+                    if (out == null) out = translateChunkText(b.id, index, c, b.english, attempt = 2)
                     if (out == null) {
                         failedChunk = index
                         break
@@ -343,6 +357,38 @@ class MlKitTranslator(
     }
 
     /**
+     * Execute one real ML Kit request and, when requested, capture the exact prepared input
+     * and raw response before trimming or any shared validation/repair is applied.
+     */
+    private fun requestTranslation(
+        blockId: Int,
+        sourceText: String,
+        inputText: String,
+        operation: String
+    ): String {
+        val prepared = src(inputText)
+        val started = if (onRawTranslation != null) SystemClock.elapsedRealtime() else 0L
+        val raw = try {
+            Tasks.await(client.translate(prepared), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            if (onRawTranslation != null) runCatching {
+                onRawTranslation.invoke(MlKitTranslationTrace(
+                    blockId, sourceText, prepared, "", SystemClock.elapsedRealtime() - started,
+                    operation, e.javaClass.simpleName
+                ))
+            }
+            throw e
+        }
+        if (onRawTranslation != null) runCatching {
+            onRawTranslation.invoke(MlKitTranslationTrace(
+                blockId, sourceText, prepared, raw, SystemClock.elapsedRealtime() - started,
+                operation, null
+            ))
+        }
+        return raw
+    }
+
+    /**
      * Translate each block as one string, at most 3 concurrent ML Kit calls.
      *
      * P2-06: a failing bubble no longer discards the pass. Every answer that did arrive is
@@ -367,7 +413,7 @@ class MlKitTranslator(
             blocks.forEachIndexed { i, b ->
                 pool.execute {
                     try {
-                        val out = Tasks.await(client.translate(src(b.english)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS).trim()
+                        val out = requestTranslation(b.id, b.english, b.english, "parallel").trim()
                         if (out.isNotBlank()) {
                             results[i] = out
                             emitReady(TranslatedBlock(b.id, b.english, out))
@@ -399,7 +445,7 @@ class MlKitTranslator(
 
     /** One block's engine call for the sequential retry; null when it produced nothing. */
     private fun attemptBlock(block: TranslationBlock): String? = try {
-        Tasks.await(client.translate(src(block.english)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+        requestTranslation(block.id, block.english, block.english, "retry")
             .trim().takeIf { it.isNotBlank() }
     } catch (e: CancellationException) {
         throw e
@@ -409,8 +455,14 @@ class MlKitTranslator(
     }
 
     /** One chunk of a long bubble, retried once by the caller; null when the chunk failed. */
-    private fun translateChunkText(blockId: Int, index: Int, text: String): String? = try {
-        Tasks.await(client.translate(src(text)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+    private fun translateChunkText(
+        blockId: Int,
+        index: Int,
+        text: String,
+        sourceText: String,
+        attempt: Int
+    ): String? = try {
+        requestTranslation(blockId, sourceText, text, "chunk-${index + 1}-attempt-$attempt")
             .trim().takeIf { it.isNotBlank() }
     } catch (e: CancellationException) {
         throw e
