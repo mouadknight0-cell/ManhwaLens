@@ -58,6 +58,9 @@ object PipelineTracer {
     private var spans = ArrayList<SpanTrace>()
     private var tapAtMs = 0L
 
+    private const val MAX_STAGES = 100
+    private const val MAX_SPANS = 40
+
     /** Injectable clock (unit tests). Milliseconds. */
     var clock: () -> Long = { System.currentTimeMillis() }
 
@@ -72,10 +75,9 @@ object PipelineTracer {
     fun record(stage: Stage, status: StageTrace.Status, durationMs: Long, detail: String) {
         synchronized(lock) {
             stages.add(StageTrace(stage.wire, status, durationMs.coerceAtLeast(0), sanitize(detail).take(600)))
+            if (stages.size > MAX_STAGES) stages = ArrayList(stages.takeLast(MAX_STAGES))
         }
     }
-
-    private const val MAX_SPANS = 40
 
     /** Record a named sub-step (e.g. gemini attempt, queue wait, overlay attach). */
     fun span(name: String, durationMs: Long, detail: String = "") {
