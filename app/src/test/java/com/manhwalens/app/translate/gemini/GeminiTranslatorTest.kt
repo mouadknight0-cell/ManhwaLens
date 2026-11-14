@@ -447,7 +447,7 @@ class GeminiTranslatorTest {
 
     @Test
     fun defaultConstructorKeepsTheLegacyPrimaryRequest() {
-        // P2-03 must not flip the shipped default: TranslatorFactory passes no flag.
+        // Direct constructor default remains legacy for compatibility; production factory opts into JSON.
         val api = FakeGeminiApi(result = GeminiHttpResult(200, okBody(1 to "مرحبا", 2 to "خذ يدي")))
         GeminiTranslator(api, modelProvider = { GeminiWire.DEFAULT_MODEL }).translatePage(blocks)
         assertEquals(1, api.requestBodies.size)
