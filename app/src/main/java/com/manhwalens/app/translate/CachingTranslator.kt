@@ -42,7 +42,9 @@ class CachingTranslator(
      *
      * Null (the default) leaves every existing caller byte-identical to v0.11.0.
      */
-    private val pinnedOverride: ((String, String) -> String)? = null
+    private val pinnedOverride: ((String, String) -> String)? = null,
+    /** Opt-in local observer for final source/translation pairs, including cache hits and rejected outputs. */
+    private val onTranslationPair: ((TranslationPairTrace) -> Unit)? = null
 ) : Translator {
 
     override val engineId: String get() = delegate.engineId
@@ -132,6 +134,12 @@ class CachingTranslator(
             }
         }
         val cacheHits = cached.size
+        cached.forEach { (id, arabic) ->
+            val source = blocks.firstOrNull { it.id == id }?.english.orEmpty()
+            runCatching {
+                onTranslationPair?.invoke(TranslationPairTrace(id, source, arabic, arabic, engineId, "CACHE_HIT", "served from cache", 0L))
+            }
+        }
         if (diskHits > 0) {
             com.manhwalens.app.util.PipelineTracer.span("persistent cache", 0, "$diskHits block(s) served from disk")
         }
@@ -146,6 +154,11 @@ class CachingTranslator(
         if (misses.isNotEmpty()) {
             when (val result = delegate.translatePage(misses)) {
                 is PageTranslation.Failure -> {
+                    misses.forEach { block ->
+                        runCatching {
+                            onTranslationPair?.invoke(TranslationPairTrace(block.id, block.english, "", "", engineId, "ENGINE_FAILURE", result.reason.name, 0L))
+                        }
+                    }
                     return PageTranslation.Failure(result.reason, result.message, engineId)
                 }
                 is PageTranslation.Success -> {
@@ -172,6 +185,19 @@ class CachingTranslator(
                     } else emptyList()
                     val usable = polished.count { tb ->
                         tb.arabic.isNotBlank() && rejectedIds.none { it.first == tb.id }
+                    }
+                    val rejectedById = rejectedIds.toMap()
+                    polished.forEach { tb ->
+                        val issue = rejectedById[tb.id]
+                        runCatching {
+                            onTranslationPair?.invoke(TranslationPairTrace(
+                                tb.id, tb.english, if (issue == null) tb.arabic else "", tb.arabic,
+                                engineId,
+                                if (issue == null && tb.arabic.isNotBlank()) "OK" else if (issue != null) "QUALITY_REJECTED" else "EMPTY",
+                                issue?.name ?: if (tb.arabic.isBlank()) "empty translation" else "",
+                                result.elapsedMs
+                            ))
+                        }
                     }
                     if (rejectedIds.isNotEmpty()) {
                         val summary = rejectedIds.take(4).joinToString { "#${it.first}:${it.second.name.lowercase()}" }
