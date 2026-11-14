@@ -2680,8 +2680,12 @@ class FloatingButtonService : Service() {
                 val filterResult = BlockFilter.apply(
                     ocrBlocks, bitmap.height,
                     edgePrefs.ignoreTopPct, edgePrefs.ignoreBottomPct, edgePrefs.ignorePhraseList(),
-                    minHeightPx = 16f * density, minWordCount = 1
+                    minHeightPx = 16f * density, minWordCount = 1,
+                    frameWidth = bitmap.width
                 )
+                if (filterResult.edgeWarnings.isNotEmpty()) {
+                    PipelineTracer.span("horizontal edge OCR", 0, filterResult.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240))
+                }
                 val removed = filterResult.removed.joinToString(", ") { "#${it.id}:${it.reason}" }.take(300)
                 PipelineTracer.record(
                     PipelineTracer.Stage.FILTER, StageTrace.Status.OK,
@@ -3116,8 +3120,12 @@ class FloatingButtonService : Service() {
             val filterResult = BlockFilter.apply(
                 grouped, bitmap.height, edgePrefs.ignoreTopPct, edgePrefs.ignoreBottomPct,
                 edgePrefs.ignorePhraseList(),
-                minHeightPx = 16f * density, minWordCount = 1
+                minHeightPx = 16f * density, minWordCount = 1,
+                frameWidth = bitmap.width
             )
+            if (filterResult.edgeWarnings.isNotEmpty()) {
+                PipelineTracer.span("horizontal edge OCR", 0, filterResult.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240))
+            }
             // Count BlockFilter drop reasons for diagnostics.
             for (r in filterResult.removed) {
                 ocrDropsByReason[r.reason] = (ocrDropsByReason[r.reason] ?: 0) + 1
@@ -3272,8 +3280,12 @@ class FloatingButtonService : Service() {
                     val filtered = BlockFilter.apply(
                         grouped, frame.height, edgePrefs.ignoreTopPct, edgePrefs.ignoreBottomPct,
                         edgePrefs.ignorePhraseList(),
-                        minHeightPx = 16f * density, minWordCount = 1
+                        minHeightPx = 16f * density, minWordCount = 1,
+                        frameWidth = frame.width
                     )
+                    if (filtered.edgeWarnings.isNotEmpty()) {
+                        com.manhwalens.app.util.PipelineTracer.span("live horizontal edge OCR", 0, filtered.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240))
+                    }
                     // v0.9.12: text sitting on our own UI (lens, caption, menu) is not page text.
                     val ownRects = liveOwnedRects(frame.width)
                     val pageBlocks = filtered.kept.filterNot {
