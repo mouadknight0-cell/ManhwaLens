@@ -43,6 +43,22 @@ class CaptureDiagnosticsTest {
     }
 
     @Test
+    fun reportIncludesActualPatchBoundsAndPlannedCoverMembers() {
+        val diagnostics = CaptureDiagnostics(720, 1600)
+        diagnostics.recordOverlayPatch(
+            id = 4,
+            patchLeft = 90, patchTop = 96, patchRight = 260, patchBottom = 164,
+            cover = Rect2D(96f, 102f, 254f, 158f),
+            memberIds = listOf(4, 5, 6)
+        )
+
+        val report = diagnostics.report()
+
+        assertTrue(report.contains("[OVERLAY PATCHES] unique=1"))
+        assertTrue(report.contains("#4 patch=90.0,96.0,260.0,164.0 cover=96.0,102.0,254.0,158.0 members=4,5,6"))
+    }
+
+    @Test
     fun reportIsBoundedWhenManyLongTranslationCallsAreRecorded() {
         val diagnostics = CaptureDiagnostics(720, 1600)
         repeat(200) { index ->
