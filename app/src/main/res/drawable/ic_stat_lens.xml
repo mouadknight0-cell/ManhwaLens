@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monochrome status-bar icon: lens outline + pupil (silhouette). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,8C7.6,8 3.9,10.9 2,15c1.9,4.1 5.6,7 10,7s8.1,-2.9 10,-7C20.1,10.9 16.4,8 12,8z M12,17.6a4.07,4.07 0 1 1 0,-8.14 4.07,4.07 0 0 1 0,8.14z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,12.7a2.3,2.3 0 1 0 0,4.6 2.3,2.3 0 0 0 0,-4.6z" />
+</vector>
