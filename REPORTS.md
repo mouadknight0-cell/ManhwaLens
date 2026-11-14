@@ -30,6 +30,7 @@ stated in the report before the code changes.
 
 | Date | Phase | Report | Base → final | Verified by |
 | --- | --- | --- | --- | --- |
+| 2026-11-13 | P0/C2 ML Kit English echo eliminated | [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) | `6eb8974` → `c008f62` | CI run recorded in the report's follow-up commit |
 | 2026-11-13 | P1.1 strict staging validation · P1.1-A canonical keys (§8) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `feb20ef` → `e546470` | CI 43531030306, 43531550380, 43561318751 |
 | 2026-11-13 | P1 persistence safety (recovery never writes the live file) | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `345715d` | CI 43526686657 |
 | 2026-11-13 | P1 review corrections | [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) | `1c0c270` → `e99dd93` (docs `06b3d84`) | CI 43523522645, 43524129101 |

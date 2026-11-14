@@ -22,8 +22,8 @@ module, Kotlin 2.4.21, AGP 8.13.2, Compose + Material 3, `minSdk 26`, `compileSd
 | --- | --- |
 | Kotlin sources | 112 files under `app/src/main` |
 | Test sources | 68 files under `app/src/test` |
-| Test methods (`@Test`) | 619 |
-| Branch vs `main` | 20 commits, 225 files, +35 942 lines (the PR branch carries the whole app; `main` holds the initial commit) |
+| Test methods (`@Test`) | 629 |
+| Branch vs `main` | 25 commits, 228 files, +36 673 lines (the PR branch carries the whole app; `main` holds the initial commit) |
 | Documentation at the root | 18 Markdown files (§5) |
 
 ---
@@ -38,6 +38,7 @@ module, Kotlin 2.4.21, AGP 8.13.2, Compose + Material 3, `minSdk 26`, `compileSd
 | 4 | **P1 review** — atomic writes, session cache identity, series visibility | [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) | `1c0c270` → `e99dd93` | 43523522645, 43524129101 |
 | 5 | **P1 persistence safety** — recovery may never write the live file | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `87830b7` | 43526686657, 43527227407 |
 | 6 | **P1.1 strict staging validation** — a staging copy is promoted only after it is proved structurally complete; **P1.1-A** adds canonical `normalizedName` integrity (§8) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `723f101` → this commit | 43531030306, 43531550380, + this change |
+| 7 | **P0/C2** ML Kit English echo eliminated — no source substitution, guard extended to `ml_kit_en_ar`, guarded progressive path, painter-boundary defence | [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) | `6eb8974` → `c008f62` | run recorded in the follow-up commit |
 
 Net: one defect fixed in the Gemini wire path, one feature (persistent, series-scoped names), and
 four hardening passes over the new persistence layer (atomic writes → recovery never writes the
@@ -137,8 +138,9 @@ divergence from the audit and is the standing architectural choice for this area
 
 ## 8. Merge readiness
 
-- **Checks:** `build` green at `723f101` (run 43531550380); PR MERGEABLE / CLEAN.
-- **What a reviewer should read first:** the five per-change reports in §2 (each is self-contained:
+- **Checks:** `build` green at `6eb8974` (run 43561668957); the P0/C2 run is recorded in
+  [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) §6. PR MERGEABLE / CLEAN.
+- **What a reviewer should read first:** the six per-change reports in §2 (each is self-contained:
   evidence, fix, tests, diff, risks), then `DECISIONS.md` for the standing rules.
 - **What merging does *not* buy:** device validation, a release APK, or lint coverage — all three
   remain environment blockers, unchanged by this branch.
@@ -151,6 +153,7 @@ divergence from the audit and is the standing architectural choice for this area
 
 | Updated | Head | What changed in this snapshot |
 | --- | --- | --- |
+| 2026-11-13 (`c008f62`) | P0/C2 merged into the branch | Added the P0/C2 work package (no source substitution, guard extended to `ml_kit_en_ar`, guarded progressive path, painter defence), refreshed the inventory (629 tests, 25 commits) |
 | 2026-11-13 (`e546470`) | P1.1-A merged into the branch | Added the canonical normalized-name invariant to the P1.1 entry, refreshed the inventory (619 tests, 21 commits), recorded the fourth hardening pass and the run at head |
 | 2026-11-13 (`723f101`) | P1.1 merged into the branch | Added the P1.1 work package and its two runs, refreshed the inventory (615 tests, 20 commits, 225 files), noted the third hardening pass |
 | 2026-11-13 (`8140a4b`) | first version | Branch/PR state, the five work packages, verification matrix, code and documentation maps, blockers, ranked next steps, merge readiness |

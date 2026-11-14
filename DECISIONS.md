@@ -844,3 +844,14 @@ One line per correction.
 - V3. No rule was relaxed and nothing else changed: schema `version: 1`, the writer, atomic promotion, the recovery flow, the tolerant live-file reader, `NameSession`, series selection, resolution priority, cache rewriting, OCR/translation and the settings UI are untouched.
 - V4. Four regression tests pin it: a single forged key, two spellings with different forged keys (the bypass), two spellings with canonical keys (canonical duplicate detection), and a rejected copy leaving a present-but-unloadable live file byte-for-byte unchanged. 615 → 619 test methods in the module.
 - V5. If `NameForm.normalize` ever changes its rule, documents from older builds would be rejected by the strict check — that is a future schema-migration concern (bump `SCHEMA_VERSION` then), deliberately not solved speculatively now.
+
+# P0/C2 ML Kit English echo — 2026-11-13
+
+**Report:** [P0B_MLKIT_ENGLISH_ECHO.md](P0B_MLKIT_ENGLISH_ECHO.md) · **Base:** `6eb8974`.
+
+- W1. A block ML Kit gives no answer for is returned **empty**, never as the English source (`MlKitPageAssembly.ordered`). Page order and ids are preserved and the source stays on the block for the painter/fallback, but it is never the output; a page with nothing translated is no longer a silent "success" carrying English text.
+- W2. `CachingTranslator.requiresArabicGuard` includes `ml_kit_en_ar`, so ML Kit output — fresh and cached — is judged by the same `ArabicValidator` as the remote engines: a rejected bubble is returned empty and never written to the memory, disk or fuzzy tier; a stale cached entry that fails the guard is evicted from all three tiers and treated as a miss.
+- W3. The progressive path is **filtered, not disabled**: `MlKitPageAssembly.progressivePayload` withholds blank/rejected blocks from the callback (with a `PipelineTracer` span) while valid Arabic and legitimately preserved standalone names are delivered immediately and unchanged.
+- W4. `BubblePainter` gained a last-line-of-defence check against the same validator, so no path (progressive callback, remote upgrade, final reconciliation, cache) can draw non-Arabic into an RTL patch; the refusal is logged with its reason and `remoteWins` arbitration is untouched.
+- W5. Rejected blocks stay empty, so the existing failure contract, fallback and area merging apply — no retry loop and no added latency. The rules live in pure Kotlin (`MlKitPageAssembly`) because `MlKitTranslator` needs Android; Robolectric and new dependencies stay forbidden.
+- W6. Verification: 10 new regression tests (619 → 629 test methods in the module); `:app:testDebugUnitTest` + `:app:assembleDebug` run by GitHub Actions on the final commit (run id in the report). No device validation is claimed.

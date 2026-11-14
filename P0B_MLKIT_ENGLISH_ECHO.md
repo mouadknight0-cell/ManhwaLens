@@ -143,7 +143,7 @@ No local test execution is claimed.
 
 ## 6. CI and commits
 
-* Code + tests + this report: the first `P0/C2` commit of this phase (25th on the branch, on top of base `6eb8974`); its exact SHA is recorded in the follow-up documentation commit.
+* Code + tests + this report: commit `c008f62` (25th on the branch, on top of base `6eb8974`).
 * CI run: **pending when this file was committed** — the workflow run id and its result are recorded in
   the follow-up documentation commit, together with the audit status flip (no result is claimed here).
 * Follow-up documentation commit: records the run id, flips C2 to *fixed* in
