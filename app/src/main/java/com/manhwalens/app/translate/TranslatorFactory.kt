@@ -116,6 +116,9 @@ object TranslatorFactory {
                 HttpUrlConnectionGeminiApi(prefs.geminiKey),
                 modelProvider = { prefs.geminiModel },
                 modelSaver = { prefs.geminiModel = it },
+                // Production uses constrained JSON output for stable id→bubble mapping.
+                // GeminiTranslator retries once in legacy mode if the API rejects JSON mode.
+                jsonReply = true,
                 // P1 / P2-05: one resolved table per page supplies BOTH halves — the sheet text
                 // for the prompt and the map for the repair — so the two cannot disagree.
                 nameSheetProvider = { texts ->
