@@ -3863,9 +3863,8 @@ class FloatingButtonService : Service() {
         private val areaPlanById = HashMap<Int, com.manhwalens.app.render.PatchPlanner.Area>()
         private val remoteWins = HashSet<Int>()
         /**
-         * v0.11.0: one patch area per visual bubble, decided up-front from EVERY kept block
-         * (never from arrival order). Only area owners draw Arabic; siblings are erased by
-         * the owner's cover, so two Arabic texts can never share a bubble.
+         * One patch area per visual bubble, decided up-front from EVERY kept block. Each
+         * update composes all translations known for that area into its owner's stable patch ID.
          */
         private val areas: List<com.manhwalens.app.render.PatchPlanner.Area> =
             com.manhwalens.app.render.PatchPlanner.areas(
@@ -4068,17 +4067,22 @@ class FloatingButtonService : Service() {
                 }
             }
             Log.i(TAG, paintLedger.line())
-            val snap = snapshot()
-            val generationSnapshot: Map<Int, Int>
-            val staleAreas: List<com.manhwalens.app.render.PatchPlanner.Area>
-            synchronized(lock) {
-                generationSnapshot = areaGeneration.toMap()
-                staleAreas = areas.filter { area ->
-                    val current = areaGeneration[area.ownerId] ?: 0
-                    val built = builtGenerationByArea[area.ownerId] ?: -1
-                    current > 0 && built != current
-                }
+            // Snapshot text and generations atomically. A remote upgrade arriving between
+            // these reads could otherwise make an old snapshot look current and overwrite it.
+            val state = synchronized(lock) {
+                Triple(
+                    painted.values.sortedBy { it.top },
+                    areaGeneration.toMap(),
+                    areas.filter { area ->
+                        val current = areaGeneration[area.ownerId] ?: 0
+                        val built = builtGenerationByArea[area.ownerId] ?: -1
+                        current > 0 && built != current
+                    }
+                )
             }
+            val snap = state.first
+            val generationSnapshot = state.second
+            val staleAreas = state.third
             if (snap.isEmpty() || staleAreas.isEmpty()) return
             if (!attachRequested) attachRequested = true
 
@@ -4135,10 +4139,8 @@ class FloatingButtonService : Service() {
     /**
      * Rasterize ALL boxes into small patch bitmaps (worker-thread safe).
      *
-     * v0.11.0: boxes that share one visual area are folded BEFORE rendering — the owner
-     * draws the Arabic over the union cover, and its siblings render nothing. Without this
-     * a bubble OCR split into two blocks got two overlapping patches whose edges smeared
-     * into each other and left half the English uncovered.
+     * Boxes that share one visual area are composed BEFORE rendering — every available
+     * member translation is drawn into one opaque bitmap over the union cover.
      */
     private fun buildPatches(
         source: Bitmap,
