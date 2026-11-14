@@ -840,7 +840,7 @@ Tap / Live scan
 | `MlKitTranslator.kt` | observer اختياري يلتقط النص المحضّر والناتج الخام وزمن الطلب/الخطأ قبل trim أو validation |
 | `TranslatorFactory.kt` | تمرير observer اختيارياً دون تغيير السلوك الافتراضي |
 | `FloatingButtonService.kt` | إنشاء التشخيص فقط عند Debug mode في مسار Tap، تسجيل OCR والرقع، وحفظ التقرير مع Pipeline trace |
-| `SettingsPrefs.kt` / `strings.xml` | Debug mode افتراضياً OFF، وإظهار تحذير واضح بأن التقرير يحتوي نص الصفحة |
+| `strings.xml` | توضيح أن Debug mode افتراضياً OFF وأن التقرير يحتوي نص الصفحة |
 | `app/build.gradle.kts` | رفع النسخة إلى 0.11.2 / versionCode 32 حتى لا يستبدل الإصدار السابق |
 
 ### 13.3 الخصوصية والحدود

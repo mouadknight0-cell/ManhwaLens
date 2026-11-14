@@ -51,7 +51,7 @@
     <string name="lens_tap_menu">Menu</string>
     <string name="lens_tap_translate">Translate now</string>
 
-    <string name="debug_mode_summary">After each lens tap, show the pipeline trace and save the last frame with OCR boxes. While Debug mode is ON, the Last error report also contains page OCR text, OCR confidence and coordinates, exact ML Kit inputs and raw outputs, and the final Arabic text for which an overlay patch bitmap was built. The report remains in app-private storage until another report replaces it; turn Debug mode OFF after collecting the evidence.</string>
+    <string name="debug_mode_summary">After each lens tap, show the pipeline trace and save the last frame with OCR boxes. While Debug mode is ON, the Last error report also contains page OCR text, OCR confidence and coordinates, exact ML Kit inputs and raw outputs, and the Arabic text for which an overlay patch bitmap was built. The report remains in app-private storage until another report replaces it; turn Debug mode OFF after collecting the evidence.</string>
     <!-- v0.9.5 Part 2: Live self-check -->
     <string name="self_check_button">Live self-check</string>
     <string name="self_check_title">Live self-check</string>
