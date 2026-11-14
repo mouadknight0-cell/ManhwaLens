@@ -271,6 +271,18 @@ class FloatingButtonService : Service() {
     private lateinit var captureThread: HandlerThread
     private lateinit var captureHandler: Handler
     private val ocrClient by lazy { TextRecognizerClient() }
+    /** OCR orchestration is isolated from the foreground-service lifecycle. */
+    private val captureOcrProcessor by lazy {
+        com.manhwalens.app.ocr.CaptureOcrProcessor(
+            applicationContext,
+            ocrClient,
+            ::cropBarsForOcr,
+            { tapOwnedRects },
+            ::recordOcrResult
+        ) { reason ->
+            ocrDropsByReason[reason] = (ocrDropsByReason[reason] ?: 0) + 1
+        }
+    }
     /** Non-null only for the current tap when the user explicitly enabled Debug mode. */
     @Volatile private var activeCaptureDiagnostics: com.manhwalens.app.util.CaptureDiagnostics? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -3155,55 +3167,8 @@ class FloatingButtonService : Service() {
         ownedRectsOverride: List<com.manhwalens.app.ocr.geometry.Rect2D>? = null,
         diagnostics: com.manhwalens.app.util.CaptureDiagnostics? = null
     ): List<BubbleBlock> {
-        val (ocrBitmap, cropOffsetY) = cropBarsForOcr(bitmap)
-        val canCrop = ocrBitmap !== bitmap
         return try {
-            val recognized = ocrClient.recognize(ocrBitmap)
-            val lines = if (canCrop) {
-                recognized.lines.map {
-                    it.copy(box = com.manhwalens.app.ocr.geometry.Rect2D(
-                        it.box.left, it.box.top + cropOffsetY, it.box.right, it.box.bottom + cropOffsetY
-                    ))
-                }
-            } else recognized.lines
-            recordOcrResult(lines.size, recognized.elapsedMs)
-            val grouped = BubbleGrouper.group(lines)
-            val edgePrefs = com.manhwalens.app.data.SettingsPrefs(applicationContext)
-            val density = resources.displayMetrics.density
-            val filterResult = BlockFilter.apply(
-                grouped, bitmap.height, edgePrefs.ignoreTopPct, edgePrefs.ignoreBottomPct,
-                edgePrefs.ignorePhraseList(),
-                minHeightPx = 16f * density, minWordCount = 1,
-                frameWidth = bitmap.width
-            )
-            if (filterResult.edgeWarnings.isNotEmpty()) {
-                PipelineTracer.span("horizontal edge OCR", 0, filterResult.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240))
-            }
-            // Count BlockFilter drop reasons for diagnostics.
-            for (r in filterResult.removed) {
-                ocrDropsByReason[r.reason] = (ocrDropsByReason[r.reason] ?: 0) + 1
-            }
-            var filtered = filterResult.kept
-            // Part 1 defense-in-depth: drop blocks over our windows, our strings, or OCR garbage.
-            if (filtered.isNotEmpty()) {
-                val classifier = com.manhwalens.app.ocr.OcrGarbageClassifier(
-                    com.manhwalens.app.util.OwnedWindows.UI_STRINGS
-                ) { SystemClock.elapsedRealtime() }
-                val patchRects = emptyList<com.manhwalens.app.ocr.geometry.Rect2D>()
-                val ownedRects = ownedRectsOverride ?: tapOwnedRects
-                filtered = filtered.filterNot { block ->
-                    val v = classifier.classify(
-                        block.text.replace('\n', ' ').trim(), block.bounds,
-                        patchRects = patchRects, ownedRects = ownedRects
-                    )
-                    if (!v.keep) {
-                        ocrDropsByReason[v.reason.name] = (ocrDropsByReason[v.reason.name] ?: 0) + 1
-                        true
-                    } else false
-                }
-            }
-            diagnostics?.recordOcr(lines, grouped, filtered, recognized.elapsedMs)
-            filtered
+            captureOcrProcessor.recognizeAndFilterBlocks(bitmap, ownedRectsOverride, diagnostics)
         } catch (e: Exception) {
             ErrorLog.write(this, "ocr", e)
             Log.e("ManhwaLens", "stage=ocr — ${e.javaClass.name}: ${e.message}", e)
@@ -3215,8 +3180,6 @@ class FloatingButtonService : Service() {
                 ).show()
             }
             emptyList()
-        } finally {
-            if (canCrop) runCatching { ocrBitmap.recycle() }
         }
     }
 
