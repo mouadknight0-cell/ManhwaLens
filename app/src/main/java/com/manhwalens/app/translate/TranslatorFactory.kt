@@ -10,6 +10,7 @@ import com.manhwalens.app.translate.libre.HttpUrlConnectionLibreTranslateApi
 import com.manhwalens.app.translate.libre.LibreTranslateTranslator
 import com.manhwalens.app.translate.libre.LibreTranslateWire
 import com.manhwalens.app.translate.mlkit.MlKitTranslator
+import com.manhwalens.app.translate.mlkit.MlKitTranslationTrace
 import java.io.File
 
 /** Translator used when Gemini is selected but no key has been saved. */
@@ -183,13 +184,19 @@ object TranslatorFactory {
     }
 
     /** ML Kit only (progressive pass): same shared caches, ignores the engine pref. */
-    fun createOffline(context: Context): Translator {
+    fun createOffline(
+        context: Context,
+        onRawTranslation: ((MlKitTranslationTrace) -> Unit)? = null
+    ): Translator {
         ensureBatchPolicy(context)
         TranslationPrefs(context).refreshGlossary()
         val style = styleOf(context)
         val session = names(context)
         return CachingTranslator(
-            MlKitTranslator(nameTableProvider = { texts -> session.tableFor(texts).table }),
+            MlKitTranslator(
+                nameTableProvider = { texts -> session.tableFor(texts).table },
+                onRawTranslation = onRawTranslation
+            ),
             sharedCache, disk(context), style, memo = memo("ml_kit_en_ar", style),
             pinnedOverride = session::rewrite
         )
@@ -200,7 +207,11 @@ object TranslatorFactory {
      * as it completes (per-block ≤3 in flight inside ML Kit), while cache hits
      * are emitted instantly. Used by the tap pipeline.
      */
-    fun createProgressive(context: Context, onBlockReady: (TranslatedBlock) -> Unit): Translator {
+    fun createProgressive(
+        context: Context,
+        onBlockReady: (TranslatedBlock) -> Unit,
+        onRawTranslation: ((MlKitTranslationTrace) -> Unit)? = null
+    ): Translator {
         ensureBatchPolicy(context)
         TranslationPrefs(context).refreshGlossary()
         val style = styleOf(context)
@@ -208,7 +219,8 @@ object TranslatorFactory {
         return CachingTranslator(
             MlKitTranslator(
                 onBlockReady,
-                nameTableProvider = { texts -> session.tableFor(texts).table }
+                nameTableProvider = { texts -> session.tableFor(texts).table },
+                onRawTranslation = onRawTranslation
             ),
             sharedCache,
             disk(context),
