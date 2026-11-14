@@ -18,6 +18,10 @@ class CaptureDiagnostics(
     private var groupedBlocks = emptyList<BubbleBlock>()
     private var keptBlocks = emptyList<BubbleBlock>()
     private var ocrElapsedMs: Long = -1L
+    private var rawLineTotal = 0
+    private var groupedTotal = 0
+    private var keptTotal = 0
+    private var translationCallTotal = 0
     private val translationCalls = ArrayList<MlKitTranslationTrace>()
     private val overlayTexts = LinkedHashMap<Int, OverlayText>()
 
@@ -30,6 +34,9 @@ class CaptureDiagnostics(
 
     fun recordOcr(lines: List<DetectedLine>, grouped: List<BubbleBlock>, kept: List<BubbleBlock>, elapsedMs: Long) {
         synchronized(lock) {
+            rawLineTotal = lines.size
+            groupedTotal = grouped.size
+            keptTotal = kept.size
             ocrLines = lines.take(MAX_OCR_LINES)
             groupedBlocks = grouped.take(MAX_BLOCKS)
             keptBlocks = kept.take(MAX_BLOCKS)
@@ -39,6 +46,7 @@ class CaptureDiagnostics(
 
     fun recordTranslation(trace: MlKitTranslationTrace) {
         synchronized(lock) {
+            translationCallTotal++
             if (translationCalls.size >= MAX_TRANSLATION_CALLS) translationCalls.removeAt(0)
             translationCalls += trace.copy(
                 sourceText = trace.sourceText.take(MAX_TEXT_CHARS),
@@ -60,30 +68,23 @@ class CaptureDiagnostics(
 
     fun report(): String = synchronized(lock) {
         val created = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(createdAtMs))
-        buildString {
-            appendLine("ManhwaLens OCR/translation diagnostics")
-            appendLine("created=$created")
-            appendLine("frame=${frameWidth}x${frameHeight} ocrMs=$ocrElapsedMs")
-            appendLine("Privacy: opt-in debug-mode report; page text is not written to Logcat.")
-            appendLine()
-            appendLine("[RAW OCR LINES] count=${ocrLines.size}")
+        val rawOcr = buildString {
             ocrLines.forEachIndexed { index, line ->
                 val b = line.box
                 appendLine("L${index + 1} confidence=${format(line.confidence)} " +
                     "box=${format(b.left)},${format(b.top)},${format(b.right)},${format(b.bottom)} " +
                     "text=\"${safe(line.text)}\"")
             }
-            appendLine()
-            appendLine("[GROUPED BLOCKS] count=${groupedBlocks.size}")
+        }
+        val grouped = buildString {
             groupedBlocks.forEach { block ->
                 appendLine("#${block.id} box=${box(block)} text=\"${safe(block.text)}\"")
             }
-            appendLine()
-            appendLine("[KEPT FOR TRANSLATION] count=${keptBlocks.size}")
+        }
+        val kept = buildString {
             keptBlocks.forEach { block -> appendLine("#${block.id} text=\"${safe(block.text)}\"") }
-            appendLine()
-            appendLine("[ML KIT RAW CALLS] count=${translationCalls.size}")
-            appendLine("Each entry includes original OCR source, exact prepared input, raw engine output and latency.")
+        }
+        val calls = buildString {
             translationCalls.forEachIndexed { index, call ->
                 val error = call.error ?: "none"
                 appendLine("CALL ${index + 1} block=#${call.blockId} operation=${call.operation} " +
@@ -92,16 +93,36 @@ class CaptureDiagnostics(
                 appendLine("  input =\"${safe(call.preparedInput)}\"")
                 appendLine("  raw   =\"${safe(call.rawOutput)}\"")
             }
-            appendLine()
-            appendLine("[OVERLAY TEXT] count=${overlayTexts.size}")
-            appendLine("Entries are recorded only after a patch bitmap is built.")
+        }
+        val overlay = buildString {
             overlayTexts.forEach { (id, item) ->
                 appendLine("#$id origin=${item.origin} patchBuilt=${item.patchBuilt} " +
                     "source=\"${safe(item.english)}\" arabic=\"${safe(item.arabic)}\"")
             }
+        }
+        buildString {
+            appendLine("ManhwaLens OCR/translation diagnostics")
+            appendLine("created=$created")
+            appendLine("frame=${frameWidth}x${frameHeight} ocrMs=$ocrElapsedMs")
+            appendLine("Privacy: opt-in debug-mode report; page text is not written to Logcat.")
+            appendLine()
+            append(boundedSection("[RAW OCR LINES] total=$rawLineTotal captured=${ocrLines.size}", rawOcr, OCR_SECTION_CHARS))
+            append(boundedSection("[GROUPED BLOCKS] total=$groupedTotal captured=${groupedBlocks.size}", grouped, BLOCK_SECTION_CHARS))
+            append(boundedSection("[KEPT FOR TRANSLATION] total=$keptTotal captured=${keptBlocks.size}", kept, BLOCK_SECTION_CHARS))
+            append(boundedSection("[ML KIT RAW CALLS] total=$translationCallTotal captured=${translationCalls.size}", calls, TRANSLATION_SECTION_CHARS))
+            appendLine("[OVERLAY TEXT] unique=${overlayTexts.size}")
+            appendLine("Entries are recorded only after a patch bitmap is built.")
+            append(overlay.take(OVERLAY_SECTION_CHARS))
+            if (overlay.length > OVERLAY_SECTION_CHARS) appendLine("\n... overlay section truncated")
             appendLine()
             appendLine("Missing raw-call entries usually indicate a cache hit, another engine, or a request that failed before returning output.")
         }.take(MAX_REPORT_CHARS)
+    }
+
+    private fun boundedSection(title: String, content: String, maxChars: Int): String = buildString {
+        appendLine(title)
+        append(content.take(maxChars))
+        if (content.length > maxChars) appendLine("\n... section truncated")
     }
 
     private fun box(block: BubbleBlock): String {
@@ -115,10 +136,14 @@ class CaptureDiagnostics(
     private fun format(value: Float): String = String.format(Locale.US, "%.1f", value)
 
     companion object {
-        const val MAX_REPORT_CHARS = 24_000
-        private const val MAX_TEXT_CHARS = 1_000
+        const val MAX_REPORT_CHARS = 56_000
+        private const val MAX_TEXT_CHARS = 400
         private const val MAX_OCR_LINES = 120
         private const val MAX_BLOCKS = 80
         private const val MAX_TRANSLATION_CALLS = 120
+        private const val OCR_SECTION_CHARS = 10_000
+        private const val BLOCK_SECTION_CHARS = 7_000
+        private const val TRANSLATION_SECTION_CHARS = 20_000
+        private const val OVERLAY_SECTION_CHARS = 8_000
     }
 }
