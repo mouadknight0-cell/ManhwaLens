@@ -138,17 +138,38 @@ execution path. The committed command is the repository's:
 ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --console=plain
 ```
 
-**Status:** the workflow run for this commit is listed under "CI and commits" below with its result.
-No local test execution is claimed.
+**Result (run `43563394305`, head `08004c4`):** the workflow completed **success** — step *Unit tests* success,
+step *Build debug APK* success, APK artifact uploaded. No local test execution is claimed or possible in
+this sandbox; the test-method count (629) is a source-level `@Test` count across `app/src/test`, and the
+run is the evidence that the suite — including the 10 new tests — compiled and passed.
 
 ## 6. CI and commits
 
 * Code + tests + this report: commit `c008f62` (25th on the branch, on top of base `6eb8974`).
-* CI run: **pending when this file was committed** — the workflow run id and its result are recorded in
-  the follow-up documentation commit, together with the audit status flip (no result is claimed here).
-* Follow-up documentation commit: records the run id, flips C2 to *fixed* in
-  [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md), and refreshes the snapshot in
-  [REPOSITORY_REPORT.md](REPOSITORY_REPORT.md).
+* Documentation/snapshot commit: `08004c4` (26th) — `REPORTS.md`, `REPOSITORY_REPORT.md`,
+  `P0_MANHWALENS_AUDIT.md`, `DECISIONS.md`.
+* CI: run [43563394305](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43563394305) at head `08004c4` —
+  **success** (steps: *Unit tests* success, *Build debug APK* success).
+* Compare: [`6eb8974...08004c4`](https://github.com/mouadknight0-cell/ManhwaLens/compare/6eb8974...08004c4) — `--stat` below.
+* Audit flip: C2 is marked **fixed** in [P0_MANHWALENS_AUDIT.md](P0_MANHWALENS_AUDIT.md) only after this run.
+
+### Diff
+
+`git diff --stat 6eb8974...08004c4` (code commit `c008f62` + docs commit `08004c4`):
+
+```
+ DECISIONS.md                                       |  11 +
+ P0B_MLKIT_ENGLISH_ECHO.md                          | 194 +++++++++++++++++
+ P0_MANHWALENS_AUDIT.md                             |   6 +-
+ REPORTS.md                                         |   1 +
+ REPOSITORY_REPORT.md                               |  11 +-
+ .../app/overlay/FloatingButtonService.kt           |   9 +
+ .../manhwalens/app/translate/CachingTranslator.kt  |  10 +-
+ .../manhwalens/app/translate/MlKitPageAssembly.kt  |  46 ++++
+ .../app/translate/mlkit/MlKitTranslator.kt         |  28 ++-
+ .../app/translate/MlKitEnglishEchoTest.kt          | 231 +++++++++++++++++++++
+ 10 files changed, 532 insertions(+), 15 deletions(-)
+```
 
 ## 7. Remaining risks
 
