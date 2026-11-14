@@ -25,6 +25,10 @@ object ArabicValidator {
         MALFORMED_OUTPUT,
         /** Arabic script mixed with a long, untranslated English sentence. */
         PARTIAL_TRANSLATION,
+        /** Arabic mixed with one or two untranslated common English source words. */
+        UNTRANSLATED_FRAGMENT,
+        /** An exceptionally short Arabic answer to a long source bubble. */
+        INCOMPLETE_TRANSLATION,
         /** A reply that is only punctuation / only a label: nothing to paint. */
         MEANINGLESS_OUTPUT
     }
@@ -71,6 +75,8 @@ object ArabicValidator {
         if (hasArabic) {
             if (containsEnglishEcho(source, output)) return Issue.UNTRANSLATED_ECHO
             if (hasLongEnglishTail(source, output)) return Issue.PARTIAL_TRANSLATION
+            if (hasUntranslatedEnglishFragment(source, output)) return Issue.UNTRANSLATED_FRAGMENT
+            if (isImplausiblyShortArabicOutput(source, output)) return Issue.INCOMPLETE_TRANSLATION
             if (isOnlyLabel(output)) return Issue.MEANINGLESS_OUTPUT
             return null // Arabic dialogue may naturally retain a Latin character or name.
         }
@@ -163,6 +169,39 @@ object ArabicValidator {
             if (index == latin.size - 1) run = 0
         }
         return best >= 3
+    }
+
+
+    /**
+     * Catch short English leftovers without treating preserved proper names, acronyms, or SFX
+     * as translation failures. A token must occur in the source and either be lower-case
+     * dialogue text or a known common English word (including sentence-initial "The"/"I").
+     */
+    private fun hasUntranslatedEnglishFragment(source: String, output: String): Boolean {
+        val sourceTokens = englishToken.findAll(source).map { it.value.lowercase() }.toSet()
+        if (sourceTokens.isEmpty()) return false
+        return englishToken.findAll(output).any { match ->
+            val token = match.value
+            val lower = token.lowercase()
+            lower in sourceTokens && (token.first().isLowerCase() || lower in commonEnglishWords)
+        }
+    }
+
+    /**
+     * Reject only extreme truncation signals, not ordinary length differences: long source
+     * bubbles (18+ English words) reduced to at most two very short Arabic words. A ratio-only
+     * threshold is deliberately avoided because natural Arabic can be much shorter than English.
+     */
+    private fun isImplausiblyShortArabicOutput(source: String, output: String): Boolean {
+        val sourceWordCount = englishToken.findAll(source).count()
+        if (sourceWordCount < 18) return false
+        val arabicWords = Regex("[\\u0600-\\u06FF]+").findAll(output).toList()
+        if (arabicWords.size > 2) return false
+        val arabicLetterCount = arabicWords.sumOf { it.value.count { ch -> arabicLetter.matches(ch.toString()) } }
+        val sourceLetterCount = englishToken.findAll(source).sumOf { it.value.length }
+        return arabicLetterCount <= 14 &&
+            sourceLetterCount >= 80 &&
+            arabicLetterCount.toDouble() / sourceLetterCount.toDouble() <= 0.16
     }
 
     private fun isLikelyNamePhrase(source: String, tokens: List<String>): Boolean {
