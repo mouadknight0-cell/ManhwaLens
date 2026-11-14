@@ -2,6 +2,7 @@ package com.manhwalens.app.util
 
 import com.manhwalens.app.ocr.BubbleBlock
 import com.manhwalens.app.ocr.DetectedLine
+import com.manhwalens.app.ocr.geometry.Rect2D
 import com.manhwalens.app.translate.mlkit.MlKitTranslationTrace
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -24,12 +25,19 @@ class CaptureDiagnostics(
     private var translationCallTotal = 0
     private val translationCalls = ArrayList<MlKitTranslationTrace>()
     private val overlayTexts = LinkedHashMap<Int, OverlayText>()
+    private val overlayPatches = LinkedHashMap<Int, OverlayPatch>()
 
     private data class OverlayText(
         val english: String,
         val arabic: String,
         val origin: String,
         val patchBuilt: Boolean
+    )
+
+    private data class OverlayPatch(
+        val patch: Rect2D,
+        val cover: Rect2D?,
+        val memberIds: List<Int>
     )
 
     fun recordOcr(lines: List<DetectedLine>, grouped: List<BubbleBlock>, kept: List<BubbleBlock>, elapsedMs: Long) {
@@ -63,6 +71,26 @@ class CaptureDiagnostics(
                 english.take(MAX_TEXT_CHARS), arabic.take(MAX_TEXT_CHARS), origin.take(40), patchBuilt
             )
             while (overlayTexts.size > MAX_BLOCKS) overlayTexts.remove(overlayTexts.keys.first())
+        }
+    }
+
+    /** Record actual raster bounds and planned OCR cover; geometry only, no page text. */
+    fun recordOverlayPatch(
+        id: Int,
+        patchLeft: Int,
+        patchTop: Int,
+        patchRight: Int,
+        patchBottom: Int,
+        cover: Rect2D?,
+        memberIds: List<Int>
+    ) {
+        synchronized(lock) {
+            overlayPatches[id] = OverlayPatch(
+                Rect2D(patchLeft.toFloat(), patchTop.toFloat(), patchRight.toFloat(), patchBottom.toFloat()),
+                cover,
+                memberIds.take(MAX_BLOCKS)
+            )
+            while (overlayPatches.size > MAX_BLOCKS) overlayPatches.remove(overlayPatches.keys.first())
         }
     }
 
@@ -100,6 +128,12 @@ class CaptureDiagnostics(
                     "source=\"${safe(item.english)}\" arabic=\"${safe(item.arabic)}\"")
             }
         }
+        val patches = buildString {
+            overlayPatches.forEach { (id, item) ->
+                val cover = item.cover?.let { box(it) } ?: "none"
+                appendLine("#$id patch=${box(item.patch)} cover=$cover members=${item.memberIds.joinToString(",")}")
+            }
+        }
         buildString {
             appendLine("ManhwaLens OCR/translation diagnostics")
             appendLine("created=$created")
@@ -114,6 +148,8 @@ class CaptureDiagnostics(
             appendLine("Entries are recorded only after a patch bitmap is built.")
             append(overlay.take(OVERLAY_SECTION_CHARS))
             if (overlay.length > OVERLAY_SECTION_CHARS) appendLine("\n... overlay section truncated")
+            append(boundedSection("[OVERLAY PATCHES] unique=${overlayPatches.size}", patches, PATCH_SECTION_CHARS))
+            appendLine("Patch bounds are the rasterized bitmap rect; cover bounds are the planned OCR union. Members are block IDs only.")
             appendLine()
             appendLine("Missing raw-call entries usually indicate a cache hit, another engine, or a request that failed before returning output.")
         }.take(MAX_REPORT_CHARS)
@@ -147,5 +183,6 @@ class CaptureDiagnostics(
         private const val BLOCK_SECTION_CHARS = 7_000
         private const val TRANSLATION_SECTION_CHARS = 20_000
         private const val OVERLAY_SECTION_CHARS = 8_000
+        private const val PATCH_SECTION_CHARS = 4_000
     }
 }
