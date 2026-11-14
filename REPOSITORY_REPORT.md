@@ -21,7 +21,7 @@ module, Kotlin 2.4.21, AGP 8.13.2, Compose + Material 3, `minSdk 26`, `compileSd
 | --- | --- |
 | Kotlin sources | 112 files under `app/src/main` |
 | Test sources | 68 files under `app/src/test` |
-| Test methods (`@Test`) | 615 |
+| Test methods (`@Test`) | 619 |
 | Branch vs `main` | 20 commits, 225 files, +35 942 lines (the PR branch carries the whole app; `main` holds the initial commit) |
 | Documentation at the root | 18 Markdown files (§5) |
 
@@ -36,12 +36,12 @@ module, Kotlin 2.4.21, AGP 8.13.2, Compose + Material 3, `minSdk 26`, `compileSd
 | 3 | **P1** series-scoped character memory | [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) · design [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md) | `528d629` → `8d5cc9e` | 43518604612, 43520783453 |
 | 4 | **P1 review** — atomic writes, session cache identity, series visibility | [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) | `1c0c270` → `e99dd93` | 43523522645, 43524129101 |
 | 5 | **P1 persistence safety** — recovery may never write the live file | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `87830b7` | 43526686657, 43527227407 |
-| 6 | **P1.1 strict staging validation** — a staging copy is promoted only after it is proved structurally complete | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `723f101` | 43531030306, 43531550380 |
+| 6 | **P1.1 strict staging validation** — a staging copy is promoted only after it is proved structurally complete; **P1.1-A** adds canonical `normalizedName` integrity (§8) | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `723f101` → this commit | 43531030306, 43531550380, + this change |
 
 Net: one defect fixed in the Gemini wire path, one feature (persistent, series-scoped names), and
-three hardening passes over the new persistence layer (atomic writes → recovery never writes the
-live file → strict structural validation before promotion). No existing feature removed and no
-translation or OCR behaviour changed by the hardening passes.
+four hardening passes over the new persistence layer (atomic writes → recovery never writes the
+live file → strict structural validation before promotion → canonical normalized-name integrity).
+No existing feature removed and no translation or OCR behaviour changed by the hardening passes.
 
 ---
 
@@ -82,7 +82,7 @@ hidden.
 | --- | --- | --- |
 | `overlay/FloatingButtonService.kt` | 4.4k-line orchestrator | Untouched by this branch; the known structural risk (audit item 10) |
 | `translate/` | engines + cache decorator + name pipeline | Modified: cache-aside repair path, engine name providers, `NameScript.classify` evidence |
-| `names/` (new) | record, form, resolver, JSON store, series catalogue | Added by P1, hardened three times (atomic writes, no-write recovery, strict staging validation); JVM-tested (no Android deps) |
+| `names/` (new) | record, form, resolver, JSON store, series catalogue | Added by P1, hardened four times (atomic writes, no-write recovery, strict staging validation, canonical-key integrity); JVM-tested (no Android deps) |
 | `data/` | prefs, caches, `CharacterMemory`/`NameSession` | Added P1 glue; the store's only Android coupling is the factory |
 | `ocr/`, `render/`, `capture/` | OCR, patch painter, MediaProjection | Untouched by this branch |
 

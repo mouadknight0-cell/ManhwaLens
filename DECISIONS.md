@@ -834,3 +834,13 @@ One line per correction.
 - U4. The live file stays tolerant and is still never opened for writing: recovery only renames the staging file, and the only writer of the live path remains `commitAtomically` (atomic move, else same-directory rename).
 - U5. No schema change: `version` stays `1` and the writer is untouched, so self-written documents always satisfy the strict rules (the writer's own invariants — ids and names unique per series — are exactly what is enforced).
 - U6. Verification: 11 new regression tests (615 test methods in the module) covering missing `series`, missing/invalid/unsupported `version`, wrong `series` type, malformed and misfiled records, duplicate id and duplicate normalized name, invalid staging beside a valid live file (bytes unchanged), invalid staging with no live file (no live path created), and a post-rejection save persisting the complete state; the valid-recovery and refused-promotion suites still pass.
+
+# P1.1-A canonical normalized-name integrity — 2026-11-13
+
+**Report:** [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) §8 · **Base:** `feb20ef`.
+
+- V1. The stored `normalizedName` is untrusted input: `CharacterRecord.fromJson` accepts any non-blank string, so P1.1's duplicate check (which compared stored values) could be sidestepped by two rows for one character carrying different forged keys — both would pass and be promoted.
+- V2. `validateStaging()` now recomputes `NameForm.normalize(originalName)` for every record, rejects the whole document when the stored value differs, and judges duplicate identity on the recomputed canonical key rather than on the JSON value. A missing/blank stored value needs no leniency: the record parser already canonicalises it, so the comparison stays exact.
+- V3. No rule was relaxed and nothing else changed: schema `version: 1`, the writer, atomic promotion, the recovery flow, the tolerant live-file reader, `NameSession`, series selection, resolution priority, cache rewriting, OCR/translation and the settings UI are untouched.
+- V4. Four regression tests pin it: a single forged key, two spellings with different forged keys (the bypass), two spellings with canonical keys (canonical duplicate detection), and a rejected copy leaving a present-but-unloadable live file byte-for-byte unchanged. 615 → 619 test methods in the module.
+- V5. If `NameForm.normalize` ever changes its rule, documents from older builds would be rejected by the strict check — that is a future schema-migration concern (bump `SCHEMA_VERSION` then), deliberately not solved speculatively now.

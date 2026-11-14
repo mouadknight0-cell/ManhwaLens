@@ -6,8 +6,10 @@ priority, cache rewriting, OCR/translation, Gemini/ML Kit integration, the setti
 dependency set are untouched.
 **Branch:** `arena/8a718184-manhwalens` · PR [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) (not merged)
 **Base commit:** `8140a4b6e816f45972de4151e5439555a2844062`
+**Follow-up (P1.1-A):** base `feb20ef8a350d01c3826dd5f4a7f9a4836dc6007` — canonical normalized-name
+integrity, see §8.
 **Files changed:** `names/JsonCharacterStore.kt`, `names/JsonCharacterStoreTest.kt`; docs: this file,
-`DECISIONS.md`, `REPORTS.md`.
+`DECISIONS.md`, `REPORTS.md`, `REPOSITORY_REPORT.md`.
 
 ---
 
@@ -52,7 +54,8 @@ reads a single record out of a document it has not first accepted. All of it, or
 | every record has non-blank **id, series id, original name** | `… has a blank id, series id or name` |
 | record `seriesId` equals its containing series key | `series 'x' record #i belongs to 'y'` |
 | record **ids unique within a series** | `duplicate record id 'id' in 'x'` |
-| **normalized names unique within a series** | `duplicate name 'Name' in 'x'` |
+| stored `normalizedName` equals `NameForm.normalize(originalName)` (§8) | `series 'x' record #i has a non-canonical normalized name 'y' (expected 'z')` |
+| **canonical names unique within a series** — judged on the recomputed key, not the JSON value (§8) | `duplicate name 'Name' in 'x'` |
 
 Why those two uniqueness invariants and no others: `upsert`/`find` resolve records by exactly these
 two keys, so a duplicate makes resolution ambiguous and makes a later `upsert` silently merge two
@@ -89,7 +92,7 @@ Two properties worth naming:
 
 ---
 
-## 4. Tests added (11) and results
+## 4. Tests added (15) and results
 
 `grep -n "file\.writeText\|copyTo\|FileOutputStream(file" JsonCharacterStore.kt` → **no matches**.
 
@@ -106,11 +109,15 @@ Two properties worth naming:
 | `an invalid staging copy never touches a valid live file` | live bytes `assertArrayEquals`, staging bytes unchanged, live records served |
 | `a rejected staging copy leaves no live file behind` | blank-id record → rejection, live path never created |
 | `a save after a rejected staging copy persists the complete in-memory state` | post-rejection save writes 2 records, `.rejected` kept, staging consumed |
+| `a non-canonical stored normalized name is rejected` (§8) | forged key ≠ `NameForm.normalize(originalName)` → whole document rejected |
+| `forged normalized names cannot bypass duplicate identity detection` (§8) | two spellings of one character with different forged keys → rejected |
+| `two spellings of one name are one identity and are rejected` (§8) | both keys canonical and both rows well-formed → only canonical duplicate detection can catch it |
+| `a rejected staging copy leaves an existing live file byte-for-byte untouched` (§8) | present-but-unloadable live file: bytes unchanged, no promotion |
 
 Kept and still passing: valid staging promotion, refused-promotion behaviour (5 tests), failed-write
 handling and retry, no staging file after success, stray copy never shadowing a readable file,
 corrupt/newer live handling, locked immunity, series isolation, restart persistence, and every
-non-store test in the module. Test methods in the module: **615** (604 + 11).
+non-store test in the module. Test methods in the module: **619** (604 + 11 + 4).
 
 Results: **CI run [43531030306](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43531030306)
 — success** at `e6598a82f61d696335b7bfc075fa45b8dd905d43` (suite + `assembleDebug`, 3m56s). The
@@ -151,3 +158,86 @@ together; the commit recording the run id is docs-only).
 * A refused promotion still leaves both files in place and reports through `onWarning`.
 * The P1 guarantees — refused promotion writes nothing, a valid live file is byte-for-byte
   unchanged, a failed write keeps the previous document — are covered by tests that still pass.
+
+---
+
+## 8. P1.1-A — canonical normalized-name integrity
+
+### 8.1 The gap
+
+`validateStaging()` compared duplicate identity using the `normalizedName` **stored in the JSON**:
+
+```kotlin
+val keys = HashSet<String>(array.length())
+...
+if (!keys.add(record.normalizedName)) { /* duplicate */ }
+```
+
+The stored value is untrusted input. `CharacterRecord.fromJson` accepts any non-blank string for it
+(it only computes the canonical value when the field is missing), so a document could carry
+`{"originalName": "Han Ji-woo", "normalizedName": "a"}` and
+`{"originalName": "Han Ji-woo", "normalizedName": "b"}` — two rows for one character, no duplicate
+detected, both promoted. Identity is what `upsert()`/`find()` resolve on, so a wrong key is a wrong
+record: a later save could merge or duplicate the reader's character.
+
+### 8.2 The invariant added
+
+For every staged record, in every series:
+
+1. **`stored normalizedName == NameForm.normalize(originalName)`** — exact, case- and
+   punctuation-sensitive, because the canonical form is letters-only lower case. A present value
+   that differs rejects the document. (A missing/blank value needs no special case: the record
+   parser already canonicalises it, so the comparison is still exact.)
+2. **Duplicate identity is judged on the recomputed canonical key**, never on the JSON value.
+
+Both are additions; no existing rule was relaxed.
+
+### 8.3 Implementation and files
+
+| File | Change |
+| --- | --- |
+| `names/JsonCharacterStore.kt` (+14/−2) | `validateStaging()` recomputes `val canonical = NameForm.normalize(record.originalName)`, rejects on mismatch, and uses `canonical` for the duplicate set; the function's KDoc lists both rules |
+| `names/JsonCharacterStoreTest.kt` (+61) | the four tests listed in §4 |
+
+`NameForm`, `CharacterRecord`, the schema (`version: 1`), the writer, the atomic promotion and the
+recovery flow are unchanged. `NameSession`, series selection, resolution priority, cache rewriting,
+OCR/translation, Gemini/ML Kit and the settings UI are untouched.
+
+### 8.4 Tests added (4)
+
+| Test | Pins |
+| --- | --- |
+| `a non-canonical stored normalized name is rejected` | single forged key → rejected, `.rejected` created, no live file, warning says `non-canonical` |
+| `forged normalized names cannot bypass duplicate identity detection` | two spellings of one name with *different* forged keys → rejected (would have passed a JSON-value check) |
+| `two spellings of one name are one identity and are rejected` | `Han Ji-woo` + `Han Jiwoo`, both keys canonical → caught by canonical duplicate detection |
+| `a rejected staging copy leaves an existing live file byte-for-byte untouched` | present-but-unloadable live file: `assertArrayEquals` on its bytes, no promotion, staging consumed |
+
+Valid staging and every existing recovery test (adoption, refused promotion, failed write, stray
+copy, corrupt/newer live, locked immunity, series isolation) still pass unchanged — no duplication
+was added for them.
+
+### 8.5 Commands and results
+
+```bash
+./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --console=plain
+```
+
+Executed by GitHub Actions (`.github/workflows/android.yml`, triggered by the open pull request) —
+run URL and SHA for this follow-up are recorded in [REPORTS.md](REPORTS.md). The authoring sandbox
+has no JDK/Android SDK, so no local run was performed and none is claimed. **615 → 619** test methods
+in the module (+4).
+
+### 8.6 Remaining limitations
+
+| Limitation | Note |
+| --- | --- |
+| Canonicalisation is a fixed rule | If `NameForm.normalize` ever changes, documents written by an older build could be rejected by the new strict check. That is a schema-compatibility concern for a future migration (bump `SCHEMA_VERSION`), not something to guess at now. |
+| No canonical-key check on the **live** file | Deliberate: the live reader stays tolerant (§6). A forged live file can still load a reduced set; only the staging path is strict. |
+| `.rejected` keeps one copy | As before — a diagnostic aid, not a history. |
+| No device validation | Not performed; no Android SDK/JDK in the authoring sandbox. |
+
+### 8.7 Live-file atomicity — unchanged
+
+Recovery still renames only the staging file; the live path is written only by `commitAtomically()`
+(atomic move, else same-directory rename). `grep -n "file\.writeText\|copyTo\|FileOutputStream(file"
+JsonCharacterStore.kt` → **no matches**. The P1 and P1.1 test suites that prove this still pass.

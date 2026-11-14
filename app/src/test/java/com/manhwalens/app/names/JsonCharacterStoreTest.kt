@@ -449,6 +449,82 @@ class JsonCharacterStoreTest {
     }
 
     @Test
+    fun `a non-canonical stored normalized name is rejected`() {
+        // The stored key is untrusted input: it must equal NameForm.normalize(originalName).
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(
+            staging,
+            newRecord("Han Ji-woo", "هان جيو").copy(id = "s1-a", normalizedName = "forged")
+        )
+        val warnings = ArrayList<String>()
+
+        val store = JsonCharacterStore(file, onWarning = { warnings += it })
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+        assertTrue(File(dir, "character_memory.json.tmp.rejected").exists())
+        assertTrue(warnings.single().contains("non-canonical"))
+    }
+
+    @Test
+    fun `forged normalized names cannot bypass duplicate identity detection`() {
+        // Two spellings of one character with different forged keys: a duplicate check that
+        // trusted the JSON values would see two distinct keys and accept both.
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(
+            staging,
+            newRecord("Han Ji-woo", "هان جيو").copy(id = "s1-a", normalizedName = "wildcard"),
+            newRecord("Han Jiwoo", "هان جي وو").copy(id = "s1-b", normalizedName = "other")
+        )
+
+        val store = JsonCharacterStore(file, atomicMove = { _, _ -> false })
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+        assertTrue(File(dir, "character_memory.json.tmp.rejected").exists())
+    }
+
+    @Test
+    fun `two spellings of one name are one identity and are rejected`() {
+        // Both keys are canonical and both rows are individually well-formed, so only canonical
+        // duplicate detection can catch this: "Han Ji-woo" and "Han Jiwoo" are one character.
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(
+            staging,
+            newRecord("Han Ji-woo", "هان جيو").copy(id = "s1-a"),
+            newRecord("Han Jiwoo", "هان جي وو").copy(id = "s1-b")
+        )
+        val warnings = ArrayList<String>()
+
+        val store = JsonCharacterStore(file, onWarning = { warnings += it })
+
+        assertTrue(store.records("s1").isEmpty())
+        assertFalse(file.exists())
+        assertTrue(warnings.single().contains("duplicate name"))
+    }
+
+    @Test
+    fun `a rejected staging copy leaves an existing live file byte-for-byte untouched`() {
+        // An empty live file is present but not loadable, and the loader does not set it aside.
+        file.writeText("")
+        val liveBefore = file.readBytes()
+
+        val staging = File(dir, "character_memory.json.tmp")
+        writeDocument(
+            staging,
+            newRecord("Han Ji-woo", "هان جيو").copy(id = "s1-a", normalizedName = "forged")
+        )
+
+        val store = JsonCharacterStore(file)
+
+        assertTrue(store.records("s1").isEmpty())
+        assertTrue(file.exists())
+        assertArrayEquals(liveBefore, file.readBytes())
+        assertFalse(staging.exists())
+        assertTrue(File(dir, "character_memory.json.tmp.rejected").exists())
+    }
+
+    @Test
     fun `an invalid staging copy never touches a valid live file`() {
         val live = JsonCharacterStore(file)
         live.upsert(newRecord("Han Ji-woo", "هان جيو"))

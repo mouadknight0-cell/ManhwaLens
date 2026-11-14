@@ -280,7 +280,9 @@ class JsonCharacterStore(
      *  - every element is a JSON object accepted by [CharacterRecord.fromJson];
      *  - every record has non-blank id, series id and original name;
      *  - every record's `seriesId` equals its containing series key;
-     *  - within a series, record ids are unique and normalized names are unique (the two keys
+     *  - every record's stored `normalizedName` equals `NameForm.normalize(originalName)` — the
+     *    stored value is untrusted, and a forged one would defeat the duplicate rule;
+     *  - within a series, record ids are unique and **canonical** names are unique (the two keys
      *    [upsert] and [find] resolve on).
      */
     private fun validateStaging(raw: String): StagingVerdict {
@@ -328,7 +330,22 @@ class JsonCharacterStore(
                 if (!ids.add(record.id)) {
                     return StagingVerdict(null, "duplicate record id '${record.id}' in '$seriesId'")
                 }
-                if (!keys.add(record.normalizedName)) {
+                // The stored key is untrusted input. Recompute it from the original name and
+                // require an exact match: otherwise a forged value (`"normalizedName": "x"`)
+                // would let two spellings of one character sidestep the duplicate check below.
+                // A missing/blank key needs no leniency here — the record parser already
+                // canonicalises it, so the comparison is still exact.
+                val canonical = NameForm.normalize(record.originalName)
+                if (record.normalizedName != canonical) {
+                    return StagingVerdict(
+                        null,
+                        "series '$seriesId' record #$i has a non-canonical normalized name " +
+                            "'${record.normalizedName}' (expected '$canonical')"
+                    )
+                }
+                // Identity is the canonical key, never the JSON value: two spellings of one name
+                // ("Han Ji-woo" / "Han Jiwoo") are one character and are not two records.
+                if (!keys.add(canonical)) {
                     return StagingVerdict(null, "duplicate name '${record.originalName}' in '$seriesId'")
                 }
                 list += record
