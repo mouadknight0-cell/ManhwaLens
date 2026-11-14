@@ -615,3 +615,12 @@ disappeared at `:app:dexBuilderRelease`, twice). Kept gradle.properties at 1536m
 per user mandate; the -D override is recorded in BLOCKERS.md.
 Dropbox `/ManhwaLens/` keeps only the newest APK (v0.9.2 and the temporary
 debug upload deleted to trash; local `~/ManhwaLens-v0.9.2-release.apk` deleted).
+
+
+## Engineering addendum — 2026-11-14 (P4-A diagnostics)
+
+- **Implemented on the tap-capture path:** when Debug mode is enabled, a bounded in-memory collector links raw OCR lines (text, confidence, frame-pixel bounds), grouped/kept bubbles, exact prepared ML Kit inputs, raw engine responses/errors and latency, and final Arabic text for which an overlay patch bitmap was built.
+- The report is appended to Settings → Last error / Copy report in app-private storage. It is bounded to 56,000 characters; the following generic pipeline trace is also retained. The next capture report replaces it.
+- Page OCR and translation text is not sent to Logcat. The generic pipeline trace contains counts/status only; page-specific name spellings were removed from its scene-name span.
+- The new capture detail is **tap-path only**; Live-mode per-frame diagnostics remain metadata-only. No OCR confidence threshold, translation-quality repair, batch-mode change, or engine-selection change is included in P4-A.
+- Next evidence step: capture 3–5 representative pages with Debug mode enabled, copy the report, and classify each failure as OCR corruption, prepared-input issue, raw ML Kit translation error, validator rejection, or overlay-patch failure before implementing P4-B/P5 fixes.

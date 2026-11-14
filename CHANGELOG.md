@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.2 — 2026-11-14 (experimental)
+
+### P4-A — opt-in OCR and translation diagnostics
+- Added a bounded, local-only debug report for the tap-capture path: raw OCR lines with confidence and frame coordinates; grouped and retained bubbles; exact prepared ML Kit request text; unmodified ML Kit responses and per-call latency; and Arabic text whose overlay patch bitmap was successfully built.
+- Detailed page text is collected only while **Settings → Diagnostics → Debug mode** is enabled. Generic pipeline traces no longer include OCR/translation previews or page-specific character-name spellings.
+- Added JVM coverage for diagnostic contents and report-size bounds. No translation strategy, quality threshold, or engine-selection behavior was changed.
+
 ## 0.11.0 — 2026-11-13
 
 Fixes taken from four reader screenshots: English left visible around the Arabic, smeared

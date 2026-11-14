@@ -158,8 +158,8 @@ class MlKitTranslator(
             if (table.isNotEmpty()) {
                 PipelineTracer.span(
                     "mlkit scene names", 0,
-                    if (seriesTable.isEmpty()) SceneNames.describe(table)
-                    else "series ${seriesTable.size} + page ${table.size - seriesTable.size} · ${SceneNames.describe(table)}"
+                    if (seriesTable.isEmpty()) "${table.size} page name(s) pinned"
+                    else "series ${seriesTable.size} + page ${table.size - seriesTable.size} name(s) pinned"
                 )
             }
             table

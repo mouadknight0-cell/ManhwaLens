@@ -921,3 +921,11 @@ One line per correction.
   remnant, because `applyPinned` matches the canonical key (`Han Ji woo`) against English that says
   `Han Ji-woo` — pre-existing, deliberately out of scope; `tableFor` keeps its write side effect; and **no
   device validation** exists for any of this.
+
+
+# P4-A — opt-in capture diagnostics (2026-11-14)
+
+- Debug mode is the explicit consent gate for recording page text in the tap-capture path.
+- The report captures raw OCR text/confidence/coordinates, grouped and kept bubbles, exact prepared ML Kit input, raw ML Kit output/error and latency, and overlay text only after patch-bitmap creation.
+- The detailed report is bounded and stored in app-private Last error storage; generic pipeline spans must not contain OCR dialogue, translation previews, or page-specific name spellings.
+- No change to OCR acceptance thresholds, ML Kit batch strategy, or translation output validation is allowed as part of this diagnostic-only step. Quality changes must be evidence-led from copied reports.

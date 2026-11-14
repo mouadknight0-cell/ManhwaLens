@@ -531,3 +531,15 @@ one from cache, and progressive painting is still visibly progressive (first bub
 - `./gradlew :app:assembleDebug`
 - Confirm `versionCode = 29`, `versionName = "0.10.0"`.
 - Manually verify tap and Live on a supported Android device. The sandbox cannot validate overlay timing or a real HTTPS LibreTranslate deployment.
+
+
+## P4-A — collect an OCR/ML Kit evidence report (tap path)
+
+1. Open **Settings → Diagnostics** and turn **Debug mode ON**.
+2. Pause/turn off Live mode for this check, then open a manhwa page with visible English text and tap the floating lens once.
+3. Return to **Settings → Last error** (or **Pipeline trace**) and press **Copy**.
+4. Confirm the copied report contains these sections: `[RAW OCR LINES]`, `[GROUPED BLOCKS]`, `[KEPT FOR TRANSLATION]`, `[ML KIT RAW CALLS]`, and `[OVERLAY TEXT]`.
+5. For a failing bubble, compare its OCR source → prepared ML Kit input → raw ML Kit output → overlay text. A missing raw-call entry can mean a cache hit; check the report note before classifying it as a failure.
+6. Turn **Debug mode OFF** after collecting the evidence. The report remains in app-private storage until a later report replaces it; do not share it if the page contains private content.
+
+**Expected:** normal captures with Debug mode OFF do not include page dialogue in the generic pipeline report. This check does not change translation behavior; use 3–5 representative pages before proposing OCR or translation-quality fixes. Live-mode per-frame raw text is not included in this P4-A pass.
