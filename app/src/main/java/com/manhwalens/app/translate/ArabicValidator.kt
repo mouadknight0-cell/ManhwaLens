@@ -25,7 +25,7 @@ object ArabicValidator {
         MALFORMED_OUTPUT,
         /** Arabic script mixed with a long, untranslated English sentence. */
         PARTIAL_TRANSLATION,
-        /** Arabic mixed with one or two untranslated common English source words. */
+        /** Arabic mixed with multiple untranslated common English source words. */
         UNTRANSLATED_FRAGMENT,
         /** An exceptionally short Arabic answer to a long source bubble. */
         INCOMPLETE_TRANSLATION,
@@ -118,10 +118,13 @@ object ArabicValidator {
     private fun isOnlyPunctuation(text: String): Boolean =
         text.none { it.isLetterOrDigit() }
 
-    /** "الترجمة:" alone after [clean] (or a lone ⟨…⟩ marker) says nothing. */
+    /** Only explicit label words are meaningless; short Arabic dialogue remains valid. */
     private fun isOnlyLabel(text: String): Boolean {
-        val stripped = arabicLetter.replace(text, "").filter { it.isLetter() }
-        return stripped.isEmpty() && !text.any { it.isDigit() } && text.length <= 3
+        val normalized = text.trim().trimEnd(':', '：').lowercase()
+        return normalized in setOf(
+            "الترجمة", "الترجمه", "ترجمة", "النص", "الإجابة", "الجواب", "الرد",
+            "بالعربية", "بالعربي"
+        )
     }
 
     private val englishToken = Regex("[A-Za-z]+(?:['’][A-Za-z]+)*")
@@ -152,6 +155,8 @@ object ArabicValidator {
         if (sourceTokens.size < 3) return false
         val latin = englishToken.findAll(output).map { it.value }.toList()
         if (latin.size < 3) return false
+        // A multi-token proper name (including hyphenated names) is not an English sentence.
+        if (containsPreservedNamePhrase(source, latin)) return false
 
         var run = 0
         var best = 0
@@ -180,10 +185,29 @@ object ArabicValidator {
     private fun hasUntranslatedEnglishFragment(source: String, output: String): Boolean {
         val sourceTokens = englishToken.findAll(source).map { it.value.lowercase() }.toSet()
         if (sourceTokens.isEmpty()) return false
-        return englishToken.findAll(output).any { match ->
-            val token = match.value
-            val lower = token.lowercase()
-            lower in sourceTokens && (token.first().isLowerCase() || lower in commonEnglishWords)
+        // Preserve the established tolerance for one isolated Latin word (often a name,
+        // sound effect, or unavoidable term). Reject only when at least two common dialogue
+        // words from the source remain untranslated in the Arabic output.
+        val leftovers = englishToken.findAll(output)
+            .map { it.value.lowercase() }
+            .filter { it in sourceTokens && it in commonEnglishWords }
+        return leftovers.size >= 2
+    }
+
+    /**
+     * Recognize a preserved two- or three-part proper name in the source, including
+     * hyphenated components such as "Han Ji-woo", before treating a Latin run as dialogue.
+     */
+    private fun containsPreservedNamePhrase(source: String, outputTokens: List<String>): Boolean {
+        val namePattern = Regex(
+            "(?<![A-Za-z])[A-Z][a-z]+(?:[-'][A-Za-z]+)?(?:\\s+[A-Z][a-z]+(?:[-'][A-Za-z]+)?){1,2}(?![A-Za-z])"
+        )
+        val output = outputTokens.map { it.lowercase() }
+        return namePattern.findAll(source).any { match ->
+            val nameTokens = englishToken.findAll(match.value).map { it.value.lowercase() }.toList()
+            nameTokens.size >= 2 &&
+                nameTokens.none { it in commonEnglishWords } &&
+                output.windowed(nameTokens.size).any { it == nameTokens }
         }
     }
 
