@@ -553,6 +553,6 @@ one from cache, and progressive painting is still visibly progressive (first bub
 4. **PASS:** Arabic from all translated member blocks remains visible together; a later sibling result does not erase earlier Arabic; one patch covers the full planned area; no English line is left visible inside that area when its member blocks were retained.
 5. **FAIL:** only the last translated line remains, Arabic disappears after another block completes, or the patch covers only the first portion of a grouped area.
 6. Repeat once with the remote engine enabled if configured. A remote upgrade must replace the corresponding composite area without removing other sibling translations.
-7. Copy **Settings → Diagnostics → Last report** after the test. Keep the original and translated screenshots together with the report. Turn Debug mode OFF afterward.
+7. Copy **Settings → Diagnostics → Last report** after the test. Confirm `[OVERLAY PATCHES]` contains `patch=`, `cover=`, and `members=` values. Keep the original and translated screenshots together with the report. Turn Debug mode OFF afterward.
 
 **Scope:** this test verifies rendering and patch aggregation only. It does not establish semantic translation quality, glossary coverage, or OCR accuracy. Those are evaluated separately.
