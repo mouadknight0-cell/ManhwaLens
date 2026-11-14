@@ -71,7 +71,7 @@ class CaptureDiagnostics(
         val rawOcr = buildString {
             ocrLines.forEachIndexed { index, line ->
                 val b = line.box
-                appendLine("L${index + 1} confidence=${format(line.confidence)} " +
+                appendLine("L${index + 1} confidence=${formatConfidence(line.confidence)} " +
                     "box=${format(b.left)},${format(b.top)},${format(b.right)},${format(b.bottom)} " +
                     "text=\"${safe(line.text)}\"")
             }
@@ -134,6 +134,8 @@ class CaptureDiagnostics(
         value.replace("\r", " ").replace("\n", " ↵ ").take(MAX_TEXT_CHARS)
 
     private fun format(value: Float): String = String.format(Locale.US, "%.1f", value)
+
+    private fun formatConfidence(value: Float): String = String.format(Locale.US, "%.3f", value)
 
     companion object {
         const val MAX_REPORT_CHARS = 56_000
