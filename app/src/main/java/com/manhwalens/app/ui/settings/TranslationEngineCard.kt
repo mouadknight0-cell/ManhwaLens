@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.manhwalens.app.R
 import com.manhwalens.app.data.TranslationPrefs
+import com.manhwalens.app.translate.OfflineTranslationPolicy
 import com.manhwalens.app.translate.PageTranslation
 import com.manhwalens.app.translate.TranslationBlock
 import com.manhwalens.app.translate.TranslationEngine
@@ -126,6 +127,10 @@ fun TranslationEngineCard() {
 
     fun checkModels() {
         if (checking) return
+        if (!OfflineTranslationPolicy.canUseCloudServices(prefs.offlineMode)) {
+            modelsResult = context.getString(R.string.cloud_feature_disabled_offline)
+            return
+        }
         val key = prefs.geminiKey
         if (key.isBlank()) {
             modelsResult = context.getString(R.string.gemini_key_placeholder)
@@ -135,7 +140,9 @@ fun TranslationEngineCard() {
         modelsResult = null
         val appContext = context.applicationContext
         Thread {
-            val msg = try {
+            val msg = if (!OfflineTranslationPolicy.canUseCloudServices(TranslationPrefs(appContext).offlineMode)) {
+                appContext.getString(R.string.cloud_feature_disabled_offline)
+            } else try {
                 val resp = com.manhwalens.app.translate.gemini.HttpUrlConnectionGeminiApi(key).listModels()
                 if (resp.code in 200..299) {
                     val models = GeminiWire.parseModelsBody(resp.body)
@@ -450,11 +457,22 @@ fun TranslationEngineCard() {
                     OutlinedButton(
                         onClick = {
                             if (aiListLoading) return@OutlinedButton
+                            if (!OfflineTranslationPolicy.canUseCloudServices(TranslationPrefs(context).offlineMode)) {
+                                aiListResult = context.getString(R.string.cloud_feature_disabled_offline)
+                                return@OutlinedButton
+                            }
                             aiListLoading = true
                             aiListResult = null
                             val appContext = context.applicationContext
                             val key = TranslationPrefs(appContext).geminiKey
                             Thread {
+                                if (!OfflineTranslationPolicy.canUseCloudServices(TranslationPrefs(appContext).offlineMode)) {
+                                    Handler(Looper.getMainLooper()).post {
+                                        aiListLoading = false
+                                        aiListResult = appContext.getString(R.string.cloud_feature_disabled_offline)
+                                    }
+                                    return@Thread
+                                }
                                 var models: List<GeminiWire.GeminiModelInfo> = emptyList()
                                 var msg: String? = null
                                 try {

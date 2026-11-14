@@ -277,4 +277,5 @@
     <string name="character_names_save">Save</string>
     <string name="character_names_delete">Delete</string>
     <string name="character_names_back">Back</string>
+    <string name="cloud_feature_disabled_offline">Unavailable while Force offline translation is enabled.</string>
 </resources>

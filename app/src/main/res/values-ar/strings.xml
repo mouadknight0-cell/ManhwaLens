@@ -247,4 +247,5 @@
     <string name="lens_icon_clear">مسح</string>
     <string name="lens_icon_exit">خروج</string>
     <string name="live_translate_failed">فشلت الترجمة: %1$s</string>
+    <string name="cloud_feature_disabled_offline">غير متاح أثناء تفعيل فرض الترجمة دون إنترنت.</string>
 </resources>
