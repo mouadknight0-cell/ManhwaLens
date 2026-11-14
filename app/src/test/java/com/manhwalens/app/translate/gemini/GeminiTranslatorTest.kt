@@ -93,7 +93,8 @@ class GeminiTranslatorTest {
             )
         )
 
-        val result = translatorWith(api).translatePage(many) as PageTranslation.Success
+        // Keep the scripted response queue deterministic while the retry is split into two chunks.
+        val result = GeminiTranslator(api, maxParallelRequests = 1).translatePage(many) as PageTranslation.Success
 
         assertEquals(6, result.blocks.size)
         assertEquals(3, api.requestBodies.size)
