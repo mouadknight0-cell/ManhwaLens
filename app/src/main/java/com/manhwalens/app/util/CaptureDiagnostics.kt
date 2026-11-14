@@ -59,9 +59,10 @@ class CaptureDiagnostics(
     }
 
     fun report(): String = synchronized(lock) {
+        val created = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(createdAtMs))
         buildString {
             appendLine("ManhwaLens OCR/translation diagnostics")
-            appendLine("created=${SimpleDateFormat(\"yyyy-MM-dd HH:mm:ss\", Locale.US).format(Date(createdAtMs))}")
+            appendLine("created=$created")
             appendLine("frame=${frameWidth}x${frameHeight} ocrMs=$ocrElapsedMs")
             appendLine("Privacy: opt-in debug-mode report; page text is not written to Logcat.")
             appendLine()
@@ -84,8 +85,9 @@ class CaptureDiagnostics(
             appendLine("[ML KIT RAW CALLS] count=${translationCalls.size}")
             appendLine("Each entry includes original OCR source, exact prepared input, raw engine output and latency.")
             translationCalls.forEachIndexed { index, call ->
+                val error = call.error ?: "none"
                 appendLine("CALL ${index + 1} block=#${call.blockId} operation=${call.operation} " +
-                    "elapsedMs=${call.durationMs} error=${call.error ?: \"none\"}")
+                    "elapsedMs=${call.durationMs} error=$error")
                 appendLine("  source=\"${safe(call.sourceText)}\"")
                 appendLine("  input =\"${safe(call.preparedInput)}\"")
                 appendLine("  raw   =\"${safe(call.rawOutput)}\"")
