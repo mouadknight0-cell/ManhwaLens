@@ -268,6 +268,12 @@ Full compare: <https://github.com/mouadknight0-cell/ManhwaLens/compare/528d629..
 — atomic persistence, `NameSession` cache identity (`texts.hashCode()` → content equality), and the
 series-selection audit with its minimal UX fixes. Base `1c0c270`, fix `e99dd93`, CI run 43523522645.
 
+**Persistence hardening that followed:** [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md)
+(recovery may never write the live file — `b960444` → `87830b7`) and
+[P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) (a staging copy is promoted
+only after strict structural validation — `8140a4b` → `723f101`). The design described in this
+document is unchanged by both; they harden the write/recovery edges of §3.
+
 | Risk | Status |
 | --- | --- |
 | Names only accumulate for a **selected** series | By design (D2); the empty state tells the reader to pick one. Could be automated later via a title-detection heuristic — needs its own phase. |

@@ -1,8 +1,8 @@
 # ManhwaLens — repository report
 
-**Snapshot date:** 2026-11-13 · **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2)
-**Head:** `87830b7e9bdad12b4382926e5bac07d1c1b9ba94` · **Base:** `main` @ `560705d` · **Status:** OPEN / MERGEABLE / CLEAN
-**Latest verification:** CI run [43527227407](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43527227407) — `build` **success**
+**Snapshot date:** 2026-11-13 · **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) · 20 commits
+**Head:** `723f101390d7cecd21abdeaada4b7a7fd460efdd` · **Base:** `main` @ `560705d` · **Status:** OPEN / MERGEABLE / CLEAN
+**Latest verification:** CI run [43531550380](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43531550380) — `build` **success**
 
 This is the repository-level view: what the branch contains, what has been verified and how, what
 cannot be verified here, and what is next. Per-change detail lives in the reports indexed in
@@ -21,9 +21,9 @@ module, Kotlin 2.4.21, AGP 8.13.2, Compose + Material 3, `minSdk 26`, `compileSd
 | --- | --- |
 | Kotlin sources | 112 files under `app/src/main` |
 | Test sources | 68 files under `app/src/test` |
-| Test methods (`@Test`) | 604 |
-| Branch vs `main` | 17 commits, 223 files, +35 358 lines (the PR branch carries the whole app; `main` holds the initial commit) |
-| Documentation at the root | 16 Markdown files (§5) |
+| Test methods (`@Test`) | 615 |
+| Branch vs `main` | 20 commits, 225 files, +35 942 lines (the PR branch carries the whole app; `main` holds the initial commit) |
+| Documentation at the root | 18 Markdown files (§5) |
 
 ---
 
@@ -36,10 +36,12 @@ module, Kotlin 2.4.21, AGP 8.13.2, Compose + Material 3, `minSdk 26`, `compileSd
 | 3 | **P1** series-scoped character memory | [P1_SERIES_NAME_MEMORY.md](P1_SERIES_NAME_MEMORY.md) · design [P1_CHARACTER_MEMORY.md](P1_CHARACTER_MEMORY.md) | `528d629` → `8d5cc9e` | 43518604612, 43520783453 |
 | 4 | **P1 review** — atomic writes, session cache identity, series visibility | [P1_REVIEW_CORRECTIONS.md](P1_REVIEW_CORRECTIONS.md) | `1c0c270` → `e99dd93` | 43523522645, 43524129101 |
 | 5 | **P1 persistence safety** — recovery may never write the live file | [P1_PERSISTENCE_SAFETY_FIX.md](P1_PERSISTENCE_SAFETY_FIX.md) | `b960444` → `87830b7` | 43526686657, 43527227407 |
+| 6 | **P1.1 strict staging validation** — a staging copy is promoted only after it is proved structurally complete | [P1_1_STRICT_STAGING_VALIDATION.md](P1_1_STRICT_STAGING_VALIDATION.md) | `8140a4b` → `723f101` | 43531030306, 43531550380 |
 
 Net: one defect fixed in the Gemini wire path, one feature (persistent, series-scoped names), and
-two hardening passes over the new persistence layer. No existing feature removed and no translation
-or OCR behaviour changed by the hardening passes.
+three hardening passes over the new persistence layer (atomic writes → recovery never writes the
+live file → strict structural validation before promotion). No existing feature removed and no
+translation or OCR behaviour changed by the hardening passes.
 
 ---
 
@@ -53,6 +55,9 @@ request; each report cites the run that validated its commit.
 
 | Run | Commit | Result |
 | --- | --- | --- |
+| 43531550380 | `723f101` | success (head) |
+| 43531030306 | `e6598a8` | success |
+| 43530112769 | `8140a4b` | success |
 | 43527227407 | `87830b7` | success |
 | 43526686657 | `345715d` | success |
 | 43525048064 | `b960444` | success |
@@ -60,8 +65,9 @@ request; each report cites the run that validated its commit.
 | 43523522645 | `e99dd93` | success |
 | 43520783453 | `1c0c270` | success |
 
-The last six runs are green. The two earlier failures (a nullable-property smart-cast error and four
-tests, one of which exposed a real cache-write-back bug) are analysed in their reports, not hidden.
+The last eight runs are green. The two earlier failures (a nullable-property smart-cast error and
+four tests, one of which exposed a real cache-write-back bug) are analysed in their reports, not
+hidden.
 
 **Not verifiable in this environment** (see [BLOCKERS.md](BLOCKERS.md)): any on-device behaviour
 (overlay timing, scroll riding, Live mode, battery), `lint`/`lintDebug` (offline cache gap;
@@ -76,7 +82,7 @@ tests, one of which exposed a real cache-write-back bug) are analysed in their r
 | --- | --- | --- |
 | `overlay/FloatingButtonService.kt` | 4.4k-line orchestrator | Untouched by this branch; the known structural risk (audit item 10) |
 | `translate/` | engines + cache decorator + name pipeline | Modified: cache-aside repair path, engine name providers, `NameScript.classify` evidence |
-| `names/` (new) | record, form, resolver, JSON store, series catalogue | Added by P1, hardened twice; JVM-tested (no Android deps) |
+| `names/` (new) | record, form, resolver, JSON store, series catalogue | Added by P1, hardened three times (atomic writes, no-write recovery, strict staging validation); JVM-tested (no Android deps) |
 | `data/` | prefs, caches, `CharacterMemory`/`NameSession` | Added P1 glue; the store's only Android coupling is the factory |
 | `ocr/`, `render/`, `capture/` | OCR, patch painter, MediaProjection | Untouched by this branch |
 
@@ -92,7 +98,7 @@ tests, one of which exposed a real cache-write-back bug) are analysed in their r
 | [DECISIONS.md](DECISIONS.md) | One line per decision, including the standing rules (S1–S5) and the P1/T1–T7 corrective decisions |
 | [BLOCKERS.md](BLOCKERS.md) | What cannot be done in this environment, and why |
 | [MANUAL_TESTS.md](MANUAL_TESTS.md) | On-device checklists (Redmi 13C, Brave) |
-| `P0_*`, `P0A_*`, `P1_*` | Per-change reports (§2) |
+| `P0_*`, `P0A_*`, `P1_*`, `P1_1_*` | Per-change reports (§2) |
 | [CHANGELOG.md](CHANGELOG.md), [README.md](README.md), [PRIVACY.md](PRIVACY.md), [OPEN_SOURCE_RESEARCH.md](OPEN_SOURCE_RESEARCH.md), [V096_PLAN.md](V096_PLAN.md) | User-facing changelog, product readme, privacy stance, licence research, earlier plan |
 
 ---
@@ -130,10 +136,19 @@ divergence from the audit and is the standing architectural choice for this area
 
 ## 8. Merge readiness
 
-- **Checks:** `build` green at the head commit; PR MERGEABLE / CLEAN.
+- **Checks:** `build` green at `723f101` (run 43531550380); PR MERGEABLE / CLEAN.
 - **What a reviewer should read first:** the five per-change reports in §2 (each is self-contained:
   evidence, fix, tests, diff, risks), then `DECISIONS.md` for the standing rules.
 - **What merging does *not* buy:** device validation, a release APK, or lint coverage — all three
   remain environment blockers, unchanged by this branch.
 - **Nothing is merged by the author of these changes;** the branch stops here for architectural
   approval.
+
+---
+
+## Report history
+
+| Updated | Head | What changed in this snapshot |
+| --- | --- | --- |
+| 2026-11-13 (`723f101`) | P1.1 merged into the branch | Added the P1.1 work package and its two runs, refreshed the inventory (615 tests, 20 commits, 225 files), noted the third hardening pass |
+| 2026-11-13 (`8140a4b`) | first version | Branch/PR state, the five work packages, verification matrix, code and documentation maps, blockers, ranked next steps, merge readiness |
