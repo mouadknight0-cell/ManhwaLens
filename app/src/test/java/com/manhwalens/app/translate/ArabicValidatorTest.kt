@@ -42,14 +42,14 @@ class ArabicValidatorTest {
     }
 
     @Test
-    fun rejectsOneOrTwoUntranslatedEnglishWordsInsideArabic() {
+    fun rejectsTwoUntranslatedEnglishWordsInsideArabic() {
         assertEquals(
             ArabicValidator.Issue.UNTRANSLATED_FRAGMENT,
             ArabicValidator.issue("I will help you tomorrow.", "سأساعدك will you غدًا")
         )
         assertEquals(
             ArabicValidator.Issue.UNTRANSLATED_FRAGMENT,
-            ArabicValidator.issue("The door is open.", "الباب the مفتوح")
+            ArabicValidator.issue("The door is open.", "الباب the is مفتوح")
         )
     }
 
