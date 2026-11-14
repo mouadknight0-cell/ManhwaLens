@@ -10,6 +10,7 @@ import com.manhwalens.app.translate.BatchAutoSelect
 import com.manhwalens.app.translate.BatchPolicyHolder
 import com.manhwalens.app.translate.BatchSplitter
 import com.manhwalens.app.translate.Glossary
+import com.manhwalens.app.translate.MlKitPageAssembly
 import com.manhwalens.app.translate.MlKitWarmth
 import com.manhwalens.app.translate.SceneNames
 import com.manhwalens.app.translate.SplitStrategy
@@ -239,12 +240,11 @@ class MlKitTranslator(
             maybeStartSelfTest()
         }
 
-        // Preserve original page order and blanks.
+        // Preserve original page order and blanks. P0/C2: a block without an answer stays
+        // EMPTY — the English source is never substituted (see MlKitPageAssembly.ordered).
         val arabicById = answered.mapValues { it.value.arabic }
         pageNames = emptyMap()
-        val ordered = blocks.map { b ->
-            TranslatedBlock(b.id, b.english, arabicById[b.id] ?: if (b.english.isBlank()) "" else b.english)
-        }
+        val ordered = MlKitPageAssembly.ordered(blocks, arabicById)
         val elapsed = System.currentTimeMillis() - start
         Log.i(TAG, "ML Kit batch done: ${ordered.size} blocks in $elapsed ms")
         return PageTranslation.Success(
@@ -272,10 +272,26 @@ class MlKitTranslator(
         return JoinedOutcome(blocks.mapIndexed { i, b -> TranslatedBlock(b.id, b.english, v.segments[i]) }, false, "ok")
     }
 
-    /** Fire the progressive listener (worker threads); never throws. */
+    /**
+     * Fire the progressive listener (worker threads); never throws.
+     *
+     * P0/C2: the listener paints straight onto the overlay, so the block must pass the shared
+     * guard before it leaves the engine. A withheld block is simply not painted now; the final
+     * page result (validated again by CachingTranslator) decides what it becomes.
+     */
     private fun emitReady(tb: TranslatedBlock) {
         val l = onBlockReady ?: return
-        if (tb.arabic.isNotBlank()) runCatching { l(tb) }
+        val payload = MlKitPageAssembly.progressivePayload(tb)
+        if (payload == null) {
+            if (tb.arabic.isNotBlank()) {
+                PipelineTracer.span(
+                    "mlkit progressive", 0,
+                    "block #${tb.id} withheld: output is not usable Arabic"
+                )
+            }
+            return
+        }
+        runCatching { l(payload) }
     }
 
     /**

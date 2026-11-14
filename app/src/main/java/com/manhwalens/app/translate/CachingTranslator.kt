@@ -47,9 +47,15 @@ class CachingTranslator(
 
     override val engineId: String get() = delegate.engineId
 
-    /** Remote caches from an older version must not bypass the output-quality guard. */
+    /**
+     * Caches from an older version must not bypass the output-quality guard.
+     *
+     * P0/C2: ML Kit is included. An on-device model that echoes English is exactly the failure
+     * this guard exists for; excluding it meant an echo was cached (memory, disk and fuzzy tiers)
+     * and re-served for the rest of the chapter.
+     */
     private val requiresArabicGuard: Boolean
-        get() = engineId == "gemini" || engineId == "libre_translate"
+        get() = engineId == "gemini" || engineId == "libre_translate" || engineId == "ml_kit_en_ar"
 
     override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
         if (blocks.isEmpty()) {

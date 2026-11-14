@@ -3844,6 +3844,15 @@ class FloatingButtonService : Service() {
         private fun paint(tb: com.manhwalens.app.translate.TranslatedBlock, remote: Boolean) {
             if (tb.arabic.isBlank()) return
             val block = blocksById[tb.id] ?: return
+            // P0/C2: the painter is the last line of defence. Whatever path produced this text —
+            // progressive callback, remote upgrade, final reconciliation, cache — an English
+            // echo or a half-translated sentence is never drawn over the art. The guard is the
+            // same object every engine is judged by, so a preserved Latin name still passes.
+            val verdict = com.manhwalens.app.translate.ArabicValidator.issue(block.text, tb.arabic)
+            if (verdict != null) {
+                Log.w(TAG, "patch refused #${tb.id} (${verdict.name.lowercase()}): output is not usable Arabic")
+                return
+            }
             val r = block.bounds
             val left = r.left.toInt().coerceIn(0, bitmap.width); val top = r.top.toInt().coerceIn(0, bitmap.height)
             val right = r.right.toInt().coerceIn(0, bitmap.width); val bottom = r.bottom.toInt().coerceIn(0, bitmap.height)
