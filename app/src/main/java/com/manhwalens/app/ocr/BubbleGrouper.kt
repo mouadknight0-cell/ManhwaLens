@@ -61,10 +61,41 @@ object BubbleGrouper {
             return r
         }
 
+        /**
+         * Prevent a transitive "bridge line" from joining two distant text columns.
+         * Pairwise compatibility alone is insufficient: A may fit B and B fit C,
+         * while A and C are too far apart to belong to one bubble.
+         *
+         * This checks only the component's horizontal center spread (not every
+         * pair's vertical gap), so legitimate multi-line bubbles remain chainable.
+         */
+        fun canJoinComponents(i: Int, j: Int): Boolean {
+            val ri = find(i)
+            val rj = find(j)
+            if (ri == rj) return true
+
+            var minCenter = Float.POSITIVE_INFINITY
+            var maxCenter = Float.NEGATIVE_INFINITY
+            var maxWidth = 0f
+            for (k in 0 until n) {
+                val root = find(k)
+                if (root == ri || root == rj) {
+                    val box = sorted[k].box
+                    minCenter = min(minCenter, box.centerX)
+                    maxCenter = max(maxCenter, box.centerX)
+                    maxWidth = max(maxWidth, box.width)
+                }
+            }
+            return maxWidth > 0f &&
+                maxCenter - minCenter <= maxWidth * params.maxCenterDeltaRatio
+        }
+
         fun union(i: Int, j: Int) {
             val ri = find(i)
             val rj = find(j)
-            if (ri != rj) parent[max(ri, rj)] = min(ri, rj)
+            if (ri != rj && canJoinComponents(i, j)) {
+                parent[max(ri, rj)] = min(ri, rj)
+            }
         }
 
         for (i in 0 until n) {
