@@ -1,8 +1,9 @@
 # ManhwaLens — repository report
 
-**Snapshot date:** 2026-11-13 · **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) · 20 commits
-**Head:** `723f101390d7cecd21abdeaada4b7a7fd460efdd` · **Base:** `main` @ `560705d` · **Status:** OPEN / MERGEABLE / CLEAN
-**Latest verification:** CI run [43531550380](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43531550380) — `build` **success**
+**Snapshot date:** 2026-11-13 · **Branch:** `arena/8a718184-manhwalens` · **PR:** [#2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) · 21 commits
+**Head (last code change):** `fee9d9e371ed3db42c81413c73d4ba12204c7886` · **Base:** `main` @ `560705d` · **Status:** OPEN / MERGEABLE / CLEAN
+**Latest verified run:** recorded in [REPORTS.md](REPORTS.md) under P1.1-A; documentation-only commits
+after the head above are covered by the run at the branch head.
 
 This is the repository-level view: what the branch contains, what has been verified and how, what
 cannot be verified here, and what is next. Per-change detail lives in the reports indexed in
