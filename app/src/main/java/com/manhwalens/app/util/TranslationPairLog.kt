@@ -31,7 +31,7 @@ object TranslationPairLog {
             ).joinToString("\t") { encode(it) }
             synchronized(this) {
                 file.appendText(line + "\n")
-                if (file.length() > MAX_FILE_BYTES) {
+                if (file.length() > MAX_FILE_BYTES || file.readLines().size > MAX_ENTRIES) {
                     val recent = file.readLines().filter { it.isNotBlank() }.takeLast(MAX_ENTRIES)
                     file.writeText(recent.joinToString("\n", postfix = "\n"))
                 }
@@ -68,9 +68,9 @@ object TranslationPairLog {
         }.take(MAX_REPORT_CHARS)
     } catch (_: Throwable) { null }
 
-    private fun readLines(context: Context): List<String> {
+    private fun readLines(context: Context): List<String> = synchronized(this) {
         val file = File(context.applicationContext.filesDir, FILE_NAME)
-        return if (file.exists()) file.readLines().filter { it.isNotBlank() }.takeLast(MAX_ENTRIES) else emptyList()
+        if (file.exists()) file.readLines().filter { it.isNotBlank() }.takeLast(MAX_ENTRIES) else emptyList()
     }
 
     private fun timestamp(): String =
