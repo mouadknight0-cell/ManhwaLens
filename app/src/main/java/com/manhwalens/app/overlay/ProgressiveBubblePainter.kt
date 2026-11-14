@@ -306,7 +306,7 @@ internal class ProgressiveBubblePainter(
         val elapsed = SystemClock.elapsedRealtime() - tapStartMs
         mainHandler.post {
             if (patches.isEmpty()) return@post
-            val po = patchOverlayEnsure()
+            val po = ensureOverlay()
             if (!attached) {
                 attached = true
                 firstBubbleMs = elapsed
@@ -336,6 +336,8 @@ internal class ProgressiveBubblePainter(
             Log.i(TAG, "painter finish: reconciled ${patches.size} composite area(s) (elapsed=${elapsed} ms)")
         }
     }
+
+    private companion object {
+        const val TAG = "MLCapture"
+    }
 }
-
-

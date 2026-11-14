@@ -3746,7 +3746,7 @@ class FloatingButtonService : Service() {
     }
 
     private fun relayRemoteTranslation(
-        painter: BubblePainter,
+        painter: ProgressiveBubblePainter,
         pagePlan: com.manhwalens.app.translate.PagePlan.Plan,
         original: List<com.manhwalens.app.translate.TranslationBlock>,
         unique: List<com.manhwalens.app.translate.TranslationBlock>
