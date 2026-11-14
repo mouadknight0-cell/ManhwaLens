@@ -93,6 +93,28 @@ class PatchPlannerTest {
     }
 
     @Test
+    fun composeKeepsTheFullAreaCoverWhenOnlyOneMemberHasTranslation() {
+        val areas = PatchPlanner.areas(
+            listOf(
+                4 to Rect2D(100f, 100f, 240f, 124f),
+                5 to Rect2D(100f, 128f, 250f, 150f)
+            ),
+            page.first, page.second
+        )
+        val onlyOneAnswer = listOf(
+            BubbleRenderBox(4, 100, 100, 240, 124, "FIRST LINE", "السطر الأول", 0xFFFFFFFF.toInt(), 0xFF000000.toInt())
+        )
+
+        val composed = PatchPlanner.compose(areas, onlyOneAnswer)
+
+        assertEquals(1, composed.size)
+        assertEquals(4, composed.single().id)
+        assertEquals("السطر الأول", composed.single().arabic)
+        assertTrue(composed.single().bottom >= 150)
+        assertTrue(areas.single().cover.bottom >= 150f)
+    }
+
+    @Test
     fun unknownIdAnswersItselfAndHasNoCover() {
         val areas = PatchPlanner.areas(listOf(1 to Rect2D(0f, 0f, 10f, 10f)), 50, 50)
         assertEquals(42, PatchPlanner.ownerOf(areas, 42))
