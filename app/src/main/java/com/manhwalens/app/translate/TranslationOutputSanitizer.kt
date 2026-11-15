@@ -24,10 +24,11 @@ object TranslationOutputSanitizer {
     ): TranslatedBlock? {
         val cleaned = clean(block.arabic)
         if (cleaned.isBlank()) return null
+        val dialogueRepaired = ShortDialogueOverrides.apply(block.english, cleaned)
         val corrected = if (pinnedOverride != null) {
-            runCatching { pinnedOverride(block.english, cleaned) }.getOrDefault(cleaned)
+            runCatching { pinnedOverride(block.english, dialogueRepaired) }.getOrDefault(dialogueRepaired)
         } else {
-            cleaned
+            dialogueRepaired
         }
         if (corrected.isBlank() || ArabicValidator.issue(block.english, corrected) != null) return null
         return block.copy(arabic = corrected)

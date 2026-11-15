@@ -98,18 +98,19 @@ class CachingTranslator(
                 rawHit
             }
             hit = repairedHit
-            val issue = if (repairedHit != null && requiresArabicGuard) {
-                ArabicValidator.issue(b.english, repairedHit)
+            val dialogueRepairedHit = repairedHit?.let { ShortDialogueOverrides.apply(b.english, it) }
+            val issue = if (dialogueRepairedHit != null && requiresArabicGuard) {
+                ArabicValidator.issue(b.english, dialogueRepairedHit)
             } else null
-            if (repairedHit != null && issue == null) {
-                cached[b.id] = repairedHit
+            if (dialogueRepairedHit != null && issue == null) {
+                cached[b.id] = dialogueRepairedHit
                 when {
                     diskHit != null -> {
                         // Promote the (possibly name-repaired) disk hit, so the correction sticks.
-                        cache.put(engineId, b.english, repairedHit ?: diskHit, style)
+                        cache.put(engineId, b.english, dialogueRepairedHit, style)
                         diskHits++
                     }
-                    fromFuzzy && repairedHit != null -> cache.put(engineId, b.english, repairedHit, style)
+                    fromFuzzy && repairedHit != null -> cache.put(engineId, b.english, dialogueRepairedHit, style)
                 }
                 // A repaired plain memory hit must be written back too, otherwise every capture
                 // re-repairs the same stale entry.
@@ -167,11 +168,12 @@ class CachingTranslator(
                         // matching the cache-hit path. A preserved name such as "Will" must not
                         // be mistaken for an untranslated common English word.
                         val cleaned = TranslationOutputSanitizer.clean(raw.arabic)
+                        val dialogueRepaired = ShortDialogueOverrides.apply(raw.english, cleaned)
                         val nameOverride = pinnedOverride
-                        val corrected = if (cleaned.isNotBlank() && nameOverride != null) {
-                            runCatching { nameOverride.invoke(raw.english, cleaned) }.getOrDefault(cleaned)
+                        val corrected = if (dialogueRepaired.isNotBlank() && nameOverride != null) {
+                            runCatching { nameOverride.invoke(raw.english, dialogueRepaired) }.getOrDefault(dialogueRepaired)
                         } else {
-                            cleaned
+                            dialogueRepaired
                         }
                         raw.copy(arabic = corrected)
                     }
