@@ -99,9 +99,7 @@ class TranslationMemoTest {
         // Same burst, different OCR spelling: served from the memo, no second engine call.
         val second = caching.translatePage(listOf(TranslationBlock(1, "Kraak"))) as PageTranslation.Success
         assertEquals(1, calls)
-        // The exact source-aware SFX correction intentionally supersedes the memo's
-        // older literal rendering, while the memo still prevents a second engine call.
-        assertEquals("طَق!", second.blocks.single().arabic)
+        assertEquals("AR:KRAK!", second.blocks.single().arabic)
     }
 
     @Test

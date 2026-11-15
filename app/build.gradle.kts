@@ -28,8 +28,8 @@ android {
         applicationId = "com.manhwalens.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 49
-        versionName = "0.12.9"
+        versionCode = 50
+        versionName = "0.12.10"
 
         // This is a phone-focused experimental APK. Keep both ARM ABIs while
         // excluding x86 emulator libraries, which inflated the universal APK

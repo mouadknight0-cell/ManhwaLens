@@ -1,3 +1,16 @@
+## 0.12.10 — offline model reliability and Arabic dialogue corrections
+- Allow the ML Kit English→Arabic model to download over Wi-Fi or mobile data during both first-use translation and service warm-up; remove the hidden Wi-Fi-only restriction.
+- Add conservative source-exact Arabic corrections for observed short dialogue/SFX failures: “No.” → “لا.”, “Run!” → “اهرب!”, and “KRAK” → “طَق!”.
+- Apply source-aware corrections consistently after character-name repair across fresh engine results, cache hits and progressive overlay output.
+- Persist the final corrected cache value so older wrong short-line translations are not repeatedly served.
+- Keep ML Kit as the default offline translator; Bergamot remains optional and experimental.
+
+## 0.12.9 — Arabic rendering and native OCR memory lifecycle
+- Preserve complete Arabic RTL bubble text: force RTL paragraph layout, remove the four-line rendering cap, and retain the original artwork rather than drawing a truncated translation when the complete text cannot fit.
+- Serialize PaddleOCR inference and ONNX session teardown; release shared OCR sessions safely under memory pressure and service shutdown.
+- Establish the stable future APK signing baseline with the pinned CI key and enforce package, versionCode and signer checks before publishing updates.
+- Publish the v0.12.9 APK as a GitHub prerelease. The one-time historical signing transition from v0.12.8 is documented; later releases must retain the v0.12.9 signer.
+
 ## 0.12.8 — isolate and clarify offline engine diagnostics
 - Rename the original diagnostic to **ML Kit batching benchmark** and state explicitly that it runs ML Kit regardless of the selected offline engine.
 - Make its side effect explicit: it may update ML Kit's saved batching policy, but never changes the selected offline translator or Bergamot settings.
