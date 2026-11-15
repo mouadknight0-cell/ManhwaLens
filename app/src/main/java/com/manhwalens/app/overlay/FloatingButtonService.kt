@@ -2765,68 +2765,13 @@ class FloatingButtonService : Service() {
                 }.onFailure { Log.e("ManhwaLens", "failed to save debug capture", it) }
             }
 
-            // --- Filter (sound effects / watermarks / ignore-list) ----------
+            // OCR filtering (BlockFilter + garbage/owned-window guard) is completed
+            // exactly once inside CaptureOcrProcessor; do not apply the same rules again.
             stage = "filter"
-            if (ocrError == null) {
-                val fStart = SystemClock.elapsedRealtime()
-                val edgePrefs = com.manhwalens.app.data.SettingsPrefs(applicationContext)
-                val density = resources.displayMetrics.density
-                val filterResult = BlockFilter.apply(
-                    ocrBlocks, bitmap.height,
-                    edgePrefs.ignoreTopPct, edgePrefs.ignoreBottomPct, edgePrefs.ignorePhraseList(),
-                    minHeightPx = 16f * density, minWordCount = 1,
-                    frameWidth = bitmap.width
-                )
-                if (filterResult.edgeWarnings.isNotEmpty()) {
-                    PipelineTracer.span("horizontal edge OCR", 0, filterResult.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240))
-                }
-                val removed = filterResult.removed.joinToString(", ") { "#${it.id}:${it.reason}" }.take(300)
-                PipelineTracer.record(
-                    PipelineTracer.Stage.FILTER, StageTrace.Status.OK,
-                    SystemClock.elapsedRealtime() - fStart,
-                    "kept ${filterResult.kept.size}/${ocrBlocks.size}" +
-                        if (removed.isNotEmpty()) " · removed: $removed" else " · removed: none"
-                )
-                ocrBlocks = filterResult.kept
-
-                // ---- Part 1 defense-in-depth: drop anything that is OUR windows ----
-                // (blocks intersecting our rects, matching our UI strings, or looking
-                // like OCR garbage from burned-in Arabic). Runs AFTER BlockFilter so the
-                // trace shows both reasons.
-                if (ocrBlocks.isNotEmpty()) {
-                    val gStart = SystemClock.elapsedRealtime()
-                    val classifier = com.manhwalens.app.ocr.OcrGarbageClassifier(
-                        com.manhwalens.app.util.OwnedWindows.UI_STRINGS
-                    ) { SystemClock.elapsedRealtime() }
-                    // v0.9.8: the frame is captured with our windows hidden, so stale patch /
-                    // menu rects must NOT veto real page text (they used to drop every bubble
-                    // that sat where an old patch or the menu had been).
-                    val patchRects = emptyList<com.manhwalens.app.ocr.geometry.Rect2D>()
-                    val ownedRects = tapOwnedRects
-                    val before = ocrBlocks.size
-                    ocrBlocks = ocrBlocks.filterNot { block ->
-                        val v = classifier.classify(
-                            block.text.replace('\n', ' ').trim(),
-                            block.bounds,
-                            patchRects = patchRects,
-                            ownedRects = ownedRects
-                        )
-                        if (!v.keep) {
-                            PipelineTracer.span("ocr drop", 0, "#${block.id}=${v.reason}")
-                            true
-                        } else false
-                    }
-                    val dropped = before - ocrBlocks.size
-                    PipelineTracer.record(
-                        PipelineTracer.Stage.FILTER, StageTrace.Status.OK,
-                        SystemClock.elapsedRealtime() - gStart,
-                        "kept ${ocrBlocks.size}/$before (garbage+own-window drops: $dropped)"
-                    )
-                }
-            } else {
+            if (ocrError != null) {
                 PipelineTracer.record(
                     PipelineTracer.Stage.FILTER, StageTrace.Status.SKIPPED, 0L,
-                    "skipped — OCR produced no usable blocks"
+                    "skipped — OCR failed before filtering"
                 )
             }
 
