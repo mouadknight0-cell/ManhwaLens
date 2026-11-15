@@ -312,6 +312,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                             val result = com.manhwalens.app.translate.BenchmarkRunner.run(
                                 translateOne = { text -> mlkit.translateRaw(text) }
                             )
+                            // Fixed EN→AR reference corpus: report guard acceptance and lexical
+                            // overlap separately; this diagnostic never changes engine policy.
+                            val qualityReport = com.manhwalens.app.translate.TranslationQualityBenchmark.run(
+                                translateOne = { text -> mlkit.translateRaw(text) }
+                            )
                             // The benchmark is the strongest proof available on this device:
                             // adopt its verdict, unless joined mode is serving a failure ban.
                             val verdict = result.recommend()
@@ -338,7 +343,9 @@ fun SettingsScreen(onBack: () -> Unit) {
                                     "Runtime now: " + policy.describe(),
                                     "($adopted)",
                                     "Warm state: " + com.manhwalens.app.translate.MlKitWarmth.describe(System.currentTimeMillis()),
-                                    "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
+                                    "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}",
+                                    "",
+                                    qualityReport.toText()
                                 )
                             )
                         } catch (e: Exception) {

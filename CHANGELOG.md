@@ -1,3 +1,10 @@
+## 0.12.6 — offline translation quality benchmark
+- Extend Settings → Diagnostics with a fixed 20-case English→Arabic reference corpus spanning dialogue, narration, short replies, names and sound effects.
+- Report Arabic quality-guard acceptance/rejection, exact normalized reference matches, elapsed time and mean Arabic token-overlap F1; explicitly label token overlap as a lexical diagnostic, not semantic accuracy.
+- Keep quality evaluation separate from runtime batching policy: reference scores never change engine selection or translation behavior.
+- Add JVM tests for corpus integrity, exact matches, English echoes, empty/failing output and lexical scoring.
+- ML Kit remains the default engine; Bergamot remains experimental and its offline fallback is unchanged.
+
 # Changelog
 
 ## 0.12.5 — offline quality fallback for Bergamot

@@ -1,3 +1,13 @@
+# v0.12.6 — offline translation quality benchmark
+
+1. Download the ML Kit EN→AR model once, then turn off Wi-Fi and mobile data.
+2. Open Settings → Diagnostics → Benchmark. **PASS:** the existing batching/latency table still appears and the additional 20-case quality report completes offline.
+3. Check the report categories: dialogue, narration, short replies, names and sound effects. **PASS:** total/completed counts are 20; accepted/rejected counts reflect the shared Arabic quality guard.
+4. Confirm exact normalized matches, mean token F1 and elapsed time are included. **PASS:** the report explicitly states that token F1 is lexical overlap only and is NOT semantic accuracy.
+5. Force an engine failure or test with an unavailable model. **PASS:** failed/blank cases count as rejected and the benchmark does not crash the Settings screen.
+6. Run the benchmark twice. **PASS:** the fixed corpus IDs and ordering stay identical; benchmark scores do not change engine selection, saved preferences or runtime batching policy.
+7. Repeat with Bergamot selected in the app. **PASS:** this diagnostics corpus remains explicitly ML Kit-only for now; do not interpret it as a Bergamot comparison. Compare engines only after a dedicated same-corpus multi-engine runner is added.
+
 # v0.12.5 — Bergamot offline quality fallback
 
 1. Select Bergamot, disable Wi-Fi/mobile data, and translate a page with short dialogue and long narration. **PASS:** no cloud request is made; accepted Bergamot bubbles remain visible.
