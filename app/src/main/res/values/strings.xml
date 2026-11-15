@@ -205,7 +205,7 @@
     <!-- Benchmark (Part C) -->
     <string name="benchmark_button">ML Kit batching benchmark</string>
     <string name="benchmark_summary">ML Kit-only batching diagnostic; it ignores the selected offline translation engine and updates only the saved ML Kit batching policy. It does not benchmark Bergamot or switch the selected engine. Translates the same 20 sentences sequentially, in parallel (2/3/4/6 at once) and as one joined call with 8 separators. 5 passes each, first discarded; reports median/worst time and mapping integrity, plus an ML Kit-only quality check. Use Compare ML Kit vs Bergamot for a real engine comparison.</string>
-    <string name="benchmark_title">ML Kit batching benchmark</string>
+    <string name="benchmark_title">Diagnostic report</string>
     <string name="benchmark_running">Running…</string>
     <string name="benchmark_close">Close</string>
     <string name="benchmark_copy">Copy results</string>
