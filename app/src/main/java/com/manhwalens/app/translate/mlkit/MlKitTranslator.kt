@@ -562,6 +562,11 @@ class MlKitTranslator(
         private fun translateRawDuringExclusiveDiagnostic(text: String): String =
             Tasks.await(SHARED_CLIENT.translate(text), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
 
+        /** Raw request callback for parallel benchmark workers while the caller owns the exclusive gate. */
+        @JvmStatic
+        internal fun translateRawForExclusiveDiagnostic(text: String): String =
+            translateRawDuringExclusiveDiagnostic(text)
+
         /**
          * Dummy "hello" call that keeps the engine loaded. Called at service start and on
          * screen-on; records cold vs warm timings for the pipeline trace. Returns the call
