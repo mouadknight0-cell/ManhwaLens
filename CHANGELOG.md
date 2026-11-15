@@ -1,3 +1,12 @@
+## 0.12.8 — isolate and clarify offline engine diagnostics
+- Rename the original diagnostic to **ML Kit batching benchmark** and state explicitly that it runs ML Kit regardless of the selected offline engine.
+- Make its side effect explicit: it may update ML Kit's saved batching policy, but never changes the selected offline translator or Bergamot settings.
+- Add a **Bergamot-only benchmark** using the same fixed 20-case EN→AR corpus. It invokes the native Bergamot adapter only, without ML Kit calls, fallback, app translation cache or preference changes; reports first-pass startup separately from warm passes and includes per-case quality results.
+- Correct the warm-up reason labels so an ML Kit batching benchmark cannot be mistaken for an engine comparison.
+- Make the paired comparison use the saved ML Kit page dispatch strategy (validated joined request when safe, otherwise the saved parallel level), with targeted retry of only missing ML Kit bubbles.
+- Report actual ML Kit dispatch, raw-engine/no-fallback semantics, per-case output, and the distinction between page-batch latency and isolated sentence latency.
+- Add JVM coverage for Bergamot-only isolation, joined/parallel dispatch, map validation, concurrency limits and selective retry. Keep ML Kit as the default and Bergamot experimental.
+
 ## 0.12.7 — isolate engine comparison timing
 - Prevent the ML Kit background separator self-test from running concurrently with the explicit ML Kit vs Bergamot diagnostic, which shares the process-wide translator and would distort measured latency.
 - Add a benchmark-only ML Kit warm-up that verifies/downloads the model and loads the translator without scheduling a new batching self-test.
