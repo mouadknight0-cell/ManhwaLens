@@ -44,10 +44,11 @@ jobs:
       # install each APK as an update instead of treating it as a different app.
       - name: Restore stable experimental debug signing key
         run: |
-          mkdir -p "$HOME/.android"
-          base64 --decode ci/experimental-debug.keystore.base64 > "$HOME/.android/debug.keystore"
-          chmod 600 "$HOME/.android/debug.keystore"
-          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey >/dev/null
+          set -euo pipefail
+          mkdir -p ci
+          base64 --decode ci/experimental-debug.keystore.base64 > ci/experimental-debug.keystore
+          chmod 600 ci/experimental-debug.keystore
+          keytool -list -v -storetype PKCS12 -keystore ci/experimental-debug.keystore -storepass android -alias androiddebugkey | grep "SHA256:"
 
       - name: Download pinned PaddleOCR Arabic/English models
         run: |
@@ -110,6 +111,22 @@ jobs:
           echo "file=$OUT" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Verify APK uses the pinned experimental debug certificate
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          EXPECTED_CERT=$(keytool -list -v -storetype PKCS12 -keystore ci/experimental-debug.keystore -storepass android -alias androiddebugkey | sed -n "s/^[[:space:]]*SHA256: //p" | head -1 | tr -d ":" | tr "[:upper:]" "[:lower:]")
+          CURRENT_CERT=$("$BUILD_TOOLS/apksigner" verify --print-certs "${{ steps.apk.outputs.file }}" | sed -n "s/^Signer #1 certificate SHA-256 digest: //p" | head -1 | tr "[:upper:]" "[:lower:]")
+          test -n "$EXPECTED_CERT"
+          test -n "$CURRENT_CERT"
+          if [ "$CURRENT_CERT" != "$EXPECTED_CERT" ]; then
+            echo "::error::Debug APK signer does not match the pinned experimental keystore."
+            echo "Expected: $EXPECTED_CERT"
+            echo "Actual:   $CURRENT_CERT"
+            exit 1
+          fi
+          echo "APK signer matches the pinned experimental key: $CURRENT_CERT"
+
       # Refuse to publish an update that Android cannot install over the latest
       # published APK. Package identity, monotonically increasing versionCode and
       # signing certificate are all part of Android's update contract.
@@ -117,8 +134,10 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.apk.outputs.version }}
         run: |
           set -euo pipefail
+          VERSION_TAG="v$APP_VERSION"
           APK="${{ steps.apk.outputs.file }}"
           BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
           CURRENT_BADGING=$("$BUILD_TOOLS/aapt" dump badging "$APK" | head -1)
@@ -131,14 +150,15 @@ jobs:
           # only; the release decision below will not publish that tag again. Avoid comparing
           # such an internal rebuild with a historical APK that the user accepted as a
           # one-time signing exception. Explicit tag pushes still run the full gate.
-          if [[ "$GITHUB_REF" == "refs/heads/feature/v0.12.4-bergamot-experiment" ]] && gh release view "v\${{ steps.apk.outputs.version }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release v\${{ steps.apk.outputs.version }} already exists; this branch build will not publish it. Package/version metadata validated; signing gate skipped for this non-publishing rebuild."
+          if [[ "$GITHUB_REF" == "refs/heads/feature/v0.12.4-bergamot-experiment" ]] && gh release view "$VERSION_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $VERSION_TAG already exists; this branch build will not publish it. Package/version metadata validated; signer was checked above."
             exit 0
           fi
 
           CURRENT_CERT=$("$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
           test -n "$CURRENT_CERT"
-          PREVIOUS_TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 50 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | map(.tagName) | map(select(. != "v${{ steps.apk.outputs.version }}")) | .[0] // empty')
+          export VERSION_TAG
+          PREVIOUS_TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 50 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | map(.tagName) | map(select(. != env.VERSION_TAG)) | .[0] // empty')
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "No earlier published release found; package identity validated, continuity check skipped."
             exit 0
@@ -156,7 +176,7 @@ jobs:
           # One controlled signing transition is allowed because the user explicitly
           # accepted the currently installed v0.12.8 as an exception. v0.12.9 establishes
           # the permanent future baseline. All later versions compare against v0.12.9.
-          if [ "${{ steps.apk.outputs.version }}" = "0.12.9" ]; then
+          if [ "$APP_VERSION" = "0.12.9" ]; then
             if [ "$PREVIOUS_TAG" != "v0.12.8" ]; then
               echo "::error::Baseline bootstrap expected v0.12.8 as the previous release, got $PREVIOUS_TAG."
               exit 1

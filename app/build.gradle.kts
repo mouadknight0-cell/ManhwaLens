@@ -15,6 +15,11 @@ val keystoreProps = Properties().apply {
 val releaseStore = keystoreProps.getProperty("release.keystore")
 val hasReleaseKeystore = releaseStore != null && rootProject.file(releaseStore).exists()
 
+// CI restores this PKCS#12 key before building. Pin the debug variant explicitly;
+// placing it in ~/.android/debug.keystore alone is not a reliable signing contract.
+val experimentalDebugStore = rootProject.file("ci/experimental-debug.keystore")
+val hasExperimentalDebugStore = experimentalDebugStore.isFile
+
 android {
     namespace = "com.manhwalens.app"
     compileSdk = 36
@@ -23,8 +28,8 @@ android {
         applicationId = "com.manhwalens.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 48
-        versionName = "0.12.8"
+        versionCode = 49
+        versionName = "0.12.9"
 
         // This is a phone-focused experimental APK. Keep both ARM ABIs while
         // excluding x86 emulator libraries, which inflated the universal APK
@@ -35,6 +40,15 @@ android {
     }
 
     signingConfigs {
+        if (hasExperimentalDebugStore) {
+            create("experimentalDebug") {
+                storeFile = experimentalDebugStore
+                storeType = "PKCS12"
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
         if (hasReleaseKeystore) {
             create("release") {
                 storeFile = rootProject.file(releaseStore!!)
@@ -46,6 +60,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (hasExperimentalDebugStore) {
+                signingConfig = signingConfigs.getByName("experimentalDebug")
+            }
+        }
         release {
             // NOTE(2026-11-11, build-box constraint): the reference box is 2 vCPU / 1.9 GB RAM.
             // minifyReleaseWithR8 reproducibly OOM-kills the Gradle daemon here (even with
