@@ -43,21 +43,12 @@ fun BergamotModelCard() {
     var progress by remember { mutableFloatStateOf(0f) }
     var message by remember {
         mutableStateOf(
-            if (ready) "Bergamot English → Arabic model is ready offline."
-            else "Optional Firefox translation model · about 25 MB download, about 36.5 MB storage."
+            if (ready) "Bergamot model is installed for diagnostics only."
+            else "Optional diagnostic model · about 25 MB download, about 36.5 MB storage."
         )
     }
 
     LaunchedEffect(Unit) { ready = BergamotEnArModel.isInstalled(context) }
-
-    // Warm the native model while the reader is still in Settings, not on the first bubble.
-    LaunchedEffect(ready) {
-        if (ready) {
-            scope.launch(Dispatchers.Default) {
-                runCatching { TranslatorFactory.prewarmBergamot(context) }
-            }
-        }
-    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -68,7 +59,7 @@ fun BergamotModelCard() {
                 Text("Bergamot · Firefox Translations", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.size(6.dp))
                 Text(
-                    "محرك ترجمة تجريبي يعمل على الهاتف دون اتصال. لا يُحمّل داخل APK؛ نزّل النموذج مرة واحدة. يتطلب Android 9 أو أحدث ومعالجاً بنظام 64-bit.",
+                    "اختبار تشخيصي فقط، وليس محرك الترجمة المستخدم في قراءة الصفحات حالياً؛ اختبار JNI أعاد مخرجات فارغة. لا يُحمّل داخل APK. نزّل النموذج عند الحاجة لإعادة اختبار المحرك. يتطلب Android 9 أو أحدث ومعالجاً بنظام 64-bit.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -85,7 +76,7 @@ fun BergamotModelCard() {
                         onClick = {
                             busy = true
                             progress = 0f
-                            message = "جارٍ تنزيل نموذج Bergamot والتحقق من سلامته…"
+                            message = "جارٍ تنزيل نموذج Bergamot التشخيصي والتحقق من سلامته…"
                             scope.launch {
                                 val result = withContext(Dispatchers.IO) {
                                     runCatching {
