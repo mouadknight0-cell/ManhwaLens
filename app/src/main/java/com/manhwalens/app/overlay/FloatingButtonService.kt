@@ -3611,7 +3611,6 @@ class FloatingButtonService : Service() {
     ) {
         val expectedEngine = when (com.manhwalens.app.data.TranslationPrefs(applicationContext).engine) {
             com.manhwalens.app.translate.TranslationEngine.GEMINI -> "gemini"
-            com.manhwalens.app.translate.TranslationEngine.LIBRE_TRANSLATE -> "libre_translate"
             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
         }
         val task = Runnable {
