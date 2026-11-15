@@ -105,6 +105,8 @@ class OCREngine(
         val allResults = mutableListOf<OCRResult>()
         val recInputShapes = mutableListOf<List<Int>>()
         val perLineRecMs = mutableListOf<Long>()
+        var recognizedCandidateCount = 0
+        var lowConfidenceDroppedCount = 0
         val batchSize = config.recBatchSize.coerceAtLeast(1)
 
         var i = 0
@@ -135,10 +137,11 @@ class OCREngine(
                         perLineRecMs.add(batchResult.timeMs)
                     }
 
+                    recognizedCandidateCount += batchResult.texts.size
                     for (j in batchResult.texts.indices) {
                         val boxIdx = batchBoxIndices[j]
                         val (text, confidence) = batchResult.texts[j]
-                        if (confidence >= config.recScoreThresh) {
+                        if (confidence.isFinite() && confidence >= config.recScoreThresh && text.isNotBlank()) {
                             allResults.add(
                                 OCRResult(
                                     box = sortedBoxes[boxIdx],
@@ -146,6 +149,8 @@ class OCREngine(
                                     confidence = confidence,
                                 )
                             )
+                        } else {
+                            lowConfidenceDroppedCount++
                         }
                     }
                 }
@@ -175,6 +180,8 @@ class OCREngine(
             detInputShape = detResult.inputShape,
             recInputShapes = recInputShapes,
             perLineRecMs = perLineRecMs,
+            recognizedCandidateCount = recognizedCandidateCount,
+            lowConfidenceDroppedCount = lowConfidenceDroppedCount,
         )
     }
 
