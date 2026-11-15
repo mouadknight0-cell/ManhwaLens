@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.5 — offline quality fallback for Bergamot
+- Keep Bergamot as the selected primary engine, but route only bubbles rejected by the shared Arabic quality guard to the already-installed on-device ML Kit translator.
+- If Bergamot fails for the whole page, retry the page with offline ML Kit; never invoke a cloud engine for this recovery path.
+- Preserve accepted Bergamot bubbles and their order; merge fallback translations by stable bubble ID.
+- Record fallback request count, number of recovered bubbles and fallback latency in Pipeline Trace.
+- Add JVM tests for selective fallback, no-fallback success, whole-page engine failure and fallback failure.
+- ML Kit remains the default engine; Bergamot remains experimental.
+
 ## 0.12.4 — Bergamot performance and lifecycle follow-up
 - Add adaptive sequential native batching: ordinary pages remain one JNI batch; unusually large pages are split by bubble count and total characters to bound temporary buffers.
 - Add timings for text preparation, each JNI batch, total translation time, duplicate reduction and native batch sizes in Pipeline Trace.
