@@ -120,8 +120,11 @@ class TranslationMemo(
         return sb.toString()
     }
 
-    private fun isFuzzySafeShape(shape: String): Boolean =
-        shape.length >= MIN_FUZZY_SHAPE_LENGTH && shape.toSet().size >= MIN_FUZZY_DISTINCT_LETTERS
+    private fun isFuzzySafeShape(shape: String): Boolean {
+        val compact = shape.filter { it.isLetterOrDigit() }
+        return compact.length >= MIN_FUZZY_SHAPE_LENGTH &&
+            compact.toSet().size >= MIN_FUZZY_DISTINCT_LETTERS
+    }
 
     companion object {
         private const val MIN_FUZZY_SHAPE_LENGTH = 3
