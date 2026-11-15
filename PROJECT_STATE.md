@@ -689,3 +689,11 @@ Never use one label as evidence for another.
 5. Add a post-processed visible-output corpus distinct from the raw ML Kit corpus; include chapter-3 dialogue and SFX, and score OCR source quality separately from translation quality.
 6. Keep Joined `•` as the best device-reported separator candidate, but do not change the shipped default solely from this one run. The device-local benchmark verdict is already applied on the user's device.
 7. Continue OCR/UI contamination and bubble segmentation investigation; the supplied log includes external screen content and badly fragmented bubbles.
+
+
+### Follow-up hardening — fuzzy-hit promotion removed (2026-11-15)
+- Further audit of `CachingTranslator` found that an accepted fuzzy memo hit was copied into the exact in-memory cache under the *new* OCR source. That could convert one approximate match into repeated exact hits for a different source.
+- Commit `2282f55960183d7d90706e251168265117bd829f` removes fuzzy-hit promotion. Source-exact memory/disk hits retain their existing behavior; fuzzy hits remain fuzzy and are re-evaluated against each OCR variant.
+- Commit `e82fcf06e1c8f25a1067f84a73a35614548216c2` extends the KRAK/Kraak integration test: a fuzzy hit must not create an exact cache entry for Kraak, and a repeated Kraak request must still be served by the memo without another engine call.
+- Latest branch head verified: `e82fcf06e1c8f25a1067f84a73a35614548216c2`. No workflow run for this exact head was visible at the time of the check. The earlier run #43755298440 targets `6797b64e...` only and was still in progress; it is not final-head validation.
+- The latest report update itself is on the same branch and must be followed by CI verification for the final source/test head. No APK/release is claimed.
