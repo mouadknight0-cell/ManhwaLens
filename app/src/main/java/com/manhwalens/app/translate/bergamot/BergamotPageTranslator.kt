@@ -37,7 +37,7 @@ internal class BergamotPageTranslator(context: Context) : Translator {
             // OCR line wrapping is visual layout, not sentence structure. Normalize each
             // bubble to one line while preserving the untouched OCR source for diagnostics.
             val prepStartedNs = SystemClock.elapsedRealtimeNanos()
-            val engineInput = blocks.map { block -> block.english.asSingleLine() }
+            val engineInput = blocks.map { block -> BergamotTextPreparation.asSingleLine(block.english) }
 
             // De-duplicate exact normalized bubbles within this page. Blank bubbles are
             // mapped directly to blank output and never consume native inference time.
@@ -63,8 +63,9 @@ internal class BergamotPageTranslator(context: Context) : Translator {
             )
 
             val outputs = MutableList(uniqueTexts.size) { "" }
-            val batches = adaptiveBatches(uniqueTexts)
+            val batches = BergamotTextPreparation.adaptiveBatches(uniqueTexts)
             var nativeMs = 0L
+            var outputOffset = 0
             batches.forEachIndexed { batchIndex, batch ->
                 val batchStartedNs = SystemClock.elapsedRealtimeNanos()
                 val translated = runBlocking { engine.translate(batch) }
@@ -73,8 +74,8 @@ internal class BergamotPageTranslator(context: Context) : Translator {
                 }
                 val elapsed = (SystemClock.elapsedRealtimeNanos() - batchStartedNs) / 1_000_000L
                 nativeMs += elapsed
-                val offset = batches.take(batchIndex).sumOf { it.size }
-                translated.forEachIndexed { index, value -> outputs[offset + index] = value }
+                translated.forEachIndexed { index, value -> outputs[outputOffset + index] = value }
+                outputOffset += translated.size
                 PipelineTracer.span(
                     "Bergamot native batch",
                     elapsed,
@@ -110,82 +111,5 @@ internal class BergamotPageTranslator(context: Context) : Translator {
         }
     }
 
-    /**
-     * Keep ordinary pages in one JNI call. For unusually large pages, cap each batch
-     * using both item count and character count to bound temporary UTF-8/native buffers.
-     * Longer average bubbles use smaller batches; no parallel JNI calls are made because
-     * the native service/model is intentionally serialized.
-     */
-    private fun adaptiveBatches(texts: List<String>): List<List<String>> {
-        if (texts.isEmpty()) return emptyList()
-        val averageLength = texts.sumOf { it.length }.toDouble() / texts.size
-        val maxItems = when {
-            averageLength <= 100.0 -> 24
-            averageLength <= 300.0 -> 16
-            else -> 8
-        }
-        val maxChars = when {
-            averageLength <= 100.0 -> 12_000
-            averageLength <= 300.0 -> 8_000
-            else -> 4_000
-        }
-        if (texts.size <= maxItems && texts.sumOf { it.length } <= maxChars) return listOf(texts)
 
-        val batches = ArrayList<List<String>>()
-        var current = ArrayList<String>()
-        var chars = 0
-        for (text in texts) {
-            if (current.isNotEmpty() && (current.size >= maxItems || chars + text.length > maxChars)) {
-                batches.add(current)
-                current = ArrayList()
-                chars = 0
-            }
-            current.add(text)
-            chars += text.length
-        }
-        if (current.isNotEmpty()) batches.add(current)
-        return batches
-    }
-
-    /**
-     * Join OCR-wrapped lines with spaces. A small single-pass scanner avoids compiling
-     * a regular expression and allocating intermediate line lists for every bubble.
-     */
-    private fun String.asSingleLine(): String {
-        val out = StringBuilder(length)
-        var pendingSpace = false
-        var index = 0
-        while (index < length) {
-            val char = this[index]
-            // OCR sometimes inserts a zero-width character inside a word; remove it,
-            // rather than turning it into a visible space.
-            if (char == '\u200B' || char == '\uFEFF') {
-                index++
-                continue
-            }
-            // Heal a word broken at the visual line edge: "con-\\ntinue" → "continue".
-            if ((char == '-' || char == '‐' || char == '–') && out.isNotEmpty() && out.last().isLetter()) {
-                var lookahead = index + 1
-                var crossedLine = false
-                while (lookahead < length && this[lookahead].isWhitespace()) {
-                    if (this[lookahead] == '\n' || this[lookahead] == '\r') crossedLine = true
-                    lookahead++
-                }
-                if (crossedLine && lookahead < length && this[lookahead].isLowerCase()) {
-                    index = lookahead
-                    pendingSpace = false
-                    continue
-                }
-            }
-            if (char.isWhitespace() || char == '\u00A0') {
-                if (out.isNotEmpty()) pendingSpace = true
-            } else {
-                if (pendingSpace) out.append(' ')
-                out.append(char)
-                pendingSpace = false
-            }
-            index++
-        }
-        return out.toString()
-    }
 }
