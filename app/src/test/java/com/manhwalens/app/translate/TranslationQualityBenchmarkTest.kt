@@ -60,8 +60,10 @@ class TranslationQualityBenchmarkTest {
 
     @Test
     fun rawAndVisibleScoresAreReportedSeparatelyForSourceSpecificRepairs() {
+        var engineCalls = 0
         val report = TranslationQualityBenchmark.run(
             translateOne = { prepared ->
+                engineCalls++
                 val case = TranslationQualityBenchmark.CASES.first { Glossary.prepare(it.source) == prepared }
                 when (case.source) {
                     "No." -> "رقم"
@@ -93,6 +95,7 @@ class TranslationQualityBenchmarkTest {
         assertEquals("طَق!", krak.visibleOutput)
 
         assertEquals(23, report.visibleAccepted)
+        assertEquals("Post-processing must reuse each raw candidate, not call ML Kit twice", 23, engineCalls)
         assertTrue(report.sourceOverridesApplied >= 3)
         assertTrue(report.toText().contains("RAW ENGINE:"))
         assertTrue(report.toText().contains("VISIBLE PIPELINE:"))
