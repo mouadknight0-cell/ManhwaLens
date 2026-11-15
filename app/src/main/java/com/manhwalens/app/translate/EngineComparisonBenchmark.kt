@@ -32,9 +32,9 @@ object EngineComparisonBenchmark {
 
     data class Report(val totalCases: Int, val mlKit: EngineReport, val bergamot: EngineReport) {
         fun toText(): String = buildString {
-            appendLine("Offline engine comparison (same §{totalCases}-case EN→AR corpus)")
+            appendLine("Offline engine comparison (same ${totalCases}-case EN→AR corpus)")
             appendLine("Identical preprocessing: glossary + single-line normalization · no app translation cache")
-            appendLine("Passes: §{MEASURED_PASSES} per engine; first pass reported separately (Bergamot may include native model loading; ML Kit model is prechecked), next §{MEASURED_PASSES - 1} are warm")
+            appendLine("Passes: ${MEASURED_PASSES} per engine; first pass reported separately (Bergamot may include native model loading; ML Kit model is prechecked), next ${MEASURED_PASSES - 1} are warm")
             appendLine("Device diagnostic only; human semantic review is required.")
             appendLine()
             appendEngine(mlKit)
@@ -104,14 +104,14 @@ object EngineComparisonBenchmark {
         .lowercase(Locale.ROOT).replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim().replace(Regex("\\s+"), " ")
 
     private fun StringBuilder.appendEngine(r: EngineReport) {
-        appendLine("§{r.engine}: accepted §{r.accepted}/§{r.cases.size}, rejected §{r.rejected}, blank §{r.blanks}, English echo/fragment §{r.englishEchoes}")
-        appendLine("  exact §{r.exactMatches}/§{r.cases.size} · mean token F1 §{ "%.1f".format(Locale.ROOT, r.meanTokenF1 * 100) }% · batch recoveries §{r.batchRecoveryCount}")
-        appendLine("  first pass §{r.firstPassElapsedMs}ms · warm median §{r.warmMedianMs}ms · warm worst §{r.warmWorstMs}ms")
+        appendLine("${r.engine}: accepted ${r.accepted}/${r.cases.size}, rejected ${r.rejected}, blank ${r.blanks}, English echo/fragment ${r.englishEchoes}")
+        appendLine("  exact ${r.exactMatches}/${r.cases.size} · mean token F1 ${ "%.1f".format(Locale.ROOT, r.meanTokenF1 * 100) }% · batch recoveries ${r.batchRecoveryCount}")
+        appendLine("  first pass ${r.firstPassElapsedMs}ms · warm median ${r.warmMedianMs}ms · warm worst ${r.warmWorstMs}ms")
         r.cases.forEach { c ->
-            appendLine("  #§{c.id} [§{c.category}] §{if (c.accepted) "OK" else c.issue}")
-            appendLine("    EN: §{c.source}")
-            appendLine("    REF: §{c.referenceArabic}")
-            appendLine("    OUT: §{c.output.ifBlank { "<empty>" }}")
+            appendLine("  #${c.id} [${c.category}] ${if (c.accepted) "OK" else c.issue}")
+            appendLine("    EN: ${c.source}")
+            appendLine("    REF: ${c.referenceArabic}")
+            appendLine("    OUT: ${c.output.ifBlank { "<empty>" }}")
         }
     }
 }
