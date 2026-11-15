@@ -3,6 +3,7 @@ package com.manhwalens.app.overlay
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
@@ -505,8 +506,17 @@ class FloatingButtonService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            // Native model memory is sizeable; drop it under pressure and reload lazily later.
+            runCatching { com.manhwalens.app.translate.TranslatorFactory.releaseBergamot() }
+        }
+    }
+
     override fun onDestroy() {
         if (instance === this) instance = null
+        runCatching { com.manhwalens.app.translate.TranslatorFactory.releaseBergamot() }
         // Stop the live loop FIRST — no callbacks may fire once views start going away.
         liveLoopActive = false
         liveHandler.removeCallbacks(liveTickRunnable)
