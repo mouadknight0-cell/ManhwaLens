@@ -261,16 +261,25 @@ object TranslatorFactory {
         TranslationPrefs(context).refreshGlossary()
         val style = styleOf(context)
         val session = names(context)
+        // The delegate emits raw ML Kit output as soon as each task completes. Run that
+        // early callback through the exact same output sanitation, series-name correction,
+        // and Arabic guard used by CachingTranslator's final page result. Cache hits use the
+        // same callback, so early and final patches cannot disagree about visible text.
+        val deliverProgressive: (TranslatedBlock) -> Unit = { raw ->
+            TranslationOutputSanitizer.prepare(raw, session::rewrite)?.let { safe ->
+                runCatching { onBlockReady(safe) }
+            }
+        }
         return CachingTranslator(
             MlKitTranslator(
-                onBlockReady,
+                deliverProgressive,
                 nameTableProvider = { texts -> session.tableFor(texts).table },
                 onRawTranslation = onRawTranslation
             ),
             sharedCache,
             disk(context),
             style,
-            onBlockReady = onBlockReady,
+            onBlockReady = deliverProgressive,
             memo = memo("ml_kit_en_ar", style),
             pinnedOverride = session::rewrite,
             onTranslationPair = pairRecorder(context)
