@@ -57,28 +57,67 @@ object EngineComparisonBenchmark {
     ): Report {
         require(cases.map { it.id }.distinct().size == cases.size) { "Case IDs must be unique" }
         val inputs = cases.map { BergamotTextPreparation.asSingleLine(Glossary.prepare(it.source)) }
-        val ml = runEngine(inputs, translateMlKitBatch, clock)
-        val bergamot = runEngine(inputs, translateBergamotBatch, clock)
-        return Report(cases.size, score("ML Kit", cases, ml), score("Bergamot", cases, bergamot))
+        val mlTimes = ArrayList<Long>(MEASURED_PASSES)
+        val bergamotTimes = ArrayList<Long>(MEASURED_PASSES)
+        var mlOutput = List(inputs.size) { "" }
+        var bergamotOutput = List(inputs.size) { "" }
+        var mlRecoveries = 0
+        var bergamotRecoveries = 0
+
+        // Run paired passes and alternate which engine goes first. This reduces systematic
+        // thermal/order bias compared with running all ML Kit passes before all Bergamot passes.
+        repeat(MEASURED_PASSES) { pass ->
+            fun runMlKit() {
+                val result = runPass(inputs, translateMlKitBatch, clock)
+                mlOutput = result.output
+                mlTimes += result.elapsedMs
+                if (result.recovered) mlRecoveries++
+            }
+            fun runBergamot() {
+                val result = runPass(inputs, translateBergamotBatch, clock)
+                bergamotOutput = result.output
+                bergamotTimes += result.elapsedMs
+                if (result.recovered) bergamotRecoveries++
+            }
+            if (pass % 2 == 0) {
+                runMlKit()
+                runBergamot()
+            } else {
+                runBergamot()
+                runMlKit()
+            }
+        }
+
+        fun summarize(output: List<String>, times: List<Long>, recoveries: Int): RunResult {
+            val warm = times.drop(1).sorted()
+            val median = if (warm.isEmpty()) 0L else if (warm.size % 2 == 1) warm[warm.size / 2]
+            else (warm[warm.size / 2 - 1] + warm[warm.size / 2]) / 2
+            return RunResult(output, times.firstOrNull() ?: 0L, median, warm.lastOrNull() ?: 0L, recoveries)
+        }
+        return Report(
+            cases.size,
+            score("ML Kit", cases, summarize(mlOutput, mlTimes, mlRecoveries)),
+            score("Bergamot", cases, summarize(bergamotOutput, bergamotTimes, bergamotRecoveries))
+        )
     }
 
-    private fun runEngine(inputs: List<String>, translate: (List<String>) -> List<String>, clock: () -> Long): RunResult {
-        val times = ArrayList<Long>(MEASURED_PASSES)
-        var output = List(inputs.size) { "" }
-        var recoveries = 0
-        repeat(MEASURED_PASSES) {
-            val start = clock()
-            output = try {
-                translate(inputs).also { check(it.size == inputs.size) { "Engine output count mismatch" } }
-            } catch (_: Exception) {
-                recoveries++
-                inputs.map { input -> runCatching { translate(listOf(input)).singleOrNull().orEmpty() }.getOrDefault("") }
-            }
-            times += (clock() - start).coerceAtLeast(0L)
+    private data class PassResult(val output: List<String>, val elapsedMs: Long, val recovered: Boolean)
+
+    /** Run one batch; if it fails or returns a malformed count, isolate retries by case. */
+    private fun runPass(
+        inputs: List<String>,
+        translate: (List<String>) -> List<String>,
+        clock: () -> Long
+    ): PassResult {
+        val start = clock()
+        var recovered = false
+        val output = try {
+            translate(inputs).also { check(it.size == inputs.size) { "Engine output count mismatch" } }
+        } catch (_: Exception) {
+            recovered = true
+            inputs.map { input -> runCatching { translate(listOf(input)).singleOrNull().orEmpty() }.getOrDefault("") }
         }
-        val warm = times.drop(1).sorted()
-        val median = if (warm.isEmpty()) 0L else if (warm.size % 2 == 1) warm[warm.size / 2] else (warm[warm.size / 2 - 1] + warm[warm.size / 2]) / 2
-        return RunResult(output, times.firstOrNull() ?: 0L, median, warm.lastOrNull() ?: 0L, recoveries)
+        return PassResult(output, (clock() - start).coerceAtLeast(0L), recovered)
     }
 
     private fun score(name: String, cases: List<TranslationQualityBenchmark.Case>, run: RunResult): EngineReport {
