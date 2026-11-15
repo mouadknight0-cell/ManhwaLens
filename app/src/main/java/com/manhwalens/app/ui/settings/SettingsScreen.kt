@@ -394,7 +394,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                                         kotlinx.coroutines.runBlocking { bergamot.translate(inputs) }
                                     }
                                 )
-                                comparison.toText() + "\\n\\nDevice: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
+                                comparison.toText() + "\n\nDevice: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
                             } finally {
                                 bergamot.release()
                             }
