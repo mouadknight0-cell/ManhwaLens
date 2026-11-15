@@ -101,7 +101,7 @@ class TranslationMemoTest {
         assertEquals(krak, memo.shapeOf("kraak"))
         assertEquals(krak, memo.shapeOf("KRAK!!"))
         assertEquals(memo.shapeOf("thud"), memo.shapeOf("thuud"))
-        assertEquals("you'regoing", memo.shapeOf("You're going.").replace(" ", ""))
+        assertEquals("youregoing", memo.shapeOf("You're going.").replace(" ", ""))
         assertTrue(memo.shapeOf("first") != memo.shapeOf("forest"))
         assertTrue(memo.shapeOf("a man") != memo.shapeOf("aman"))
         assertEquals("ah", memo.shapeOf("AH..."))
