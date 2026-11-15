@@ -27,6 +27,9 @@ class TranslationQualityBenchmarkTest {
         assertEquals(23, report.accepted)
         assertEquals(23, report.exactMatches)
         assertEquals(1.0, report.meanTokenF1, 0.000001)
+        assertEquals(23, report.cleanedAccepted)
+        assertEquals(23, report.cleanedExactMatches)
+        assertEquals(1.0, report.meanCleanedTokenF1, 0.000001)
         assertEquals(23, report.visibleAccepted)
         assertEquals(23, report.visibleExactMatches)
         assertEquals(1.0, report.meanVisibleTokenF1, 0.000001)
@@ -78,6 +81,9 @@ class TranslationQualityBenchmarkTest {
         assertTrue(no.accepted) // Arabic-script guard alone cannot detect this semantic error.
         assertFalse(no.exactMatch)
         assertEquals("رقم", no.output)
+        assertTrue(no.cleanedAccepted)
+        assertFalse(no.cleanedExactMatch)
+        assertEquals("رقم", no.cleanedOutput)
         assertTrue(no.visibleAccepted)
         assertTrue(no.visibleExactMatch)
         assertEquals("لا.", no.visibleOutput)
@@ -85,11 +91,15 @@ class TranslationQualityBenchmarkTest {
         val run = report.cases.first { it.source == "Run!" }
         assertTrue(run.accepted)
         assertFalse(run.exactMatch)
+        assertTrue(run.cleanedAccepted)
+        assertFalse(run.cleanedExactMatch)
         assertTrue(run.visibleExactMatch)
         assertEquals("اهرب!", run.visibleOutput)
 
         val krak = report.cases.first { it.source == "KRAK" }
         assertFalse(krak.accepted)
+        assertFalse(krak.cleanedAccepted)
+        assertEquals("krak", krak.cleanedOutput)
         assertTrue(krak.visibleAccepted)
         assertTrue(krak.visibleExactMatch)
         assertEquals("طَق!", krak.visibleOutput)
@@ -97,8 +107,9 @@ class TranslationQualityBenchmarkTest {
         assertEquals(23, report.visibleAccepted)
         assertEquals("Post-processing must reuse each raw candidate, not call ML Kit twice", 23, engineCalls)
         assertTrue(report.sourceOverridesApplied >= 3)
-        assertTrue(report.toText().contains("RAW ENGINE:"))
-        assertTrue(report.toText().contains("VISIBLE PIPELINE:"))
+        assertTrue(report.toText().contains("RAW ENGINE CANDIDATE:"))
+        assertTrue(report.toText().contains("CLEANED CANDIDATE:"))
+        assertTrue(report.toText().contains("FINAL VISIBLE OUTPUT:"))
         assertTrue(report.toText().contains("Lowest raw-engine lexical-overlap cases"))
         assertTrue(report.toText().contains("Lowest visible-output lexical-overlap cases"))
     }
@@ -129,6 +140,8 @@ class TranslationQualityBenchmarkTest {
         )
 
         val result = report.cases.first { it.id == 13 }
+        assertTrue(result.cleanedAccepted)
+        assertEquals("ماذا قلت للتو؟", result.cleanedOutput)
         assertTrue(result.visibleAccepted)
         assertEquals("ماذا قلت للتو؟", result.visibleOutput)
     }
