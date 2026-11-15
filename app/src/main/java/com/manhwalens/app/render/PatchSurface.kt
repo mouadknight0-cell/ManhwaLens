@@ -26,7 +26,7 @@ import kotlin.math.min
  *       · non-uniform ring (gradient/art) → copy the crop, build a text mask
  *         (pixels differing from the dominant colour ∪ dark strokes, dilated 2 px)
  *         and inpaint it with iterative neighbour averaging;
- *  4. draw the Arabic text (Cairo, RTL, auto-fit, ≤4 lines) on top — with a thin
+ *  4. draw the Arabic text (Cairo, explicit RTL paragraph direction, auto-fit) on top — with a thin
  *     outline on non-uniform/mid-luma backgrounds;
  *  5. return a SMALL bitmap covering only the patch rect — never the full frame.
  */
@@ -186,7 +186,7 @@ object PatchSurface {
         frameW: Int,
         frameH: Int,
         band: com.manhwalens.app.ocr.geometry.Rect2D? = null
-    ): BubblePatch {
+    ): BubblePatch? {
         // Ring around the TEXT rect, in crop-local coords (excludes glyph pixels).
         val localInner = com.manhwalens.app.ocr.geometry.Rect2D(
             (inner.left - frameLeft).coerceAtLeast(0f),
@@ -240,10 +240,15 @@ object PatchSurface {
             bandTop = 0
             bandHeight = h
         }
-        drawArabicText(
+        val textDrawn = drawArabicText(
             context, canvas, box.arabic, w, bandTop, bandHeight, textColor, complexBg, box.id,
             anchored = band != null
         )
+        if (!textDrawn) {
+            // Do not replace the original artwork with a silently truncated Arabic sentence.
+            patch.recycle()
+            return null
+        }
 
         return BubblePatch(
             id = box.id,
@@ -288,7 +293,7 @@ object PatchSurface {
         complexBg: Boolean,
         boxId: Int,
         anchored: Boolean = false
-    ) {
+    ): Boolean {
         val innerW = (w - INNER_PAD_PX * 2).coerceAtLeast(4)
         val innerH = (bandHeight - INNER_PAD_PX * 2).coerceAtLeast(4)
         val measurer = StaticTextMeasurer(context)
@@ -301,17 +306,18 @@ object PatchSurface {
             measurer = measurer
         )
         if (!fit.fits) {
-            Log.w(TAG, "patch #$boxId: text did not fit at min size — clipped after bubble-interior growth (patch=${w}x${bandHeight})")
+            Log.w(TAG, "patch #$boxId: Arabic withheld — full text does not fit at minimum size (patch=${w}x${bandHeight})")
+            return false
         }
         val tf = typeface(context)
         val textPaint = TextPaintFactory.create(tf, fit.fontSizePx, textColor)
         val layout = android.text.StaticLayout.Builder.obtain(arabic, 0, arabic.length, textPaint, innerW)
             // Arabic is RTL: ALIGN_NORMAL aligns to the start (right edge) so the
             // translated bubble is right-aligned, never overflowing the box.
+            .setTextDirection(android.text.TextDirectionHeuristics.RTL)
             .setAlignment(android.text.Layout.Alignment.ALIGN_NORMAL)
             .setLineSpacing(0f, 1.15f)
             .setIncludePad(false)
-            .setMaxLines(4)
             .build()
         val textBlockH = min(layout.height, innerH).toFloat()
         // Stacked blocks anchor their Arabic at the TOP of their band; otherwise it is centred.
@@ -328,15 +334,16 @@ object PatchSurface {
             outlinePaint.strokeWidth = max(2f, fit.fontSizePx * 0.16f)
             outlinePaint.strokeJoin = Paint.Join.ROUND
             val outlineLayout = android.text.StaticLayout.Builder.obtain(arabic, 0, arabic.length, outlinePaint, innerW)
+                .setTextDirection(android.text.TextDirectionHeuristics.RTL)
                 .setAlignment(android.text.Layout.Alignment.ALIGN_NORMAL)
                 .setLineSpacing(0f, 1.15f)
                 .setIncludePad(false)
-                .setMaxLines(4)
                 .build()
             outlineLayout.draw(canvas)
         }
         layout.draw(canvas)
         canvas.restore()
+        return true
     }
 }
 
