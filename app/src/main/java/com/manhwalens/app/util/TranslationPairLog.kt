@@ -52,7 +52,7 @@ object TranslationPairLog {
         if (lines.isEmpty()) null else buildString {
             appendLine("ManhwaLens translation pair diagnostics")
             appendLine("entries=${lines.size} · local only · Debug mode capture")
-            appendLine("EN = original OCR source · CANDIDATE AR = engine output · FINAL AR = post-processed result")
+            appendLine("EN = original OCR source · CANDIDATE AR = raw engine/cache value before current processing · FINAL AR = accepted value returned for display (blank if rejected)")
             appendLine()
             lines.forEachIndexed { index, line ->
                 val fields = line.split('\t').map(::decode)
