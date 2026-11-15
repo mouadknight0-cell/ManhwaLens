@@ -104,15 +104,6 @@
     <string name="engine_mlkit_caption">مجاني ويعمل دون إنترنت بعد تنزيل لمرة واحدة (~30MB). لا يغادر شيء هاتفك.</string>
     <string name="engine_gemini">Gemini · عبر الإنترنت</string>
     <string name="engine_gemini_caption">جودة عربية عامية أعلى وسياق عبر الفقاعات. يتطلب مفتاح API خاصًا بك.</string>
-    <string name="engine_libre_translate">LibreTranslate / Argos · مستضاف ذاتيًا</string>
-    <string name="engine_libre_translate_caption">محرك مفتوح المصدر تتحكم به. يُرسل طلبًا واحدًا مجمّعًا بالتوازي مع المسودة المحلية؛ أدخل خادم HTTPS موثوقًا.</string>
-    <string name="libre_translate_url_label">عنوان HTTPS لخادم LibreTranslate</string>
-    <string name="libre_translate_url_placeholder">https://translate.example.com</string>
-    <string name="libre_translate_key_label">مفتاح الخادم (اختياري)</string>
-    <string name="libre_translate_note">يُرسل نص OCR فقط (لا تُرسل صور الشاشة). يُخزّن العنوان والمفتاح الاختياري على هذا الجهاز؛ استخدم خادمًا تثق به. HTTPS مطلوب.</string>
-    <string name="libre_translate_save">حفظ الخادم</string>
-    <string name="libre_translate_clear">مسح الخادم</string>
-    <string name="libre_translate_saved">حُفظ ✓</string>
     <string name="gemini_key_label">مفتاح Gemini API</string>
     <string name="gemini_key_placeholder">AIza…</string>
     <string name="gemini_key_note">يُحفظ المفتاح على هذا الجهاز فقط (تخزين خاص بالتطبيق) ويُرسل إلى Google فقط كترويسة HTTP. لا يظهر أبدًا في اللوغز أو في مصدر التطبيق.</string>

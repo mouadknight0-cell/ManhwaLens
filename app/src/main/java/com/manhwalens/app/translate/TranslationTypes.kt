@@ -51,6 +51,4 @@ enum class TranslationEngine {
     /** Google Gemini API; better colloquial quality; needs an API key. */
     GEMINI,
 
-    /** Self-hosted LibreTranslate/Argos server; one batched request per page. */
-    LIBRE_TRANSLATE
 }

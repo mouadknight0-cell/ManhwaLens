@@ -34,7 +34,6 @@ class OfflineTranslationPolicyTest {
     fun remoteUpgradeRequiresRemoteEngineAndOnlineMode() {
         assertFalse(OfflineTranslationPolicy.canUseRemoteUpgrade(false, TranslationEngine.ML_KIT))
         assertTrue(OfflineTranslationPolicy.canUseRemoteUpgrade(false, TranslationEngine.GEMINI))
-        assertTrue(OfflineTranslationPolicy.canUseRemoteUpgrade(false, TranslationEngine.LIBRE_TRANSLATE))
     }
 
     @Test

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.3 — 2026-11-15 (experimental)
+
+### Simplified offline-first engine setup
+- Make bundled PaddleOCR PP-OCRv5 Arabic/English the only OCR backend; remove the OCR-engine selector and ML Kit text-recognition dependency.
+- Keep ML Kit English→Arabic as the on-device translation engine and Gemini as the optional cloud engine.
+- Remove the LibreTranslate/Argos option, endpoint/API-key settings, factory path, implementation and tests. Existing saved LibreTranslate selection safely falls back to ML Kit.
+- Remove the separate OCR engine settings section so users no longer confuse OCR selection with translation selection.
+- Simplify Settings: remove Automation, Ignore list, Character names, and Names & terms sections; move the Live mode controls directly below the offline translation model card.
+
+### Verification
+- CI build and unit tests pending for this branch; real-device PaddleOCR accuracy and translation latency still require measurement.
+
 ## 0.12.2 — 2026-11-15 (experimental)
 
 ### PaddleOCR on-device comparison build

@@ -75,10 +75,10 @@ class SettingsPrefs(context: Context) {
     }
 
     /** Selected local OCR backend; ML Kit remains the default and Paddle is experimental. */
+    /** PaddleOCR is the sole OCR backend; retained key is read only for migration compatibility. */
     var ocrEngine: String
-        get() = getString(KEY_OCR_ENGINE, OCR_ENGINE_ML_KIT)
-            .let { if (it == OCR_ENGINE_PADDLE) OCR_ENGINE_PADDLE else OCR_ENGINE_ML_KIT }
-        set(value) = edit { putString(KEY_OCR_ENGINE, if (value == OCR_ENGINE_PADDLE) OCR_ENGINE_PADDLE else OCR_ENGINE_ML_KIT) }
+        get() = OCR_ENGINE_PADDLE
+        set(@Suppress("UNUSED_PARAMETER") value) { /* fixed to PaddleOCR */ }
 
     /** Multiplier applied to the auto-fit font size when drawing Arabic in bubbles. */
     var fontScale: Float

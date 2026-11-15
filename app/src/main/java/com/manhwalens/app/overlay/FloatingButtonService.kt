@@ -2978,7 +2978,7 @@ class FloatingButtonService : Service() {
                                 "${tr.reason}: ${tr.message}"
                             )
                             // Remote failure → translate offline for THIS capture only.
-                            if (tr.engineId == "gemini" || tr.engineId == "libre_translate") {
+                            if (tr.engineId == "gemini") {
                                 if (tr.engineId == "gemini") {
                                     // The Gemini circuit prevents repeated slow/key failures.
                                     openGeminiCircuit(tr.reason, tr.message)
@@ -3362,7 +3362,6 @@ class FloatingButtonService : Service() {
                             .remoteUpgradeAvailable(applicationContext)
                         val remoteEngineId = when (prefsL.engine) {
                             com.manhwalens.app.translate.TranslationEngine.GEMINI -> "gemini"
-                            com.manhwalens.app.translate.TranslationEngine.LIBRE_TRANSLATE -> "libre_translate"
                             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
                         }
                         val tr: com.manhwalens.app.translate.PageTranslation = if (dual) {
@@ -3612,7 +3611,6 @@ class FloatingButtonService : Service() {
     ) {
         val expectedEngine = when (com.manhwalens.app.data.TranslationPrefs(applicationContext).engine) {
             com.manhwalens.app.translate.TranslationEngine.GEMINI -> "gemini"
-            com.manhwalens.app.translate.TranslationEngine.LIBRE_TRANSLATE -> "libre_translate"
             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
         }
         val task = Runnable {

@@ -57,7 +57,7 @@
     <string name="translation_pairs_clear">Clear</string>
     <string name="translation_pairs_empty">No translation pairs saved yet. Enable Debug mode and translate a page.</string>
     <string name="translation_pairs_copied">Translation pairs copied</string>
-    <string name="translation_pairs_cleared">Translation pairs cleared</string>
+    <string name="translation_pairs_cleared">Translation pairs cleared</string>\n    <string name="translation_cache_section">Saved translations</string>\n    <string name="translation_cache_summary">%1$d cached translation entries. Resetting removes cached English→Arabic results so a new translation engine starts with clean results. Your glossary, character names and settings are kept.</string>\n    <string name="translation_cache_reset_title">Reset saved translations?</string>\n    <string name="translation_cache_reset_confirm">This deletes the in-memory, fuzzy and on-device saved translation cache. It does not delete your glossary, character names, diagnostic translation pairs or settings. The next capture will translate the text again.</string>\n    <string name="translation_cache_reset_action">Reset saved translations</string>\n    <string name="translation_cache_reset_done">Saved translation cache reset.</string>
     <!-- v0.9.5 Part 2: Live self-check -->
     <string name="self_check_button">Live self-check</string>
     <string name="self_check_title">Live self-check</string>
@@ -106,15 +106,6 @@
     <string name="engine_mlkit_caption">Free and fully offline after a one-time model download (~30 MB). Nothing leaves your phone.</string>
     <string name="engine_gemini">Gemini · cloud API</string>
     <string name="engine_gemini_caption">Much better colloquial Arabic and context across bubbles. Requires your own API key.</string>
-    <string name="engine_libre_translate">LibreTranslate / Argos · self-hosted</string>
-    <string name="engine_libre_translate_caption">Open-source engine you control. One batched request runs beside the on-device draft; configure a trusted HTTPS server.</string>
-    <string name="libre_translate_url_label">LibreTranslate HTTPS URL</string>
-    <string name="libre_translate_url_placeholder">https://translate.example.com</string>
-    <string name="libre_translate_key_label">Server API key (optional)</string>
-    <string name="libre_translate_note">Only OCR text is sent (never screenshots). URL and optional key are stored on this device; use a server you trust. HTTPS is required.</string>
-    <string name="libre_translate_save">Save server</string>
-    <string name="libre_translate_clear">Clear server</string>
-    <string name="libre_translate_saved">Saved ✓</string>
     <string name="gemini_key_label">Gemini API key</string>
     <string name="gemini_key_placeholder">AIza…</string>
     <string name="gemini_key_note">The key is stored only on this device (app-private storage) and sent to Google solely as an HTTP header. It never appears in logs or in the app source.</string>

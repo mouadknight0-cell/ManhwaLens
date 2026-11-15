@@ -46,7 +46,7 @@ class TranslationPrefs(context: Context) {
             val stored = getString(KEY_ENGINE, "").trim()
             val explicitlySet = prefs?.contains(KEY_ENGINE) == true && stored.isNotBlank()
             val engine = when {
-                stored.isEmpty() -> TranslationEngine.ML_KIT
+                stored.isEmpty() || stored == "LIBRE_TRANSLATE" -> TranslationEngine.ML_KIT
                 else -> TranslationEngine.valueOf(stored)
             }
             // Part 6: default engine = Gemini when a key exists, unless the user
@@ -112,29 +112,6 @@ class TranslationPrefs(context: Context) {
         get() = getString(KEY_GLOSSARY, "")
         set(value) = putString(KEY_GLOSSARY, value.take(6000))
 
-    /** User-managed LibreTranslate server URL (HTTPS only). No server is bundled with the app. */
-    var libreTranslateUrl: String
-        get() = getString(KEY_LIBRE_TRANSLATE_URL, "")
-        set(value) = putString(KEY_LIBRE_TRANSLATE_URL, value.trim().take(1024))
-
-    /** Optional API key for that server; sent only in the HTTPS JSON request body. */
-    var libreTranslateApiKey: String
-        get() = getString(KEY_LIBRE_TRANSLATE_API_KEY, "")
-        set(value) = putString(KEY_LIBRE_TRANSLATE_API_KEY, value.trim().take(1024))
-
-    val hasLibreTranslateUrl: Boolean get() = libreTranslateUrl.isNotBlank()
-
-    fun clearLibreTranslateSettings() {
-        try {
-            prefs?.edit()
-                ?.remove(KEY_LIBRE_TRANSLATE_URL)
-                ?.remove(KEY_LIBRE_TRANSLATE_API_KEY)
-                ?.apply()
-        } catch (t: Throwable) {
-            Log.e("ManhwaLens", "clear LibreTranslate settings failed", t)
-        }
-    }
-
     /** v0.9.14: join the lines of one bubble into a single sentence before translating. */
     var mergeBubbleLines: Boolean
         get() = getLong(KEY_MERGE_LINES, 1L) != 0L
@@ -168,8 +145,6 @@ class TranslationPrefs(context: Context) {
         private const val KEY_GEMINI_CIRCUIT_REASON = "gemini_circuit_reason"
         private const val KEY_TRANSLATION_STYLE = "translation_style"
         private const val KEY_GLOSSARY = "glossary_names"
-        private const val KEY_LIBRE_TRANSLATE_URL = "libre_translate_url"
-        private const val KEY_LIBRE_TRANSLATE_API_KEY = "libre_translate_api_key"
         private const val KEY_MERGE_LINES = "merge_bubble_lines"
     }
 }

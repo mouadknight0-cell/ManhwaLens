@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Button
 import androidx.compose.ui.window.Dialog
@@ -34,7 +33,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,9 +46,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.manhwalens.app.R
 import com.manhwalens.app.data.SettingsPrefs
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import com.manhwalens.app.data.CharacterMemory
 import com.manhwalens.app.util.ErrorLog
 import com.manhwalens.app.util.TranslationPairLog
 import com.manhwalens.app.ui.theme.LensVioletSoft
@@ -58,8 +53,8 @@ import com.manhwalens.app.ui.theme.PanelAmber
 
 /**
  * Settings screen — single scrolling page:
- *  Appearance (Arabic font size) · Translation (engine + key) · Automation
- *  (auto-capture on scroll) · About (version, privacy policy).
+ *  Appearance (Arabic font size) · Translation (engine + key) · Live mode
+ *  controls · Diagnostics · About (version, privacy policy).
  */
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -67,26 +62,8 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showPrivacy by remember { mutableStateOf(false) }
     var showLastCapture by remember { mutableStateOf(false) }
     var showLiveSelfCheck by remember { mutableStateOf(false) }
-    var showCharacters by remember { mutableStateOf(false) }
-
-    // P1: the series currently receiving character names. Shown on the card so the scope is
-    // never a mystery: names are filed under exactly this series, and under nothing when unset.
-    var activeSeriesTitle by remember { mutableStateOf<String?>(null) }
-    var seriesRefresh by remember { mutableStateOf(0) }
-    LaunchedEffect(seriesRefresh) {
-        activeSeriesTitle = withContext(Dispatchers.IO) {
-            runCatching { CharacterMemory.activeSeries(context)?.title }.getOrNull()
-        }
-    }
-
-    // P1: character name memory (series selection + corrections).
-    if (showCharacters) {
-        CharacterNamesScreen(onBack = {
-            showCharacters = false
-            seriesRefresh++ // the reader may have selected another series
-        })
-        return
-    }
+    var showClearTranslationCache by remember { mutableStateOf(false) }
+    var cacheEntryCount by remember { mutableStateOf(com.manhwalens.app.translate.TranslatorFactory.cacheSize(context)) }
 
     if (showPrivacy) {
         PrivacyPolicyScreen(onBack = { showPrivacy = false })
@@ -103,11 +80,32 @@ fun SettingsScreen(onBack: () -> Unit) {
         LastCaptureDialog(onDismiss = { showLastCapture = false })
     }
 
+    if (showClearTranslationCache) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showClearTranslationCache = false },
+            title = { Text(stringResource(R.string.translation_cache_reset_title)) },
+            text = { Text(stringResource(R.string.translation_cache_reset_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    com.manhwalens.app.translate.TranslatorFactory.clearCache(context)
+                    cacheEntryCount = 0
+                    showClearTranslationCache = false
+                    Toast.makeText(context, R.string.translation_cache_reset_done, Toast.LENGTH_SHORT).show()
+                }) {
+                    Text(stringResource(R.string.translation_cache_reset_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearTranslationCache = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
+
     val prefs = remember { SettingsPrefs(context) }
     var fontScale by remember { mutableStateOf(prefs.fontScale) }
-    var autoCapture by remember { mutableStateOf(prefs.autoCaptureOnScroll) }
     var debugMode by remember { mutableStateOf(prefs.debugMode) }
-    var ocrEngine by remember { mutableStateOf(prefs.ocrEngine) }
     var pairLogCount by remember { mutableStateOf(TranslationPairLog.count(context)) }
     var liveMode by remember { mutableStateOf(prefs.liveMode) }
     var liveApps by remember { mutableStateOf(prefs.liveAllowedApps) }
@@ -116,10 +114,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var liveStableMs by remember { mutableStateOf(prefs.liveStableWindowMs) }
     var liveSensitivity by remember { mutableStateOf(prefs.liveSensitivity) }
     var lensTapMode by remember { mutableStateOf(prefs.lensTapMode) }
-    var ignorePhrases by remember { mutableStateOf(prefs.ignorePhrases) }
     val translationPrefs = remember { com.manhwalens.app.data.TranslationPrefs(context) }
-    var glossaryText by remember { mutableStateOf(translationPrefs.glossary) }
-    var mergeLines by remember { mutableStateOf(translationPrefs.mergeBubbleLines) }
     var benchmarkRunning by remember { mutableStateOf(false) }
     var benchmarkResult by remember { mutableStateOf<String?>(null) }
     val benchmarkReport = benchmarkResult
@@ -191,115 +186,19 @@ fun SettingsScreen(onBack: () -> Unit) {
         OfflineTranslationModelCard()
         Spacer(Modifier.size(12.dp))
 
-        // ---------- OCR engine (experimental PaddleOCR path) ----------
-        Section("OCR engine") {
+        // Translation result cache — separate from glossary, name memory and diagnostics.
+        Section(stringResource(R.string.translation_cache_section)) {
             Text(
-                text = "Choose the on-device text detector and recognizer. ML Kit remains the default.",
+                text = stringResource(R.string.translation_cache_summary, cacheEntryCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.size(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (ocrEngine == SettingsPrefs.OCR_ENGINE_ML_KIT) {
-                    Button(onClick = { ocrEngine = SettingsPrefs.OCR_ENGINE_ML_KIT; prefs.ocrEngine = ocrEngine }) { Text("ML Kit") }
-                } else {
-                    OutlinedButton(onClick = {
-                        ocrEngine = SettingsPrefs.OCR_ENGINE_ML_KIT
-                        prefs.ocrEngine = ocrEngine
-                    }) { Text("ML Kit") }
-                }
-                if (ocrEngine == SettingsPrefs.OCR_ENGINE_PADDLE) {
-                    Button(onClick = { ocrEngine = SettingsPrefs.OCR_ENGINE_PADDLE; prefs.ocrEngine = ocrEngine }) { Text("PaddleOCR") }
-                } else {
-                    OutlinedButton(onClick = {
-                        ocrEngine = SettingsPrefs.OCR_ENGINE_PADDLE
-                        prefs.ocrEngine = ocrEngine
-                    }) { Text("PaddleOCR") }
-                }
-            }
-            Text(
-                text = if (ocrEngine == SettingsPrefs.OCR_ENGINE_PADDLE)
-                    "Experimental: PP-OCRv5 Arabic/English, fully on-device. First inference loads the model and may take longer."
-                else
-                    "Bundled ML Kit Latin OCR. Recommended baseline for comparison.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp)
-            )
-        }
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Names & terms (v0.9.14) ----------
-        Section(stringResource(R.string.glossary_title)) {
-            Text(
-                text = stringResource(R.string.glossary_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.size(8.dp))
-            androidx.compose.material3.OutlinedTextField(
-                value = glossaryText,
-                onValueChange = { value ->
-                    glossaryText = value
-                    translationPrefs.glossary = value
-                    translationPrefs.refreshGlossary()
-                },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 110.dp),
-                minLines = 5,
-                placeholder = { Text("Wei Wuxian = وي ووشيان") }
-            )
-            Spacer(Modifier.size(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = stringResource(R.string.merge_lines_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.merge_lines_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                Switch(
-                    checked = mergeLines,
-                    onCheckedChange = { checked ->
-                        mergeLines = checked
-                        translationPrefs.mergeBubbleLines = checked
-                        translationPrefs.refreshGlossary()
-                    }
-                )
-            }
-        }
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Character names (P1) ----------
-        Section(stringResource(R.string.settings_characters_button)) {
-            Text(
-                text = activeSeriesTitle?.let { stringResource(R.string.character_names_active, it) }
-                    ?: stringResource(R.string.character_names_no_series_card),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (activeSeriesTitle == null) MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.size(4.dp))
-            Text(
-                text = stringResource(R.string.character_names_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.size(8.dp))
-            androidx.compose.material3.OutlinedButton(
-                onClick = { showCharacters = true },
+            OutlinedButton(
+                onClick = { showClearTranslationCache = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.settings_characters_button))
+                Text(stringResource(R.string.translation_cache_reset_action))
             }
         }
         Spacer(Modifier.size(12.dp))
@@ -427,6 +326,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
         Spacer(Modifier.size(12.dp))
 
+
         // ---------- Tap on the lens (v0.9.4 Part C) ----------
         Section(stringResource(R.string.lens_tap_title)) {
             Text(
@@ -483,104 +383,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                 valueRange = 0f..30f,
                 steps = 29
             )
-        }
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Ignore list (Part C) ----------
-        Section(stringResource(R.string.ignore_list_title)) {
-            Text(
-                text = stringResource(R.string.ignore_list_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.size(8.dp))
-            androidx.compose.material3.OutlinedTextField(
-                value = ignorePhrases,
-                onValueChange = { value ->
-                    ignorePhrases = value
-                    prefs.ignorePhrases = value
-                },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 110.dp),
-                minLines = 5
-            )
-        }
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Automation (optional extra trigger; Live mode needs nothing here) ----------
-        Section(stringResource(R.string.automation_title)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = stringResource(R.string.auto_capture_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.auto_capture_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                Switch(
-                    checked = autoCapture,
-                    onCheckedChange = { checked ->
-                        autoCapture = checked
-                        prefs.autoCaptureOnScroll = checked
-                    }
-                )
-            }
-            Spacer(Modifier.size(10.dp))
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1B26)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Text(
-                        text = stringResource(R.string.faster_scroll_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = PanelAmber
-                    )
-                    Text(
-                        text = stringResource(R.string.faster_scroll_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        text = stringResource(R.string.faster_scroll_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LensVioletSoft
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = android.net.Uri.fromParts("package", context.packageName, null)
-                                    }
-                                )
-                            }.onFailure {
-                                Toast.makeText(context, R.string.toast_capture_failed, Toast.LENGTH_SHORT).show()
-                            }
-                        }) {
-                            Text(stringResource(R.string.faster_scroll_appinfo))
-                        }
-                        OutlinedButton(onClick = {
-                            runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                                .onFailure { Toast.makeText(context, R.string.toast_capture_failed, Toast.LENGTH_SHORT).show() }
-                        }) {
-                            Text(stringResource(R.string.auto_capture_open))
-                        }
-                    }
-                }
-            }
         }
         Spacer(Modifier.size(12.dp))
 

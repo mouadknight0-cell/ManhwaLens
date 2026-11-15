@@ -8,9 +8,6 @@ import com.manhwalens.app.data.SettingsPrefs
 import com.manhwalens.app.util.TranslationPairLog
 import com.manhwalens.app.translate.gemini.GeminiTranslator
 import com.manhwalens.app.translate.gemini.HttpUrlConnectionGeminiApi
-import com.manhwalens.app.translate.libre.HttpUrlConnectionLibreTranslateApi
-import com.manhwalens.app.translate.libre.LibreTranslateTranslator
-import com.manhwalens.app.translate.libre.LibreTranslateWire
 import com.manhwalens.app.translate.mlkit.MlKitTranslator
 import com.manhwalens.app.translate.mlkit.MlKitTranslationTrace
 import java.io.File
@@ -22,17 +19,6 @@ private class MissingKeyTranslator : Translator {
         PageTranslation.Failure(
             FailureReason.INVALID_API_KEY,
             "Gemini API key is not set — add it in the translation settings",
-            engineId
-        )
-}
-
-/** Translator used when the optional self-hosted engine has no valid HTTPS endpoint. */
-private class MissingLibreTranslateEndpoint : Translator {
-    override val engineId = LibreTranslateTranslator.ENGINE_ID
-    override fun translatePage(blocks: List<TranslationBlock>): PageTranslation =
-        PageTranslation.Failure(
-            FailureReason.UNKNOWN,
-            "Set a valid HTTPS LibreTranslate server URL in the translation settings",
             engineId
         )
 }
@@ -94,9 +80,6 @@ object TranslatorFactory {
 
     private fun styleOf(context: Context): String = TranslationPrefs(context).translationStyle
 
-    private fun styleForLibre(prefs: TranslationPrefs): String =
-        "${prefs.translationStyle}|libre:${LibreTranslateWire.endpointCacheTag(prefs.libreTranslateUrl) ?: "invalid"}"
-
     /** Fuzzy memo for one engine+style namespace (short strings only). */
     private fun memo(engineId: String, style: String): TranslationMemo =
         CachingTranslator.memoFor(engineId, style)
@@ -130,26 +113,6 @@ object TranslatorFactory {
             disk(context),
             prefs.translationStyle,
             memo = memo("gemini", prefs.translationStyle),
-            pinnedOverride = session::rewrite,
-            onTranslationPair = pairRecorder(context)
-        )
-    }
-
-    private fun libre(context: Context, prefs: TranslationPrefs): Translator {
-        val session = names(context)
-        return CachingTranslator(
-            LibreTranslateTranslator(
-                api = HttpUrlConnectionLibreTranslateApi(),
-                endpointProvider = { prefs.libreTranslateUrl },
-                apiKeyProvider = { prefs.libreTranslateApiKey },
-                // P2-08: LibreTranslate has no prompt channel; apply the same resolved
-                // page/series name table to its source text before the HTTP request.
-                nameTableProvider = { texts -> session.tableFor(texts).table }
-            ),
-            sharedCache,
-            disk(context),
-            styleForLibre(prefs),
-            memo = memo(LibreTranslateTranslator.ENGINE_ID, styleForLibre(prefs)),
             pinnedOverride = session::rewrite,
             onTranslationPair = pairRecorder(context)
         )
@@ -191,12 +154,6 @@ object TranslatorFactory {
                     gemini(context, prefs)
                 } else {
                     MissingKeyTranslator()
-                }
-            TranslationEngine.LIBRE_TRANSLATE ->
-                if (LibreTranslateWire.translateEndpoint(prefs.libreTranslateUrl) != null) {
-                    libre(context, prefs)
-                } else {
-                    MissingLibreTranslateEndpoint()
                 }
         }
     }
@@ -258,12 +215,7 @@ object TranslatorFactory {
     fun remoteUpgradeAvailable(context: Context): Boolean {
         val prefs = TranslationPrefs(context)
         if (!OfflineTranslationPolicy.canUseRemoteUpgrade(prefs.offlineMode, prefs.engine)) return false
-        return when (prefs.engine) {
-            TranslationEngine.ML_KIT -> false
-            TranslationEngine.GEMINI -> prefs.hasGeminiKey && !prefs.geminiCircuit.isOpen()
-            TranslationEngine.LIBRE_TRANSLATE ->
-                LibreTranslateWire.translateEndpoint(prefs.libreTranslateUrl) != null
-        }
+        return prefs.engine == TranslationEngine.GEMINI && prefs.hasGeminiKey && !prefs.geminiCircuit.isOpen()
     }
 
     /**
@@ -275,13 +227,7 @@ object TranslatorFactory {
         val prefs = TranslationPrefs(context)
         if (!OfflineTranslationPolicy.canUseRemoteUpgrade(prefs.offlineMode, prefs.engine)) return null
         prefs.refreshGlossary()
-        return when (prefs.engine) {
-            TranslationEngine.ML_KIT -> null
-            TranslationEngine.GEMINI ->
-                if (prefs.hasGeminiKey && !prefs.geminiCircuit.isOpen()) gemini(context, prefs) else null
-            TranslationEngine.LIBRE_TRANSLATE ->
-                if (LibreTranslateWire.translateEndpoint(prefs.libreTranslateUrl) != null) libre(context, prefs) else null
-        }
+        return if (prefs.engine == TranslationEngine.GEMINI && prefs.hasGeminiKey && !prefs.geminiCircuit.isOpen()) gemini(context, prefs) else null
     }
 
     /** Backwards-compatible Gemini-only factory entry point. */
@@ -292,11 +238,13 @@ object TranslatorFactory {
         return gemini(context, prefs)
     }
 
-    fun cacheSize(): Int = sharedCache.size() + (diskCache?.size() ?: 0)
+    /** Count both caches, initializing the disk cache so persisted entries are included. */
+    fun cacheSize(context: Context): Int = sharedCache.size() + disk(context).size()
 
-    fun clearCache() {
+    /** Clear every translation-result cache, including the persisted file even after a cold start. */
+    fun clearCache(context: Context) {
         sharedCache.clear()
-        diskCache?.clear()
+        disk(context).clear()
         CachingTranslator.resetMemos()
     }
 }

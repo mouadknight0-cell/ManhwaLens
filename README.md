@@ -1,6 +1,6 @@
 # ManhwaLens
 
-ManhwaLens is an Android floating overlay that reads English dialogue from a visible manhwa page and renders Arabic patches in place. The v0.11.0 source baseline was restored from the Dropbox archive `ManhwaLens-v0.9.14-source.zip`; the debug APK and signing keystore are intentionally not included in Git.
+ManhwaLens is an Android floating overlay that reads English dialogue from a visible manhwa page and renders Arabic patches in place. Current experimental release: v0.12.3.
 
 ## v0.11.0 — what changed for the reader
 
@@ -22,19 +22,20 @@ built in CI only.
 
 ## What this update adds
 
-- **Self-hosted open-source translation option:** configure a trusted HTTPS LibreTranslate server using an installed Argos Translate English→Arabic package. The app sends one page-wide batch of OCR text and an optional server key; it does not bundle or operate a server/model.
+- **PaddleOCR on-device recognition:** PP-OCRv5 Arabic/English models are bundled in the APK. PaddleOCR is the sole OCR backend and runs locally without a runtime model download.
+- **Offline translation:** ML Kit English→Arabic runs on-device after its one-time translation-model download. Offline mode blocks every optional cloud feature.
 - **Fast first paint:** ML Kit runs locally first. The selected remote engine runs in parallel and can replace the draft only after the reply passes the Arabic output guard.
 - **Quality guard:** blocks empty replies, malformed output, and ordinary English echoes before they can be cached or overwrite a readable draft. A single unfamiliar character name may remain unchanged.
-- **Network and privacy fixes:** the Android `INTERNET` permission is declared for optional network engines; LibreTranslate URLs must use HTTPS and cannot contain credentials or query parameters.
+- **Optional cloud translation:** Gemini remains available with the user's own API key; the local ML Kit result remains the offline path.
 - Existing offline ML Kit, glossary, one-sentence bubble normalization, translation caches, Gemini, overlay, and Live-mode features are retained.
 
 ## Translation engines
 
-1. **ML Kit** — on-device OCR/translation path; works offline after model download.
-2. **Gemini** — optional cloud translation with the user's own API key; the app paints an ML Kit draft first.
-3. **LibreTranslate / Argos** — optional self-hosted alternative. Enter the base HTTPS URL or the full `/translate` endpoint under Settings → Translation. Only recognized text is sent; screenshots are not sent for text translation. Output quality and speed depend on the server and installed Argos model.
+1. **PaddleOCR** — sole on-device OCR engine for English/Arabic text detection and recognition.
+2. **ML Kit Translation** — default on-device English→Arabic translation; offline after the translation model is downloaded.
+3. **Gemini** — optional cloud translation with the user's own API key; disabled by Offline mode.
 
-The default remains ML Kit. Network engines are opt-in, and the user controls the remote endpoint and keys.
+OCR and translation are separate stages: PaddleOCR extracts text; ML Kit or optional Gemini translates it.
 
 ## Build
 
@@ -52,8 +53,8 @@ Project status, the engineering record (phases, commits, CI runs, open findings)
 
 ## Open-source review
 
-See [`OPEN_SOURCE_RESEARCH.md`](OPEN_SOURCE_RESEARCH.md) for the GitHub projects reviewed, licensing/suitability notes, and why PaddleOCR and manga-image-translator are not bundled in this Android release. The app implements a small LibreTranslate REST client only; it does not copy server source or model weights.
+See [`OPEN_SOURCE_RESEARCH.md`](OPEN_SOURCE_RESEARCH.md) for research and licensing notes. PaddleOCR model assets are bundled for offline OCR; ML Kit's translation model is downloaded once by Google Play services.
 
 ## Privacy
 
-OCR and filtering run on-device. If you choose Gemini, recognized text goes to Google; if you choose LibreTranslate, recognized text goes to the HTTPS endpoint you configured. Optional AI cleanup can send cropped bubbles to Gemini. No analytics or telemetry are sent. Details: [`PRIVACY.md`](PRIVACY.md) and [`privacy-policy.html`](privacy-policy.html).
+PaddleOCR and filtering run on-device. If you choose Gemini, recognized text goes to Google for translation. Optional AI cleanup can send cropped bubbles to Gemini. Offline mode blocks cloud requests. No analytics or telemetry are sent. Details: [`PRIVACY.md`](PRIVACY.md) and [`privacy-policy.html`](privacy-policy.html).
