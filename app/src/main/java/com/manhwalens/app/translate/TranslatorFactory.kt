@@ -180,6 +180,14 @@ object TranslatorFactory {
         delegate.warmUp()
     }
 
+    /** Release the process-scoped native model/service; next use will lazily reload it. */
+    fun releaseBergamot() {
+        synchronized(this) {
+            bergamotDelegate?.release()
+            bergamotDelegate = null
+        }
+    }
+
     /** Experimental Mozilla Bergamot EN→AR; never falls back silently when explicitly selected. */
     private fun createBergamot(context: Context): Translator {
         val style = styleOf(context)
