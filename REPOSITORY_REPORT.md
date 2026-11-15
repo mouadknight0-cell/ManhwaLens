@@ -1114,3 +1114,39 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 3. Audit the progressive overlay callback path to ensure it applies the same source-aware short-dialogue corrections as final and cache-hit paths; add a deterministic regression test if a real discrepancy exists.
 4. Continue OCR accuracy work with a fixed labeled screenshot corpus; no end-to-end PaddleOCR word accuracy or grouping result is currently evidenced by CI.
 5. Request phone testing only after a verified v0.12.10 Release APK exists and its package/version/signing continuity is checked.
+
+
+## Session continuation — translation diagnostics supplied by user (2026-11-15 20:02 UTC)
+
+### Evidence received
+- User supplied 59 local translation-pair diagnostic entries from Xiaomi 23106RN0DA / Android 14, plus ML Kit batching and 20-case quality benchmark output. These are user-provided device captures; they are not independently reproduced by CI or by this session.
+- All 59 pair records use `ml_kit_en_ar`; most are status OK, with two shown QUALITY_REJECTED entries (`PFFFFT ACK!!` and UI text `odf`) rejected as UNTRANSLATED_ECHO. This demonstrates that the Arabic guard catches obvious English echoes but allows many semantically incorrect Arabic outputs.
+- Clear examples of accepted but incorrect output include `LOOKS LIKE IT'S DONE!` → `يبدو أنه انتهز!`, `Live mode OFF` → `وضع حية قبالة`, `No.` → `رقم`, and `Run!` → `تشغيل!` (the latter two in the raw quality corpus). Other pair examples expose malformed OCR input: `YOL`, `LNINJURED`, `UNINOURED`, `B055 15`, `HuNTEr's`, and fragmented text across bubbles. Translation and OCR defects must be measured separately.
+- The 20-case ML Kit quality report: 20/20 completed; Arabic guard accepted 19, rejected/missing 1; exact normalized matches 2/20; mean Arabic token F1 52.0%. F1 is lexical overlap only and is not semantic accuracy. This is not a Bergamot comparison and does not measure post-processing/correction quality if the benchmark calls raw ML Kit.
+
+### Batching result and policy
+- Same 20-bubble ML Kit EN→AR benchmark: Sequential median/worst 1146/1275 ms; Parallel x6 1163/1753 ms; Joined ` | ` 644/649 ms with 20/20 mapped; Joined `###` 1035/1496 ms; Joined `<1>` 751/760 ms.
+- Joined ` | ` is 43.9% faster than sequential median and 44.6% faster than Parallel x6 median in this sample. Joined newline variants and `@@@` fail the result mapping (19 bad); do not use them.
+- Decision: retain Joined ` | ` as the measured ML Kit batching policy for now. This is a single device/corpus benchmark; validate delimiter collision, empty outputs, reordered/omitted segments, embedded vertical bars, long combined payloads, truncation, and per-bubble error isolation before treating it as universally safe. Do not increase parallelism based on this dataset.
+
+### Engineering interpretation / next implementation priorities
+1. Keep the Arabic quality guard, but do not treat `status=OK` or guard acceptance as translation correctness. Add a second semantic/linguistic quality layer or curated source-aware corrections for high-confidence short commands, negations, idioms and UI state labels; corrections must be exact/context-scoped, not broad substitutions.
+2. The existing v0.12.10 candidate already contains exact-source corrections for `No.` → `لا.`, `Run!` → `اهرب!`, and `KRAK` → `طَق!`. Verify their placement on fresh, cached and progressive overlay paths. The fixed quality benchmark currently reports raw ML Kit and therefore must remain explicitly labelled as raw-engine output; add a separate post-processing evaluation to measure visible FINAL AR.
+3. Extend the fixed corpus with the observed failures: short `No.`, `Run!`; idiom `piece of cake`; `looks like it's done`; `Live mode OFF`; sound effects; broken OCR inputs; proper names/ranks; multi-bubble fragments. Record raw candidate, final output, guard result, correction ID, cache state, and per-case semantic review.
+4. Fix OCR separately: preserve line/bubble context and detect likely OCR corruption (e.g. `B055` vs `BOSS`, `YOL` vs `YOU`, `LNINJURED`/ `UNINOURED`). Do not silently rewrite uncertain source text; retain raw OCR and apply confidence-aware correction only when evidence is strong.
+5. Add explicit tests for Joined ` | ` parsing: exactly N outputs, empty segment, delimiter in source/output, reordered/missing/extra segments, malformed model response, and fallback/retry behavior while preserving successful bubbles.
+6. Keep ML Kit as default and Bergamot experimental. The supplied logs contain no paired Bergamot results and cannot support an engine ranking.
+
+### Repository / CI state at this update
+- Development branch: `feature/v0.12.4-bergamot-experiment`; PR #4 remains open Draft and stacked on PR #3; do not merge directly to main.
+- Latest branch head observed: `d4de5f3cc77f1ad761d8469334aa7ecb3904cefe` (documentation commit). PR validation run #43752989626 was observed in progress; no success/failure conclusion was available at this update.
+- Latest published GitHub Release observed: v0.12.9 prerelease with APK. v0.12.10 is not yet confirmed published; do not request installation until its Release APK, package/version and signer continuity are verified.
+- No source code was changed in this interaction. The diagnostics and analysis are documented only. User phone results are recorded as supplied evidence, not as independently reproduced test results.
+- Device: user-provided diagnostics from Xiaomi 23106RN0DA / Android 14. No additional device test was run by this session.
+
+### Verification boundary and next action
+- User-provided device diagnostics: received and analyzed; not independently reproducible from CI.
+- Joined ` | ` batching: benchmarked in supplied device report, map OK 20/20; broader adversarial parser validation remains pending.
+- Translation semantics: insufficient; mean lexical F1 52.0%, no semantic human-scoring data.
+- OCR quality: unresolved; malformed OCR strings visible in the same capture.
+- Next: inspect current source implementations and test coverage for batching parser, `ShortDialogueOverrides`, progressive/cache paths and quality benchmark; implement regression tests and a post-processing evaluation, then re-run CI.
