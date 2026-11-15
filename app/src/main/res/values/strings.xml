@@ -57,7 +57,7 @@
     <string name="translation_pairs_clear">Clear</string>
     <string name="translation_pairs_empty">No translation pairs saved yet. Enable Debug mode and translate a page.</string>
     <string name="translation_pairs_copied">Translation pairs copied</string>
-    <string name="translation_pairs_cleared">Translation pairs cleared</string>
+    <string name="translation_pairs_cleared">Translation pairs cleared</string>\n    <string name="translation_cache_section">Saved translations</string>\n    <string name="translation_cache_summary">%1$d cached translation entries. Resetting removes cached English→Arabic results so a new translation engine starts with clean results. Your glossary, character names and settings are kept.</string>\n    <string name="translation_cache_reset_title">Reset saved translations?</string>\n    <string name="translation_cache_reset_confirm">This deletes the in-memory, fuzzy and on-device saved translation cache. It does not delete your glossary, character names, diagnostic translation pairs or settings. The next capture will translate the text again.</string>\n    <string name="translation_cache_reset_action">Reset saved translations</string>\n    <string name="translation_cache_reset_done">Saved translation cache reset.</string>
     <!-- v0.9.5 Part 2: Live self-check -->
     <string name="self_check_button">Live self-check</string>
     <string name="self_check_title">Live self-check</string>
