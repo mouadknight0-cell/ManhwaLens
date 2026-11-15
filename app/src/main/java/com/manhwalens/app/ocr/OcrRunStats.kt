@@ -21,5 +21,12 @@ data class OcrRunStats(
     val recognitionInputShapes: List<List<Int>>,
     val recognizedCandidateCount: Int,
     val lowConfidenceDroppedCount: Int,
-    val confidenceThreshold: Float
+    val confidenceThreshold: Float,
+    val detectionThreshold: Float,
+    val detectionBoxThreshold: Float,
+    val detectionUnclipRatio: Float,
+    val detectorLimitSideLen: Int,
+    val detectorMaxSideLimit: Int,
+    val detectorLimitType: String,
+    val engineThreads: Int
 )

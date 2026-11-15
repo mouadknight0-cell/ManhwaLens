@@ -120,7 +120,12 @@ class CaptureDiagnostics(
                         "recognitionMs=${stats.recognitionTimeMs} totalEngineMs=${stats.totalTimeMs} " +
                         "wrapperMs=$ocrElapsedMs candidates=${stats.recognizedCandidateCount} " +
                         "lowConfidenceDropped=${stats.lowConfidenceDroppedCount} " +
-                        "recThreshold=${formatConfidence(stats.confidenceThreshold)}"
+                        "recThreshold=${formatConfidence(stats.confidenceThreshold)} " +
+                        "detThresh=${formatConfidence(stats.detectionThreshold)} " +
+                        "detBoxThresh=${formatConfidence(stats.detectionBoxThreshold)} " +
+                        "unclipRatio=${String.format(Locale.US, "%.2f", stats.detectionUnclipRatio)} " +
+                        "resize=${stats.detectorLimitType}:${stats.detectorLimitSideLen}:max=${stats.detectorMaxSideLimit} " +
+                        "threads=${stats.engineThreads}"
                 )
                 appendLine(
                     "detectionStageMs=pre:${stats.detectionPreprocessMs},infer:${stats.detectionInferenceMs}," +

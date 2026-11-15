@@ -71,7 +71,14 @@ class TextRecognizerClient(context: Context) {
                 recognitionInputShapes = result.recInputShapes,
                 recognizedCandidateCount = result.recognizedCandidateCount,
                 lowConfidenceDroppedCount = result.lowConfidenceDroppedCount,
-                confidenceThreshold = PADDLE_MIN_REC_CONFIDENCE
+                confidenceThreshold = PADDLE_MIN_REC_CONFIDENCE,
+                detectionThreshold = PADDLE_DET_THRESHOLD,
+                detectionBoxThreshold = PADDLE_DET_BOX_THRESHOLD,
+                detectionUnclipRatio = PADDLE_DET_UNCLIP_RATIO,
+                detectorLimitSideLen = PADDLE_DET_LIMIT_SIDE,
+                detectorMaxSideLimit = PADDLE_DET_MAX_SIDE,
+                detectorLimitType = PADDLE_DET_LIMIT_TYPE,
+                engineThreads = PADDLE_THREADS
             )
         )
     }
@@ -87,8 +94,11 @@ class TextRecognizerClient(context: Context) {
                     config = PaddleOCRConfig(
                         detLimitSideLen = PADDLE_DET_LIMIT_SIDE,
                         // Keep narrow phone text large; the 1920px cap bounds CPU and memory use.
-                        detLimitType = "min",
+                        detLimitType = PADDLE_DET_LIMIT_TYPE,
                         detMaxSideLimit = PADDLE_DET_MAX_SIDE,
+                        detThresh = PADDLE_DET_THRESHOLD,
+                        detBoxThresh = PADDLE_DET_BOX_THRESHOLD,
+                        detUnclipRatio = PADDLE_DET_UNCLIP_RATIO,
                         recScoreThresh = PADDLE_MIN_REC_CONFIDENCE
                     ),
                     engineConfig = EngineConfig(numThreads = PADDLE_THREADS)
@@ -102,7 +112,11 @@ class TextRecognizerClient(context: Context) {
     companion object {
         private const val TAG = "MLCapture"
         private const val PADDLE_DET_LIMIT_SIDE = 1280
+        private const val PADDLE_DET_LIMIT_TYPE = "min"
         private const val PADDLE_DET_MAX_SIDE = 1920
+        private const val PADDLE_DET_THRESHOLD = 0.3f
+        private const val PADDLE_DET_BOX_THRESHOLD = 0.6f
+        private const val PADDLE_DET_UNCLIP_RATIO = 1.5f
         private const val PADDLE_THREADS = 4
         // PaddleOCR's documented default drop_score is 0.5; filter uncertain lines before grouping.
         private const val PADDLE_MIN_REC_CONFIDENCE = 0.5f
