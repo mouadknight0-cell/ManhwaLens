@@ -28,22 +28,29 @@ data class RecPreprocessResult(
 
 object RecPreprocessor {
     private const val FIXED_HEIGHT = 48
+    private const val BASE_WIDTH = 320
     private const val MAX_IMG_W = 3200
 
     fun preprocessBatch(crops: List<Mat>): RecPreprocessResult {
-        // Convert BGR to RGB and resize to fixed height while preserving aspect ratio
+        require(crops.isNotEmpty()) { "Recognition batch must not be empty" }
+
+        // PaddleOCR's Arabic PP-OCRv5 recognition pipeline keeps OpenCV's BGR channel
+        // order. It does NOT convert these crops to RGB before CHW conversion.
+        // Resize proportionally to 48px high; retain BGR for the model's trained input.
         val resizedMats = mutableListOf<Mat>()
         for (crop in crops) {
-            // Convert BGR to RGB (model expects RGB input)
-            val rgb = Mat()
-            Imgproc.cvtColor(crop, rgb, Imgproc.COLOR_BGR2RGB)
-            val h = rgb.rows()
-            val w = rgb.cols()
-            val aspectRatio = if (h > 0) w.toDouble() / h else 1.0
-            val newW = ceil(FIXED_HEIGHT * aspectRatio).toInt().coerceAtMost(MAX_IMG_W)
+            val newW = RecResizePolicy.contentWidth(
+                sourceWidth = crop.cols(),
+                sourceHeight = crop.rows(),
+                targetHeight = FIXED_HEIGHT,
+                maxWidth = MAX_IMG_W
+            )
             val dst = Mat()
-            Imgproc.resize(rgb, dst, Size(newW.toDouble(), FIXED_HEIGHT.toDouble()), 0.0, 0.0, Imgproc.INTER_LINEAR)
-            rgb.release()
+            Imgproc.resize(
+                crop, dst,
+                Size(newW.toDouble(), FIXED_HEIGHT.toDouble()),
+                0.0, 0.0, Imgproc.INTER_LINEAR
+            )
             resizedMats.add(dst)
         }
 
@@ -61,7 +68,13 @@ object RecPreprocessor {
         }
         resizedMats.clear()
 
-        val maxW = floatMats.maxOf { it.cols() }
+        // PP-OCRv5's Arabic recognizer uses a 320px base input width. Short crops
+        // occupy only their aspect-preserving prefix; the remaining pixels are zero-padded.
+        val maxW = RecResizePolicy.batchWidth(
+            contentWidths = floatMats.map { it.cols() },
+            baseWidth = BASE_WIDTH,
+            maxWidth = MAX_IMG_W
+        )
         val n = floatMats.size
 
         // Pad to max width
