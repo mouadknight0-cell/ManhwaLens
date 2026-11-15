@@ -35,6 +35,32 @@ class TranslationMemoTest {
     }
 
     @Test
+    fun ambiguousShortDialogueNeverFuzzyMatchesDifferentWords() {
+        val memo = TranslationMemo()
+        memo.put("AH...", "آه...")
+        assertNull("YEAH must not reuse AH's one-letter consonant shape", memo.get("YEAH"))
+
+        memo.put("NO.", "لا.")
+        assertNull("RUN must not reuse a two-letter consonant shape", memo.get("RUN"))
+        memo.put("SORRY.", "آسف.")
+        assertNull("short dialogue with an ambiguous shape must miss", memo.get("AH"))
+    }
+
+    @Test
+    fun cachingTranslatorDoesNotCrossServeAhAndYeah() {
+        val fake = FakeTranslator()
+        val memo = TranslationMemo()
+        val caching = CachingTranslator(fake, TranslationCache(), memo = memo)
+
+        val ah = caching.translatePage(listOf(TranslationBlock(1, "AH..."))) as PageTranslation.Success
+        val yeah = caching.translatePage(listOf(TranslationBlock(1, "YEAH"))) as PageTranslation.Success
+
+        assertEquals("AR:AH...", ah.blocks.single().arabic)
+        assertEquals("AR:YEAH", yeah.blocks.single().arabic)
+        assertEquals("different short dialogue must reach the engine", 2, fake.calls)
+    }
+
+    @Test
     fun longSentencesNeverFuzzyMatch() {
         val memo = TranslationMemo()
         memo.put("You're going to keep coming from now on, okay? Except on weekends.", "ستواصل القدوم من الآن فصاعدًا.")
