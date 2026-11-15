@@ -14,6 +14,7 @@
 
 package com.paddle.ocr.util
 
+import com.paddle.ocr.preprocess.DetResizeCalculator
 import org.opencv.core.Mat
 import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
