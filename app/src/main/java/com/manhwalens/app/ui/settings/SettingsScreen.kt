@@ -308,7 +308,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             val policy = com.manhwalens.app.translate.TranslatorFactory.ensureBatchPolicy(context)
                             val mlkit = com.manhwalens.app.translate.mlkit.MlKitTranslator
                             mlkit.withDiagnosticLock {
-                                if (!mlkit.warmUpForBenchmark()) {
+                                if (!mlkit.warmUpForBenchmark("ML Kit batching benchmark")) {
                                     throw IllegalStateException("EN→AR model is not downloaded yet (needs internet once)")
                                 }
                                 val raw = mlkit::translateRawForExclusiveDiagnostic
@@ -340,8 +340,9 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 }
                                 result.toText(
                                     listOf(
-                                        "Runtime now: " + policy.describe(),
+                                        "ML Kit batching policy now: " + policy.describe(),
                                         "($adopted)",
+                                        "The selected offline translation engine is unchanged.",
                                         "Warm state: " + com.manhwalens.app.translate.MlKitWarmth.describe(System.currentTimeMillis()),
                                         "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}",
                                         "",
@@ -370,6 +371,12 @@ fun SettingsScreen(onBack: () -> Unit) {
                 Text(if (benchmarkRunning) stringResource(R.string.benchmark_running) else stringResource(R.string.benchmark_button))
             }
             Spacer(Modifier.size(8.dp))
+            Text(
+                text = stringResource(R.string.engine_comparison_summary),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.size(6.dp))
             OutlinedButton(
                 enabled = !benchmarkRunning,
                 onClick = {
@@ -389,7 +396,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 // Hold the diagnostic lock across ML Kit pre-warm AND every measured
                                 // pass so a pending background separator self-test cannot overlap.
                                 val comparison = com.manhwalens.app.translate.mlkit.MlKitTranslator.withDiagnosticLock {
-                                    if (!mlkit.warmUpForBenchmark()) {
+                                    if (!mlkit.warmUpForBenchmark("ML Kit vs Bergamot comparison")) {
                                         throw IllegalStateException("ML Kit EN→AR model is not ready; connect to Wi-Fi once and retry")
                                     }
                                     com.manhwalens.app.translate.EngineComparisonBenchmark.run(
@@ -417,7 +424,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }.start()
                 }
             ) {
-                Text(if (benchmarkRunning) stringResource(R.string.benchmark_running) else "Compare ML Kit vs Bergamot")
+                Text(if (benchmarkRunning) stringResource(R.string.benchmark_running) else stringResource(R.string.engine_comparison_button))
             }
             Spacer(Modifier.size(10.dp))
             val captureFile = remember { java.io.File(context.filesDir, "manhwalens-last-capture.jpg") }
