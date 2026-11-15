@@ -1,5 +1,6 @@
 package com.manhwalens.app.translate
 
+import com.manhwalens.app.translate.bergamot.BergamotTextPreparation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
