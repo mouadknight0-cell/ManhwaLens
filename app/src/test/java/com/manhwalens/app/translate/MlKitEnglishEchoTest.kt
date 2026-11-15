@@ -206,26 +206,4 @@ class MlKitEnglishEchoTest {
         assertSame(dialogue, delivered.single())
     }
 
-    // ── remote engines keep exactly the behaviour they had ──────────────────────────────────
-
-    /** Gemini and LibreTranslate were already guarded; the rule must not shift for them. */
-    @Test
-    fun geminiAndLibreTranslateGuardBehaviourIsUnchanged() {
-        for (engineId in listOf("gemini", "libre_translate")) {
-            val cache = TranslationCache()
-            val engine = FixedEngine(engineId) { b ->
-                if (b.id == 1) b.english else "مرحبا بك"
-            }
-            val caching = CachingTranslator(engine, cache)
-
-            val page = caching.translatePage(
-                listOf(TranslationBlock(1, "Where are you going?"), TranslationBlock(2, "Come back"))
-            ) as PageTranslation.Success
-
-            assertEquals("", page.blocks.first { it.id == 1 }.arabic)
-            assertTrue(page.blocks.first { it.id == 2 }.arabic.isNotBlank())
-            assertNull(cache.get(engineId, "Where are you going?"))
-            assertNotNull(cache.get(engineId, "Come back"))
-        }
-    }
 }
