@@ -379,6 +379,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                             if (!mlkit.isModelReady() && !mlkit.warmUp()) {
                                 throw IllegalStateException("ML Kit EN→AR model is not ready; connect to Wi-Fi once and retry")
                             }
+                            if (!com.wasimaster.wmkeyboard.core.translate.BergamotNative.supported ||
+                                !com.wasimaster.wmkeyboard.core.translate.BergamotNative.available) {
+                                throw IllegalStateException("Bergamot native runtime is not supported on this device")
+                            }
                             if (!com.manhwalens.app.translate.bergamot.BergamotEnArModel.isInstalled(context)) {
                                 throw IllegalStateException("Download the Bergamot EN→AR model in Offline translation settings first")
                             }
