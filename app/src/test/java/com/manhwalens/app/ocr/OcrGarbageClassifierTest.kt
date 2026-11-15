@@ -56,6 +56,39 @@ class OcrGarbageClassifierTest {
     }
 
     @Test
+    fun recognizableAndroidStatusAndNotificationTextIsDropped() {
+        val c = classifier()
+        val systemUi = listOf(
+            "7:57 Sun, Nov 15 Djezzy | mobilis",
+            "Today: 309.8 MB",
+            "This month: 12.82 GB",
+            "ManhwaLens • now Capture ready · tap the lens to grab the screen",
+            "ManhwaLens is displaying over other apps. If you don't want ManhwaLens..."
+        )
+        for (text in systemUi) {
+            val verdict = c.classify(text, rect(100f, 100f, 500f, 160f), emptyList(), emptyList())
+            assertFalse("$text must be classified as system UI", verdict.keep)
+            assertEquals(GarbageReason.SYSTEM_UI, verdict.reason)
+        }
+    }
+
+    @Test
+    fun ordinaryDialogueMentioningTodayOrManhwaLensIsKept() {
+        val c = classifier()
+        val dialogue = listOf(
+            "Today is the day we defeat the boss.",
+            "ManhwaLens was the name written on the screen.",
+            "The mobilis gate is still open."
+        )
+        for (text in dialogue) {
+            assertTrue(
+                "$text must not be mistaken for Android UI",
+                c.classify(text, rect(100f, 100f, 500f, 160f), emptyList(), emptyList()).keep
+            )
+        }
+    }
+
+    @Test
     fun consonantHeavyAllCaps_dropsBlock() {
         val c = classifier()
         // Pure-consonant all-caps noise (10/10 consonants, 6+ letters) → OCR garbage.
