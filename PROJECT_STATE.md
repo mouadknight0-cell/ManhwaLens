@@ -586,3 +586,44 @@ Never use one label as evidence for another.
 ### Verification boundary
 - Verified in this interaction: branch HEAD and parent; PR #4 state/base; two workflow run IDs/status/head SHA; latest release tag and APK asset; report blob SHA.
 - Not yet verified: final CI outcome, APK for v0.12.10, release publication, signer/package/version checks for a new APK, physical-device behavior, OCR accuracy, and semantic translation improvement.
+
+
+## Engineering continuation — v0.12.10 built and published (2026-11-15 20:5x UTC)
+
+### Release verification
+- GitHub Actions push workflow run #43754084691 completed with conclusion `success` on source commit `84858fd64ae067d245ae693598038bfa1b6670c5`.
+- Build job completed successfully. Verified steps: unit tests, Debug APK build, APK signing certificate check, update-compatibility check against v0.12.9, APK artifact upload, test-report upload, and GitHub Release publication.
+- Dynamic validation run #43754084176 completed successfully on the same source commit.
+- Commit-associated validation run #43754089272 completed successfully on the same source commit.
+- APK metadata from the Gradle source: package `com.manhwalens.app`, versionName `0.12.10`, versionCode `50`.
+- CI explicitly verified update compatibility against v0.12.9: versionCode `49 -> 50`, package `com.manhwalens.app`, signer SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152` (same signing baseline).
+- Published GitHub pre-release: https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.10
+- APK asset: `ManhwaLens-v0.12.10-debug.apk`, 71,369,014 bytes.
+- APK SHA-256 reported by GitHub asset digest: `a3b879e090aee65d7f9b8ce84207ead652826afa677023036782f6677e5877a1`.
+- Direct APK: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.10/ManhwaLens-v0.12.10-debug.apk
+- Release API confirms tag `v0.12.10`, target commit `84858fd...`, `prerelease=true`, `draft=false`, and the APK asset exists. It appears as the newest release.
+- CI job log confirms the update-compatibility check succeeded; no claim is made that a human installed or exercised the APK.
+
+### What this release contains from the source history
+- Source-aware translation correction changes and regression tests.
+- Filter for the app-owned `Live mode off` status label so it is not treated as manga dialogue.
+- Expanded raw ML Kit reference corpus from 20 to 23 cases and updated benchmark/test expectations.
+- Paired-engine test preparation aligned with Bergamot single-line normalization.
+- Source correction lookup now uses normalized raw OCR source before glossary mutation, fixing the `The magical core` / `core` collision.
+- This release's passing CI establishes automated tests/build/signing/update checks, not a semantic quality gain on real manga pages.
+
+### Pull request / integration state
+- PR #4 remains open and Draft, based on `feature/v0.12.3-paddle-default-settings`; do not merge to main without respecting the stacked branch sequence.
+- At verification, branch HEAD was `84858fd64ae067d245ae693598038bfa1b6670c5`. This report update itself creates a subsequent documentation-only commit.
+- Previous workflows on `a35a659...` were cancelled after newer pushes; they are not counted as validation. Final source-head runs above are the accepted evidence.
+
+### Required device validation now
+- A real-device check is now justified because CI cannot prove installation over the existing app, first-run ML Kit model download on the user's network, OCR/overlay behavior, or runtime memory/stability on the user's Xiaomi Android 14 device.
+- Ask the user to install v0.12.10 directly over v0.12.9 without uninstalling, then test the 30 MB ML Kit model download with Wi-Fi and (if needed) mobile data, perform an EN→AR page scan, and report whether the install preserved app data and whether download/translation succeeded. Capture app diagnostics/logs if failure occurs.
+- Do not state these device behaviors are verified until the user reports results.
+
+### Next engineering actions
+1. Await user device results for update installation, ML Kit model download and a representative manga scan.
+2. Independently continue source audit and test development: adversarial Joined-pipe mapping tests; separate raw-engine and final-visible-output quality evaluation; OCR labeled image corpus with detection recall/precision and CER/WER; bubble grouping/order regression tests.
+3. Keep ML Kit default and Bergamot experimental until paired semantic quality, latency and RAM evidence supports a change.
+4. Refresh this report after every subsequent ManhwaLens-related interaction, including discussions that do not change source code.
