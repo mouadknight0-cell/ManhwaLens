@@ -35,6 +35,7 @@ object EngineComparisonBenchmark {
             appendLine("Offline engine comparison (same ${totalCases}-case EN→AR corpus)")
             appendLine("Identical preprocessing: glossary + single-line normalization · no app translation cache")
             appendLine("Passes: ${MEASURED_PASSES} per engine; first pass reported separately (Bergamot may include native model loading; ML Kit model is prechecked), next ${MEASURED_PASSES - 1} are warm")
+            appendLine("Paired execution order alternates each pass to reduce systematic thermal/order bias.")
             appendLine("Device diagnostic only; human semantic review is required.")
             appendLine()
             appendEngine(mlKit)
