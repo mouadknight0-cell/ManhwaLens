@@ -19,6 +19,9 @@ internal class BergamotPageTranslator(context: Context) : Translator {
     /** Warm native service/model before the first reader capture. Run off the main thread. */
     fun warmUp() = engine.warmUp()
 
+    /** Release native allocations; the next translation lazily reloads the model. */
+    fun release() = engine.release()
+
     override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
         if (blocks.isEmpty()) return PageTranslation.Failure(
             FailureReason.EMPTY_INPUT, "No blocks to translate", engineId
