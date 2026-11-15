@@ -323,3 +323,30 @@ Never use one label as evidence for another.
 - CI-observed: current branch build is blocked solely by the expected mismatch with historical v0.12.7; unit tests and APK assembly succeeded.
 - Not yet verified: successful publication of the first future baseline APK and actual install-over-existing-future-release on a phone.
 - Next action: continue engineering on the active branch, increment app version for the next release, confirm the candidate signer matches the v0.12.8/current-key build baseline, then publish only after the gate passes.
+
+
+## Session continuation — offline speed-first translation engine (2026-11-15)
+
+### User-approved requirements
+- Fully offline inference; no cloud translation/API or online fallback.
+- English-to-Arabic with Modern Standard Arabic as the target style.
+- Speed is the first optimization objective, while preserving a minimum semantic/naturalness quality gate.
+
+### Research decision
+- Selected Tencent Hy-MT2 1.8B GGUF as the first candidate for an Android feasibility spike, not as a production/default engine yet.
+- Arabic and English are listed as supported languages; official GGUF variants are published. Tencent documents a 1.25-bit on-device variant and vendor-claimed 440 MB footprint / 1.5x speed improvement. These claims are not ManhwaLens device measurements.
+- Compare official 1.25-bit and 2-bit quantizations first; reject extreme quantization if Arabic meaning, omissions or fluency degrade materially. Check exact redistribution license/notices for each artifact.
+- Plan is documented in `HYMT2_ANDROID_TRANSLATION_SPIKE.md`.
+
+### Implementation and verification status
+- Research decision: completed.
+- Android llama.cpp/ARM64 integration: not implemented.
+- Build/CI: not run for this spike.
+- Actual-device speed, RAM, thermal behavior and Arabic semantic quality: not verified.
+- Existing ML Kit default and Bergamot experimental path remain unchanged until the candidate passes the same-corpus tests and real-phone validation.
+
+### Next actions
+1. Inspect current translator interface, native build/ABI setup and model storage/download lifecycle on this branch.
+2. Pin a compatible llama.cpp revision and prove a minimal ARM64 JNI inference harness before integrating UI.
+3. Add isolated Hy-MT2 1.25-bit and 2-bit diagnostics against the existing 20-case corpus; preserve per-case outputs and never mutate runtime engine selection.
+4. Expand to 100 human-reviewed manhwa cases and run airplane-mode tests on the target phone before any promotion.
