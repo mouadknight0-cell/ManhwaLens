@@ -10,9 +10,10 @@ import android.os.Process
 internal object BergamotNative {
     val supported: Boolean get() = Build.VERSION.SDK_INT >= 28 && Process.is64Bit()
 
-    init {
-        check(supported) { "Bergamot requires Android 9+ and a 64-bit process" }
-        System.loadLibrary("wmbergamot")
+    /** Load only on supported devices; unsupported ABIs must not poison class initialization. */
+    val available: Boolean by lazy {
+        if (!supported) false
+        else runCatching { System.loadLibrary("wmbergamot"); true }.getOrDefault(false)
     }
 
     external fun nativeNewService(cacheSize: Int): Long
