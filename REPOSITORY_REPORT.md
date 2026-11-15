@@ -1,10 +1,10 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.5  
+**الإصدار:** 5.6  
 **تاريخ التحديث:** 2026-11-15  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر تغييرات خط التطوير الحالي:** v0.12.8 منشور كـ GitHub prerelease؛ commit الإصدار 614250692d384beaa3bb9a818aebf89d23dbbce1؛ applicationId هو com.manhwalens.app وversionCode هو 48.  
+**آخر حالة موثقة الآن:** المرشح v0.12.10 (versionCode 50) على فرع التطوير؛ لم يُنشر بعد. آخر Release متحقق منه هو v0.12.9 (prerelease) مع APK مرفق. PR #4 مفتوح Draft ومكدّس فوق PR #3. راجع آخر ملحق مؤرخ أدناه؛ المقاطع التاريخية الأقدم لا تتجاوز هذا الملحق في وصف الحالة الحالية.  
 **CI لنسخة v0.12.8:** [43724428631](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43724428631) — نجحت Unit tests والتحققات من نماذج PaddleOCR وBergamot ARM64 وبناء Debug APK ورفع artifacts. كان هذا تشغيل PR validation، لذا تخطّى خطوات نشر Release بشكل صحيح. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
@@ -1076,3 +1076,41 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - No phone test is claimed. Still outstanding: update-install on top of v0.12.6, actual offline OCR, Bergamot JNI/model inference, translation semantic review, latency and RAM.
 - ML Kit remains the default; Bergamot remains experimental until device evidence and manual semantic comparison justify a change.
 - PR #4 remains open Draft, based on `feature/v0.12.3-paddle-default-settings`; no merge to main was performed.
+
+
+## Session continuation — 2026-11-15 (protocol adoption, v0.12.10 CI repair)
+
+### Repository state re-verified
+- Repository: https://github.com/mouadknight0-cell/ManhwaLens (public; connected GitHub permissions include push/admin).
+- Default branch: `main`. Active branch: `feature/v0.12.4-bergamot-experiment`.
+- PR #4 is open, Draft, and targets `feature/v0.12.3-paddle-default-settings`; it remains stacked on PR #3. Do not merge PR #4 directly to main.
+- PR #4 head before this session's repair: `1858ed31568205648fb85a7855ed1befbd7b3644`; PR metadata reported 242 commits and 71 changed files.
+- App candidate on that head: `applicationId=com.manhwalens.app`, `versionName=0.12.10`, `versionCode=50`. This is a development candidate, not a published release.
+- Latest verified GitHub Release remains v0.12.9 (published prerelease) with APK `ManhwaLens-v0.12.9-debug.apk`, SHA-256 `0234f60ac8477d0b6045626a1c6a8c2e9bc951f8bf9f42776e86068db93f6a89`. No v0.12.10 Release/APK was present in the latest Releases API response.
+
+### Current candidate changes reviewed
+- v0.12.10 changelog proposes allowing ML Kit EN→AR model download over Wi-Fi or mobile data during first-use translation and warm-up; adding exact-source corrections for `No.` → `لا.`, `Run!` → `اهرب!`, and `KRAK` → `طَق!`; applying those corrections after name repair on fresh and cached results; persisting corrected cache values.
+- ML Kit remains the default offline translator. Bergamot remains optional/experimental. No engine promotion decision is justified by this commit.
+- `ShortDialogueOverrides.apply` explicitly maps exact normalized source `KRAK` to `طَق!`. The fuzzy memo test must therefore expect the corrected visible value, while separately asserting that no second engine call occurs.
+
+### CI failure and repair
+- Latest pre-repair PR validation run: [43750781659](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43750781659), event `pull_request`, head `1858ed31568205648fb85a7855ed1befbd7b3644` — **failure**.
+- Job steps confirm pinned PaddleOCR model downloads/checksums and Bergamot ARM64 runtime validation succeeded. Unit tests failed: **786 tests completed, 1 failed** — `TranslationMemoTest.cachingTranslatorUsesTheMemoItIsGiven`. APK build and later signing/release steps were skipped because tests failed. Release steps were not run.
+- Root cause: the test had been changed to expect raw `AR:KRAK!`, but the production cache-hit path intentionally applies `ShortDialogueOverrides` and returns `طَق!`. This is a stale test expectation, not evidence that the override implementation failed.
+- Fixed the regression assertion to expect `طَق!` while preserving the assertion that the fuzzy memo avoids a second engine call.
+- Repair commit: `1a2d5721835f310b927ca4e96d30abef694a0bd0` — `test: align memo expectation with source-aware SFX correction`.
+- Status after this commit: **Implemented** (test correction pushed). CI re-run on the new head is pending verification; do not claim tests/build pass until a new run completes.
+
+### Verification boundary
+- GitHub repository/PR/branch/release metadata: freshly inspected.
+- CI pre-repair: failed as detailed above; no APK produced from that run.
+- Test fix: pushed, not yet CI-verified at the time of this note.
+- v0.12.10: not Release-published; no phone installation should be requested yet.
+- Physical-device OCR accuracy, bubble grouping, Arabic semantic quality, Bergamot JNI/offline behavior, memory/latency and future-release update installation remain **Not device-verified**.
+
+### Next engineering actions
+1. Inspect the new push and PR workflow runs after commit `1a2d5721835f310b927ca4e96d30abef694a0bd0`; verify all 786+ unit tests and APK assembly.
+2. If green, inspect test report and verify package/version/signing checks; confirm the development-branch workflow publishes v0.12.10 only once, as a GitHub prerelease with APK asset.
+3. Audit the progressive overlay callback path to ensure it applies the same source-aware short-dialogue corrections as final and cache-hit paths; add a deterministic regression test if a real discrepancy exists.
+4. Continue OCR accuracy work with a fixed labeled screenshot corpus; no end-to-end PaddleOCR word accuracy or grouping result is currently evidenced by CI.
+5. Request phone testing only after a verified v0.12.10 Release APK exists and its package/version/signing continuity is checked.
