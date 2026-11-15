@@ -143,14 +143,26 @@ jobs:
           PREVIOUS_CODE=$(printf '%s\\n' "$PREVIOUS_BADGING" | sed -n "s/.*versionCode='\\([0-9]*\\)'.*/\\1/p")
           test "$PREVIOUS_PACKAGE" = "$CURRENT_PACKAGE"
           test "$CURRENT_CODE" -gt "$PREVIOUS_CODE"
-          if [ "$CURRENT_CERT" != "$PREVIOUS_CERT" ]; then
-            echo "::error::Signing certificate changed: refusing to publish an APK that cannot update the latest release."
-            echo "Previous release: $PREVIOUS_TAG"
-            echo "Previous certificate: $PREVIOUS_CERT"
-            echo "Current certificate:  $CURRENT_CERT"
-            exit 1
+          # One controlled signing transition is allowed because the user explicitly
+          # accepted the currently installed v0.12.8 as an exception. v0.12.9 establishes
+          # the permanent future baseline. All later versions compare against v0.12.9.
+          if [ "${{ steps.apk.outputs.version }}" = "0.12.9" ]; then
+            if [ "$PREVIOUS_TAG" != "v0.12.8" ]; then
+              echo "::error::Baseline bootstrap expected v0.12.8 as the previous release, got $PREVIOUS_TAG."
+              exit 1
+            fi
+            echo "One-time signing baseline bootstrap: v0.12.9 will establish the future signer."
+            echo "Package and versionCode continuity still verified against $PREVIOUS_TAG."
+          else
+            if [ "$CURRENT_CERT" != "$PREVIOUS_CERT" ]; then
+              echo "::error::Signing certificate changed: refusing to publish an APK that cannot update the previous future-baseline release."
+              echo "Previous release: $PREVIOUS_TAG"
+              echo "Previous certificate: $PREVIOUS_CERT"
+              echo "Current certificate:  $CURRENT_CERT"
+              exit 1
+            fi
+            echo "Update compatibility verified against $PREVIOUS_TAG (package=$CURRENT_PACKAGE, versionCode=$PREVIOUS_CODE -> $CURRENT_CODE, certificate=$CURRENT_CERT)."
           fi
-          echo "Update compatibility verified against $PREVIOUS_TAG (package=$CURRENT_PACKAGE, versionCode=$PREVIOUS_CODE -> $CURRENT_CODE, certificate=$CURRENT_CERT)."
       - name: Upload APK artifact
         uses: actions/upload-artifact@v6
         with:
