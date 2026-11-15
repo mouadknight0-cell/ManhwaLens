@@ -203,6 +203,8 @@
     <string name="benchmark_close">إغلاق</string>
     <string name="benchmark_copy">نسخ النتائج</string>
     <string name="benchmark_copied">نُسخت النتائج</string>
+    <string name="bergamot_benchmark_button">اختبار Bergamot وحده</string>
+    <string name="bergamot_benchmark_summary">يشغّل مجموعة الاختبار ذات 20 حالة عبر نموذج Bergamot الأصلي EN→AR فقط. لا يستدعي ML Kit ولا يستخدم الرجوع إليه، ولا يغيّر المحرك المحدد أو إعدادات التجميع. يتطلب تنزيل نموذج Bergamot مسبقًا.</string>
     <string name="engine_comparison_button">مقارنة ML Kit مع Bergamot</string>
     <string name="engine_comparison_summary">يشغّل الفقاعات العشرين نفسها عبر محركي الترجمة دون اتصال ويعرض نتائج كل محرك. يجب تثبيت نموذجي ML Kit وBergamot أولًا. هذه المقارنة لا تغيّر المحرك المحدد ولا إعدادات تجميع طلبات ML Kit.</string>
 
