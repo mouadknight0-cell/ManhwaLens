@@ -25,7 +25,7 @@ class DetResizeCalculatorTest {
 
         assertEquals(576, current.width)
         assertEquals(1280, current.height)
-        assertEquals(736, quality.width)
+        assertEquals(864, quality.width)
         assertEquals(1920, quality.height)
         assertTrue(quality.width * quality.height > current.width * current.height)
     }
