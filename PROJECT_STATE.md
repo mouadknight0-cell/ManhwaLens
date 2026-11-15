@@ -1,0 +1,60 @@
+# ManhwaLens — Project State
+
+Last updated: 2026-11-15 (UTC)
+Purpose: durable handoff record between ChatGPT conversations. GitHub source code and CI are authoritative; this file is a navigation aid, not proof that a build or device test passed.
+
+## Repository
+- Repository: https://github.com/mouadknight0-cell/ManhwaLens
+- Main branch HEAD observed: 23904fb0b11caf55e0f0297585e3e47b80fba766
+- Active development PR: #4 — https://github.com/mouadknight0-cell/ManhwaLens/pull/4
+- PR #4 head ref: refs/pull/4/head
+- PR #4 is 125 commits ahead of main and 0 behind at the time of this snapshot.
+- Development branch observed: feature/v0.12.4-bergamot-experiment
+- PR #4 describes the v0.12.6 development line; app/build.gradle.kts on PR head reports versionName 0.12.6 and versionCode 46.
+- Main CHANGELOG currently reports v0.12.2. Do not confuse main's version with the PR head's version.
+
+## Product requirements (must preserve)
+- Offline-first English-to-Arabic manhwa translation.
+- ML Kit remains the default translation engine until real-device evidence supports changing it.
+- Bergamot is optional/experimental; its failures or rejected output should fall back to offline ML Kit without discarding accepted bubbles.
+- Keep OCR and translation evaluation separate.
+- Releases must be real GitHub Releases with a discoverable APK, not only Actions artifacts.
+- Updates must install over the existing app: preserve applicationId, signing identity and increase versionCode. Never claim update compatibility without comparing signing certificates and package/version metadata.
+- User works from an Android phone; do not require a desktop workflow or ask for a project ZIP when GitHub is available.
+- Do not claim device-level validation from unit tests or CI.
+
+## Latest reviewed technical facts
+- PR #4 adds/updates offline Bergamot integration, quality fallback, diagnostics benchmark and workflow/release changes.
+- PR #4's quality benchmark is explicitly ML Kit-only; MANUAL_TESTS.md says it is not a Bergamot comparison.
+- The 20-case quality report's token F1 is lexical overlap, not semantic accuracy.
+- The supplied batching benchmark is labelled ML Kit EN→AR. Its Joined ### median (755 ms) belongs to the ML Kit joined-input strategy, not a verified Bergamot-vs-ML-Kit comparison.
+- Translation-pair samples show errors in both engines; Bergamot may emit partial English/Arabic and ML Kit also has mistranslations. Do not promote either based on speed alone.
+- Manual phone validation is still required for OCR accuracy, semantic translation quality, offline model availability, native compatibility, latency and RAM.
+
+## Audit findings / open work
+1. Release workflow gate: .github/workflows/android.yml is triggered by pull_request, but the Release decision/publish steps are not visibly restricted to trusted tag pushes or the intended development-branch push. Review and fix this before relying on automatic publication; PR builds should upload artifacts only and must never publish a Release.
+2. Update signing: CI restores a stable experimental Android debug keystore from the repository. This can support updates between builds signed with that same debug key, but it is not proof of compatibility with a separately signed production APK. Keep debug and production signing identities distinct and document the transition.
+3. Inspect actual GitHub Release tags/assets and latest workflow runs before announcing an installable release.
+4. Build a same-corpus multi-engine evaluation for ML Kit and Bergamot: same source bubbles, identical preprocessing, cold/warm runs, per-case semantic human review, rejection/English-echo rate, omissions, latency and memory.
+5. Inspect PaddleOCR vs any retained OCR path on the same screenshots and compare line accuracy, bubble grouping, speed and RAM. Avoid selecting defaults without device evidence.
+6. Review settings/navigation regression requirements against the user's requested removals and Live Mode placement.
+7. Verify APK package ID, versionCode, ABI support, size, signing certificate fingerprint and update-install behavior.
+
+## Conversation handoff protocol
+At the start of a new conversation:
+1. Read this file from the active PR branch.
+2. Check PR #4 head SHA, branch status, open PRs, latest Actions run/jobs/artifacts and actual Releases.
+3. Continue from the first unchecked open-work item; do not redo completed work without evidence.
+4. Update this file in the same development branch whenever architecture, release state, test results or next steps materially change.
+
+At the end of each substantial session, append/update:
+- current branch and commit SHA
+- files changed
+- tests/CI actually run and exact outcomes
+- release/tag/APK status
+- device checks still required
+- next concrete action
+
+## Reporting rules
+Use explicit labels: Implemented, Unit-tested, CI-verified, Release-published, Device-verified, Not verified.
+Never use one label as evidence for another.
