@@ -2783,6 +2783,9 @@ class FloatingButtonService : Service() {
             var cacheMisses = 0
             var translateError: String? = null
             var translations: List<com.manhwalens.app.translate.TranslatedBlock> = emptyList()
+            // Keep page-planning keys in sync with the user's current glossary even
+            // before the translator factory is constructed for this capture.
+            com.manhwalens.app.data.TranslationPrefs(applicationContext).refreshGlossary()
             val pageBlocks = ocrBlocks
                 .map { com.manhwalens.app.translate.TranslationBlock(it.id, it.text) }
                 .filter { it.english.isNotBlank() }
@@ -3322,6 +3325,9 @@ class FloatingButtonService : Service() {
                             "live own-ui/garbage drop", 0, "${filtered.kept.size - pageBlocks.size} block(s)"
                         )
                     }
+                    // Use the same persisted glossary for planning and for the engine
+                    // on the first Live frame after process/service startup.
+                    com.manhwalens.app.data.TranslationPrefs(applicationContext).refreshGlossary()
                     val newBlocks = pageBlocks
                         .map { com.manhwalens.app.translate.TranslationBlock(it.id, it.text) }
                         .filter { it.english.isNotBlank() }
