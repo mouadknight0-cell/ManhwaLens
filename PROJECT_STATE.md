@@ -209,3 +209,9 @@ Never use one label as evidence for another.
 3. Once CI and Release are confirmed, prepare the v0.12.7 phone test from `MANUAL_TESTS.md`: run the same-corpus comparison offline, copy the report and screenshots, and return actual phone results.
 4. Keep ML Kit default and Bergamot experimental until semantic review and real-device reliability/performance evidence support a decision.
 5. Preserve PR #3 → PR #4 stacked order; do not merge PR #4 directly to main while PR #3 remains its base.
+
+
+### Final refinement before CI re-run
+- Commit `a7a90475051ae09f6b06c7e4b01b33b14bd6ff03` moves the benchmark-only ML Kit warm-up inside the same diagnostic lock as the full comparison. This closes the remaining window in which a pending batching self-test could overlap the warm-up request.
+- Updated the device checklist and both engineering records to state that the lock covers warm-up as well as all measured passes.
+- Earlier PR workflow run `43718698863` was cancelled by subsequent branch updates before its build job began; it is not a test result. The latest branch state still requires a fresh green CI run.
