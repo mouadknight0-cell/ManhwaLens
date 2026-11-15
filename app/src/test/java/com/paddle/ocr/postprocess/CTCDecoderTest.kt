@@ -21,6 +21,17 @@ class CTCDecoderTest {
     }
 
     @Test
+    fun preservesArabicIndicAndPersianDigitOrder() {
+        assertEquals("مرحبا ١٢٣", CTCDecoder.reverseArabicVisualOrder("١٢٣ ابحرم"))
+        assertEquals("مرحبا ۱۲۳", CTCDecoder.reverseArabicVisualOrder("۱۲۳ ابحرم"))
+    }
+
+    @Test
+    fun keepsArabicQuestionMarkAtSentenceEndAfterVisualReversal() {
+        assertEquals("مرحبا؟", CTCDecoder.reverseArabicVisualOrder("؟ابحرم"))
+    }
+
+    @Test
     fun ctcCollapsesAdjacentRepeatsButKeepsRepeatsSeparatedByBlank() {
         val output = floatArrayOf(
             0.05f, 0.90f, 0.05f,
