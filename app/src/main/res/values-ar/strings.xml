@@ -32,7 +32,7 @@
     <string name="debug_mode_summary">عند تفعيله، يحفظ ManhwaLens أزواج الترجمة الإنجليزية والعربية الحديثة محليًا للنقر والوضع الحي، مع اسم المحرك ونتيجة فحص الجودة. كما يحتفظ بتشخيصات خط المعالجة الحالية. لا يوجد رفع تلقائي.</string>
     <string name="translation_pairs_note">المحفوظ على هذا الجهاز: %1$d زوجًا حديثًا (بحد أقصى 200). يشمل نص OCR الإنجليزي والعربية النهائية والمحرك ونتيجة الجودة. لا يوجد رفع تلقائي.</string>
     <string name="translation_pairs_copy">نسخ أزواج الترجمة</string>
-    <string name="translation_pairs_clear">مسح</string>
+    <string name="translation_pairs_clear">إعادة ضبط السجل</string>
     <string name="translation_pairs_empty">لا توجد أزواج محفوظة بعد. فعّل وضع التصحيح وترجم صفحة.</string>
     <string name="translation_pairs_copied">تم نسخ أزواج الترجمة</string>
     <string name="translation_pairs_cleared">تم مسح أزواج الترجمة</string>
