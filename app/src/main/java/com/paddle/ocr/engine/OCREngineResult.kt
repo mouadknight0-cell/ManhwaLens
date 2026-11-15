@@ -36,4 +36,8 @@ data class OCREngineResult(
     val recInputShapes: List<List<Int>> = emptyList(),
     // Per-line timing (only populated when recBatchSize == 1)
     val perLineRecMs: List<Long> = emptyList(),
+    /** Recognition outputs before confidence filtering. */
+    val recognizedCandidateCount: Int = 0,
+    /** Outputs rejected because confidence was below recScoreThresh or text was blank. */
+    val lowConfidenceDroppedCount: Int = 0,
 )
