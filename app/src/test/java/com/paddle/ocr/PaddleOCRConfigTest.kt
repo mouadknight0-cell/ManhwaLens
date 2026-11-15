@@ -11,6 +11,11 @@ class PaddleOCRConfigTest {
     }
 
     @Test
+    fun detectorCandidateLimitMatchesPpOcrV5MobileConfiguration() {
+        assertEquals(1000, PaddleOCRConfig().detMaxCandidates)
+    }
+
+    @Test
     fun recognitionThresholdCanBeOverriddenForCalibration() {
         assertEquals(0.35f, PaddleOCRConfig(recScoreThresh = 0.35f).recScoreThresh, 0.0001f)
     }
