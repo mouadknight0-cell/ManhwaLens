@@ -867,7 +867,9 @@ Never use one label as evidence for another.
 
 ### Verification on source commit
 - Android push run #43762854838 and PR run #43762861270 both reached and passed the Unit tests step on source commit 31d467b5.
-- The Android debug APK build was still in progress at the time of this report update; therefore this source commit is Unit-tested, but not yet labelled as a completed successful build or signer/update-compatibility verification.
+- Android push run #43762854838 completed **success** on this exact source commit: Unit tests, Debug APK build, pinned experimental debug-certificate verification, and update-compatibility check against the latest published release all passed; APK and test-report artifacts uploaded.
+- PR validation run #43762861270 completed **success** on this exact source commit: Unit tests, Debug APK build, certificate verification and artifacts passed; the update-compatibility step was skipped for the pull_request event by workflow design.
+- Automatic Dependency Submission #43762855422 completed **success**. The Release publication step on the push run was skipped because v0.12.10 already exists; no new GitHub Release was created.
 - Automatic Dependency Submission run #43762855422 completed successfully on the same source commit.
 - No Release was created and no APK was promoted for installation.
 - Latest published prerelease remains v0.12.10 with its existing APK. This dialogue-only fix does not justify a new public release by itself.
