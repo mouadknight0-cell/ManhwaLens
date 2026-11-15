@@ -372,3 +372,43 @@ Never use one label as evidence for another.
 2. If the signer step fails, do not publish; inspect actual build APK certificate and Gradle signing configuration. Never bypass the expected-key check.
 3. After CI success, audit remaining OCR/translation paths and add targeted unit tests where a deterministic defect is demonstrated.
 4. Only after the first future baseline APK is published and its metadata/signature are verified should a phone installation be requested. The actual in-place update between future releases still needs user-side device verification.
+
+
+## v0.12.9 future signing baseline — published and CI-verified (2026-11-15)
+
+### Release
+- GitHub Release: https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.9
+- State: published prerelease on the main GitHub Releases page.
+- Asset: `ManhwaLens-v0.12.9-debug.apk` (71,367,838 bytes).
+- APK SHA-256: `0234f60ac8477d0b6045626a1c6a8c2e9bc951f8bf9f42776e86068db93f6a89`.
+- Package: `com.manhwalens.app`; versionName `0.12.9`; versionCode `49`.
+- Certificate SHA-256 measured from the actual published APK: `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
+- The APK certificate matches the tracked PKCS#12 signing input and the CI's explicit expected-certificate value exactly.
+- This is the first future baseline after the one-time historical signing transition from v0.12.8. Do not claim it can update v0.12.8; subsequent releases must match v0.12.9's certificate and preserve package identity with a strictly greater versionCode.
+
+### CI evidence
+- Push workflow run #43740922862: https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43740922862 — **success**.
+- PR validation run #43740957137: https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43740957137 — **success**; release publication and update-compatibility steps were correctly skipped for pull_request.
+- Unit test report artifact #14172605498: **779 tests, 0 failures, 0 ignored**.
+- Push workflow succeeded through: Unit tests, Debug APK build, APK rename, pinned-certificate validation, v0.12.8 package/version continuity check, APK artifact upload, release decision and GitHub Release publication.
+- The workflow log explicitly confirms signer SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152` and the one-time baseline transition against v0.12.8.
+
+### Source changes included in v0.12.9
+- Renderer fix commit: `2123436dd867b48e17873371639fb64c69baa775`.
+- Explicit debug signing / v0.12.9 baseline / tag lookup fix: `d1a086173b0ebbe1b730294184b2b5f823e01af0`.
+- PaddleOCR ONNX session lifecycle fix: `3e1a2e72a5cb8a905cb37e7c80de4992b740d2d7`.
+- Project handoff audit note commit: `d9fe90ed60617f6646eb7f76c652adc752192429`.
+
+### Verification boundary
+- Implemented: full text RTL rendering, no four-line truncation, preserve original art when Arabic cannot fit; safe PaddleOCR/ONNX release; explicit stable debug-signing configuration and certificate gate.
+- Unit-tested / CI-verified: 779 unit tests and Debug APK build on the same source head as v0.12.9.
+- Release-published: yes, v0.12.9.
+- Not device-verified: real screenshot OCR accuracy, bubble grouping precision, Arabic placement/legibility on varied phones, actual memory reclamation, startup/cold OCR latency and installation behavior on a physical phone.
+
+### Next engineering priorities
+1. Build a labeled fixed screenshot corpus and measure PaddleOCR text CER/word accuracy, missed detections, false detections, grouping, confidence-threshold rejects and per-page time. Current OCR path is Paddle-only; there is no automatic ML Kit fallback inside TextRecognizerClient.
+2. Compare Paddle recBatchSize 1 vs small batches on-device, measuring peak memory and total page latency before changing the default.
+3. Add vertical-neighbor / stacked-bubble false-merge regression cases and screenshot-level grouping evaluation.
+4. Inspect Arabic CTC visual-order reversal against the exact pinned model dictionary, especially combining marks/diacritics.
+5. Reconcile the dormant pageArabic name-learning path with actual bubble ID indexing and production call sites before activating it.
+6. Perform physical-device validation. Never call CI proof of device behavior.
