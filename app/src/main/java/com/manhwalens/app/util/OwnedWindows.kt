@@ -25,7 +25,7 @@ class OwnedWindows(private val nowMs: () -> Long) {
             // Live status / caption (EN)
             "watching", "scanning", "translating", "paused", "same page",
             "tap to start", "no frames yet", "live error",
-            "live on", "live off", "live mode", "translate now",
+            "live on", "live off", "live mode", "live mode on", "live mode off", "translate now",
             "arabic", "original", "clear translation", "review last capture",
             "stop manhwalens", "settings",
             // Capture UI (EN)
