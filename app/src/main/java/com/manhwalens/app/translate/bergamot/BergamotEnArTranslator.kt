@@ -73,11 +73,13 @@ internal class BergamotEnArTranslator(context: Context) {
     /** Release native allocations when the service is stopped or Android reports memory pressure. */
     fun release() {
         synchronized(lock) {
-            if (model != 0L) BergamotNative.nativeFreeModel(model)
-            if (service != 0L) BergamotNative.nativeFreeService(service)
+            val modelHandle = model
+            val serviceHandle = service
             model = 0L
             service = 0L
             warmedUp = false
+            if (modelHandle != 0L) runCatching { BergamotNative.nativeFreeModel(modelHandle) }
+            if (serviceHandle != 0L) runCatching { BergamotNative.nativeFreeService(serviceHandle) }
         }
     }
 }
