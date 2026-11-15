@@ -63,7 +63,8 @@ class TextRecognizerClient(context: Context) {
                     config = PaddleOCRConfig(
                         detLimitSideLen = PADDLE_DET_LIMIT_SIDE,
                         detLimitType = "max",
-                        detMaxSideLimit = PADDLE_DET_MAX_SIDE
+                        detMaxSideLimit = PADDLE_DET_MAX_SIDE,
+                        recScoreThresh = PADDLE_MIN_REC_CONFIDENCE
                     ),
                     engineConfig = EngineConfig(numThreads = PADDLE_THREADS)
                 )
