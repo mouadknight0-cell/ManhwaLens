@@ -368,6 +368,48 @@ fun SettingsScreen(onBack: () -> Unit) {
             ) {
                 Text(if (benchmarkRunning) stringResource(R.string.benchmark_running) else stringResource(R.string.benchmark_button))
             }
+            Spacer(Modifier.size(8.dp))
+            OutlinedButton(
+                enabled = !benchmarkRunning,
+                onClick = {
+                    benchmarkRunning = true
+                    Thread {
+                        val report = try {
+                            val mlkit = com.manhwalens.app.translate.mlkit.MlKitTranslator
+                            if (!mlkit.isModelReady() && !mlkit.warmUp()) {
+                                throw IllegalStateException("ML Kit EN→AR model is not ready; connect to Wi-Fi once and retry")
+                            }
+                            if (!com.manhwalens.app.translate.bergamot.BergamotEnArModel.isInstalled(context)) {
+                                throw IllegalStateException("Download the Bergamot EN→AR model in Offline translation settings first")
+                            }
+                            val bergamot = com.manhwalens.app.translate.bergamot.BergamotEnArTranslator(context)
+                            try {
+                                val comparison = com.manhwalens.app.translate.EngineComparisonBenchmark.run(
+                                    translateMlKitBatch = { inputs -> inputs.map { mlkit.translateRaw(it) } },
+                                    translateBergamotBatch = { inputs ->
+                                        kotlinx.coroutines.runBlocking { bergamot.translate(inputs) }
+                                    }
+                                )
+                                comparison.toText() + "\\n\\nDevice: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
+                            } finally {
+                                bergamot.release()
+                            }
+                        } catch (e: Exception) {
+                            "Engine comparison could not run: ${e.javaClass.simpleName} — ${e.message}"
+                        }
+                        runCatching {
+                            java.io.File(context.filesDir, com.manhwalens.app.overlay.FloatingButtonService.BENCHMARK_REPORT_FILE).writeText(report)
+                        }
+                        runCatching { com.manhwalens.app.util.ErrorLog.writeRaw(context, "engine_comparison", report) }
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            benchmarkRunning = false
+                            benchmarkResult = report
+                        }
+                    }.start()
+                }
+            ) {
+                Text(if (benchmarkRunning) stringResource(R.string.benchmark_running) else "Compare ML Kit vs Bergamot")
+            }
             Spacer(Modifier.size(10.dp))
             val captureFile = remember { java.io.File(context.filesDir, "manhwalens-last-capture.jpg") }
             if (captureFile.exists()) {
