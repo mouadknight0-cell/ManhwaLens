@@ -99,6 +99,8 @@ class TranslationQualityBenchmarkTest {
         assertTrue(report.sourceOverridesApplied >= 3)
         assertTrue(report.toText().contains("RAW ENGINE:"))
         assertTrue(report.toText().contains("VISIBLE PIPELINE:"))
+        assertTrue(report.toText().contains("Lowest raw-engine lexical-overlap cases"))
+        assertTrue(report.toText().contains("Lowest visible-output lexical-overlap cases"))
     }
 
     @Test
