@@ -238,11 +238,13 @@ object TranslatorFactory {
         return gemini(context, prefs)
     }
 
-    fun cacheSize(): Int = sharedCache.size() + (diskCache?.size() ?: 0)
+    /** Count both caches, initializing the disk cache so persisted entries are included. */
+    fun cacheSize(context: Context): Int = sharedCache.size() + disk(context).size()
 
-    fun clearCache() {
+    /** Clear every translation-result cache, including the persisted file even after a cold start. */
+    fun clearCache(context: Context) {
         sharedCache.clear()
-        diskCache?.clear()
+        disk(context).clear()
         CachingTranslator.resetMemos()
     }
 }
