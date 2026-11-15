@@ -80,12 +80,14 @@ class CachingTranslator(
             val diskHit = if (memHit == null) persistent?.get(cache.key(engineId, b.english, style)) else null
             var hit = memHit ?: diskHit
             var fromFuzzy = false
+            var fromExactMemo = false
             if (hit == null) {
-                val fuzzy = memo?.get(cachePrepared(b.english))?.arabic
-                if (fuzzy != null) {
-                    hit = fuzzy
-                    fromFuzzy = true
-                    fuzzyHits++
+                val memoHit = memo?.get(cachePrepared(b.english))
+                if (memoHit != null) {
+                    hit = memoHit.arabic
+                    fromFuzzy = !memoHit.exact
+                    fromExactMemo = memoHit.exact
+                    if (fromFuzzy) fuzzyHits++
                 }
             }
             // P1: a cached translation may pre-date a name correction — repair it BEFORE the
@@ -105,10 +107,11 @@ class CachingTranslator(
             if (dialogueRepairedHit != null && issue == null) {
                 cached[b.id] = dialogueRepairedHit
                 when {
-                    diskHit != null -> {
-                        // Promote the (possibly name-repaired) disk hit, so the correction sticks.
+                    diskHit != null || fromExactMemo -> {
+                        // Promote only source-exact disk/memo hits. A fuzzy near-match must
+                        // never become an exact key for a different OCR string.
                         cache.put(engineId, b.english, dialogueRepairedHit, style)
-                        diskHits++
+                        if (diskHit != null) diskHits++
                     }
                 }
                 // Persist corrections only for source-exact cache entries. A fuzzy result
