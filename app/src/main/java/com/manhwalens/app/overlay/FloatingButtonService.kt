@@ -3365,6 +3365,7 @@ class FloatingButtonService : Service() {
                             com.manhwalens.app.translate.TranslationEngine.GEMINI -> "gemini"
                             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
             com.manhwalens.app.translate.TranslationEngine.BERGAMOT -> "bergamot_en_ar"
+            com.manhwalens.app.translate.TranslationEngine.BERGAMOT -> "bergamot_en_ar"
                             com.manhwalens.app.translate.TranslationEngine.BERGAMOT -> "bergamot_en_ar"
                         }
                         val tr: com.manhwalens.app.translate.PageTranslation = if (dual) {
@@ -3615,6 +3616,7 @@ class FloatingButtonService : Service() {
         val expectedEngine = when (com.manhwalens.app.data.TranslationPrefs(applicationContext).engine) {
             com.manhwalens.app.translate.TranslationEngine.GEMINI -> "gemini"
             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
+            com.manhwalens.app.translate.TranslationEngine.BERGAMOT -> "bergamot_en_ar"
         }
         val task = Runnable {
             val t0 = SystemClock.elapsedRealtime()
