@@ -1,4 +1,4 @@
-# Diagnostics — offline engine benchmarks (v0.12.8 development)
+# v0.12.8 — offline engine diagnostics
 
 The three Diagnostics actions are deliberately different. Do not treat their timings or reports as interchangeable.
 
