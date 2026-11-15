@@ -8,6 +8,7 @@ import com.google.mlkit.nl.translate.TranslatorOptions
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.common.model.DownloadConditions
 import com.manhwalens.app.translate.FailureReason
+import com.manhwalens.app.translate.DiagnosticExecutionGate
 import com.manhwalens.app.translate.BatchAutoSelect
 import com.manhwalens.app.translate.BatchPolicyHolder
 import com.manhwalens.app.translate.BatchSplitter
