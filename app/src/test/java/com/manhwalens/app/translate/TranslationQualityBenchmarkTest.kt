@@ -39,7 +39,7 @@ class TranslationQualityBenchmarkTest {
         )
         assertEquals(0, report.accepted)
         assertEquals(20, report.rejected)
-        assertEquals(0, report.meanTokenF1, 0.0)
+        assertEquals(0.0, report.meanTokenF1, 0.0)
     }
 
     @Test
