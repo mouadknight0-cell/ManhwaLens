@@ -112,9 +112,11 @@ class CachingTranslator(
                     }
                     fromFuzzy && repairedHit != null -> cache.put(engineId, b.english, dialogueRepairedHit, style)
                 }
-                // A repaired plain memory hit must be written back too, otherwise every capture
-                // re-repairs the same stale entry.
-                if (repairedHit != rawHit) cache.put(engineId, b.english, repairedHit, style)
+                // Persist the final value after BOTH name and source-aware dialogue repairs.
+                // Otherwise a corrected short line can be re-read from cache in its old form.
+                if (dialogueRepairedHit != rawHit) {
+                    cache.put(engineId, b.english, dialogueRepairedHit, style)
+                }
             } else {
                 if (hit != null && issue != null) {
                     val key = cache.key(engineId, b.english, style)
@@ -168,13 +170,15 @@ class CachingTranslator(
                         // matching the cache-hit path. A preserved name such as "Will" must not
                         // be mistaken for an untranslated common English word.
                         val cleaned = TranslationOutputSanitizer.clean(raw.arabic)
-                        val dialogueRepaired = ShortDialogueOverrides.apply(raw.english, cleaned)
                         val nameOverride = pinnedOverride
-                        val corrected = if (dialogueRepaired.isNotBlank() && nameOverride != null) {
-                            runCatching { nameOverride.invoke(raw.english, dialogueRepaired) }.getOrDefault(dialogueRepaired)
+                        val nameRepaired = if (cleaned.isNotBlank() && nameOverride != null) {
+                            runCatching { nameOverride.invoke(raw.english, cleaned) }.getOrDefault(cleaned)
                         } else {
-                            dialogueRepaired
+                            cleaned
                         }
+                        // Source-exact dialogue repairs run last so they agree with cache hits
+                        // and cannot be undone by a character-name callback.
+                        val corrected = ShortDialogueOverrides.apply(raw.english, nameRepaired)
                         raw.copy(arabic = corrected)
                     }
                     // Per-bubble triage: a rejected bubble becomes EMPTY (never an English

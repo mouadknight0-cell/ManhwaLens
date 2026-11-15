@@ -31,6 +31,17 @@ class TranslationOutputSanitizerTest {
     }
 
     @Test
+    fun sourceAwareDialogueRepairRunsAfterPinnedNameOverride() {
+        val raw = TranslatedBlock(8, "No.", "رقم")
+
+        val safe = TranslationOutputSanitizer.prepare(raw) { _, arabic ->
+            "$arabic شخصية"
+        }
+
+        assertEquals("لا.", safe?.arabic)
+    }
+
+    @Test
     fun progressiveOutputRejectsEnglishEchoesAndBlankResults() {
         assertNull(
             TranslationOutputSanitizer.prepare(

@@ -24,12 +24,13 @@ object TranslationOutputSanitizer {
     ): TranslatedBlock? {
         val cleaned = clean(block.arabic)
         if (cleaned.isBlank()) return null
-        val dialogueRepaired = ShortDialogueOverrides.apply(block.english, cleaned)
-        val corrected = if (pinnedOverride != null) {
-            runCatching { pinnedOverride(block.english, dialogueRepaired) }.getOrDefault(dialogueRepaired)
+        val nameRepaired = if (pinnedOverride != null) {
+            runCatching { pinnedOverride(block.english, cleaned) }.getOrDefault(cleaned)
         } else {
-            dialogueRepaired
+            cleaned
         }
+        // Keep progressive painting in the same order as cached and final page output.
+        val corrected = ShortDialogueOverrides.apply(block.english, nameRepaired)
         if (corrected.isBlank() || ArabicValidator.issue(block.english, corrected) != null) return null
         return block.copy(arabic = corrected)
     }

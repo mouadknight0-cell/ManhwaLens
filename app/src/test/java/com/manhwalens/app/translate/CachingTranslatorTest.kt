@@ -249,6 +249,38 @@ class CachingTranslatorTest {
     }
 
     @Test
+    fun sourceAwareDialogueRepairWinsOverNameOverrideAndIsPersistedAcrossCacheHits() {
+        var engineCalls = 0
+        val engine = object : Translator {
+            override val engineId = "ml_kit_en_ar"
+            override fun translatePage(blocks: List<TranslationBlock>): PageTranslation.Success {
+                engineCalls++
+                return PageTranslation.Success(
+                    blocks = blocks.map { TranslatedBlock(it.id, it.english, "رقم") },
+                    engineId = engineId,
+                    elapsedMs = 1,
+                    cacheHits = 0,
+                    cacheMisses = blocks.size
+                )
+            }
+        }
+        val cache = TranslationCache()
+        val caching = CachingTranslator(
+            delegate = engine,
+            cache = cache,
+            pinnedOverride = { _, arabic -> "$arabic شخصية" }
+        )
+
+        val first = caching.translatePage(blocks(1 to "No.")) as PageTranslation.Success
+        assertEquals("لا.", first.blocks.single().arabic)
+        assertEquals("لا.", cache.get("ml_kit_en_ar", "No."))
+
+        val second = caching.translatePage(blocks(1 to "No.")) as PageTranslation.Success
+        assertEquals("لا.", second.blocks.single().arabic)
+        assertEquals(1, engineCalls)
+    }
+
+    @Test
     fun rejectedIncompleteBubbleStaysEmptyWhileValidSiblingIsKept() {
         val source = "I remember the night when you came to this village and told everyone that the old king had returned from the northern mountains after many years away."
         val remote = object : Translator {
