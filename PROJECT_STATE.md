@@ -116,3 +116,36 @@ Never use one label as evidence for another.
 3. **Next implementation:** add an isolated same-corpus ML Kit vs Bergamot comparison in Diagnostics; it must not alter runtime selection, caches, or batching policy. Add deterministic JVM tests for stable IDs, failure isolation, and no preference mutation.
 4. Re-check PR #3 CI and preserve the stacked PR order before merging.
 5. **Not device-verified:** PaddleOCR quality/grouping, Bergamot model/JNI loading and offline inference, semantic translation quality, latency/RAM, APK signing-certificate equivalence and update-install behavior.
+
+
+## Session continuation — 2026-11-15 (autonomous handoff refresh)
+
+### Fresh GitHub verification
+- Repository: `mouadknight0-cell/ManhwaLens`; development branch: `feature/v0.12.4-bergamot-experiment`.
+- PR #4 is still open and draft, targeting `feature/v0.12.3-paddle-default-settings`; head SHA observed: `55bb2e4e6252abc611eee3496030af3b8551ab10`. It reports 98 commits and 33 changed files. Keep the stacked PR relationship; do not merge PR #4 directly to main.
+- App version on that head: v0.12.6, versionCode 46, applicationId `com.manhwalens.app`.
+- The existing PROJECT_STATE file already records the v0.12.6 GitHub prerelease and APK asset, plus the release-gate fix. This session did not independently re-query Releases, so that prior release record is retained but not newly re-verified.
+
+### Latest CI observed in this session
+- PR validation run: https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43717777022 on `55bb2e4e6252abc611eee3496030af3b8551ab10` — success.
+- Confirmed successful steps: PaddleOCR model downloads and SHA-256 validation; pinned Bergamot ARM64 runtime retrieval/architecture/size checks; JVM unit tests; debug APK assembly; APK artifact upload; test-report upload.
+- Both Release decision and Release publication steps were skipped, as expected for a pull_request event. This confirms PR validation did not publish a Release.
+- The workflow file still contains a development-branch push gate for `feature/v0.12.4-bergamot-experiment`; a PR run cannot establish that a new push will publish. The existing v0.12.6 Release is documented in the earlier state entry.
+
+### Current engineering decision
+- Keep ML Kit as the default offline translator; Bergamot remains optional/experimental.
+- The current 20-case quality benchmark is ML Kit-only. Token F1 is lexical overlap, not semantic accuracy.
+- The next highest-value engineering task is an isolated same-corpus ML Kit/Bergamot comparison that bypasses caches, does not mutate runtime engine selection or batching preferences, and records per-case output, guard outcomes, omissions/echoes and latency. Human semantic review and physical-device memory measurements remain necessary.
+- PaddleOCR is the sole OCR backend in this branch; its actual page accuracy/grouping and performance remain device-validation items.
+
+### Verification boundary
+- CI-verified: JVM unit tests and debug APK assembly at the head SHA above.
+- Release-published: previously recorded for v0.12.6; not newly verified in this session.
+- Device-verified: not established for v0.12.6. No phone test is claimed.
+
+### Next actions
+1. Inspect the current source implementation and test coverage for the quality benchmark and Bergamot adapter before adding the multi-engine runner.
+2. Implement the isolated same-corpus comparator with deterministic JVM-testable orchestration and no preference/cache side effects.
+3. Run CI and inspect failures/logs; fix and rerun until green.
+4. Re-verify the latest Release asset and APK metadata before asking for a phone installation.
+5. Only then prepare a physical-device checklist and request phone testing for JNI/model availability, OCR, semantic quality, latency/RAM and update-install compatibility.
