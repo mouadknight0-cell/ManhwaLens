@@ -20,13 +20,22 @@ object TranslationQualityBenchmark {
     data class CaseResult(
         val id: Int,
         val category: String,
+        /** Raw engine candidate, before app cleanup or source-specific corrections. */
         val accepted: Boolean,
         val issue: ArabicValidator.Issue?,
         val exactMatch: Boolean,
         val tokenF1: Double,
+        /** Final text produced by the same pure sanitizer used by the visible pipeline. */
+        val visibleAccepted: Boolean,
+        val visibleIssue: ArabicValidator.Issue?,
+        val visibleExactMatch: Boolean,
+        val visibleTokenF1: Double,
+        /** True only when an exact source-specific ShortDialogueOverride changed the cleaned candidate. */
+        val sourceOverrideApplied: Boolean,
         val source: String,
         val referenceArabic: String,
-        val output: String
+        val output: String,
+        val visibleOutput: String
     )
 
     data class Report(
@@ -39,21 +48,31 @@ object TranslationQualityBenchmark {
         val elapsedMs: Long,
         val cases: List<CaseResult>
     ) {
+        val visibleAccepted: Int get() = cases.count { it.visibleAccepted }
+        val visibleRejected: Int get() = cases.size - visibleAccepted
+        val visibleExactMatches: Int get() = cases.count { it.visibleExactMatch }
+        val meanVisibleTokenF1: Double get() =
+            if (cases.isEmpty()) 0.0 else cases.map { it.visibleTokenF1 }.average()
+        val sourceOverridesApplied: Int get() = cases.count { it.sourceOverrideApplied }
+
         fun toText(): String = buildString {
             appendLine("ML Kit offline translation quality check (EN→AR)")
             appendLine("Engine: ML Kit only. The selected offline engine setting does not affect this diagnostic.")
-            appendLine("Reference cases: $total · completed: $completed · accepted by Arabic guard: $accepted · rejected/missing: $rejected")
-            appendLine("Exact normalized matches: $exactMatches/$total · mean Arabic token F1: ${"%.1f".format(java.util.Locale.ROOT, meanTokenF1 * 100)}%")
-            appendLine("Elapsed: ${elapsedMs}ms")
-            appendLine("NOTE: token F1 is lexical overlap only, NOT semantic accuracy; alternate valid wording may score lower.")
-            val weak = cases.sortedBy { it.tokenF1 }.take(5)
+            appendLine("Reference cases: $total · completed: $completed")
+            appendLine("RAW ENGINE: accepted $accepted/$total · rejected/missing $rejected · exact $exactMatches/$total · mean token F1 ${"%.1f".format(java.util.Locale.ROOT, meanTokenF1 * 100)}%")
+            appendLine("VISIBLE PIPELINE: accepted $visibleAccepted/$total · rejected $visibleRejected · exact $visibleExactMatches/$total · mean token F1 ${"%.1f".format(java.util.Locale.ROOT, meanVisibleTokenF1 * 100)}%")
+            appendLine("Exact source corrections applied: $sourceOverridesApplied · elapsed: ${elapsedMs}ms")
+            appendLine("Visible output applies shared cleanup + exact source dialogue corrections. Series NameSession overrides are not included in this standalone benchmark.")
+            appendLine("NOTE: both F1 values measure lexical overlap only, NOT semantic accuracy; alternate valid Arabic wording may score lower.")
+            val weak = cases.sortedBy { it.visibleTokenF1 }.take(5)
             if (weak.isNotEmpty()) {
-                appendLine("Lowest lexical-overlap cases (inspect source/reference/output in translation-pair log):")
+                appendLine("Lowest visible-output lexical-overlap cases (inspect source/reference/raw/visible):")
                 weak.forEach {
-                    appendLine("  #${it.id} ${it.category}: F1 ${"%.2f".format(java.util.Locale.ROOT, it.tokenF1)} · ${it.issue ?: if (it.accepted) "accepted" else "missing"}")
+                    appendLine("  #${it.id} ${it.category}: raw F1 ${"%.2f".format(java.util.Locale.ROOT, it.tokenF1)} · visible F1 ${"%.2f".format(java.util.Locale.ROOT, it.visibleTokenF1)} · raw ${it.issue ?: if (it.accepted) "accepted" else "missing"} · visible ${it.visibleIssue ?: if (it.visibleAccepted) "accepted" else "missing"}")
                     appendLine("    EN: ${it.source}")
                     appendLine("    REF: ${it.referenceArabic}")
-                    appendLine("    OUT: ${it.output.ifBlank { "<empty>" }}")
+                    appendLine("    RAW: ${it.output.ifBlank { "<empty>" }}")
+                    appendLine("    VISIBLE: ${it.visibleOutput.ifBlank { "<empty>" }}")
                 }
             }
         }.trim()
@@ -97,20 +116,21 @@ object TranslationQualityBenchmark {
             val output = runCatching { translateOne(Glossary.prepare(case.source)) }.getOrDefault("")
             val issue = ArabicValidator.issue(case.source, output)
             val accepted = issue == null
-            val reference = tokens(case.referenceArabic)
-            val actual = tokens(output)
-            val overlap = reference.groupingBy { it }.eachCount().toMutableMap()
-            var common = 0
-            actual.forEach { token ->
-                val count = overlap[token] ?: 0
-                if (count > 0) {
-                    common++
-                    overlap[token] = count - 1
-                }
+            // Evaluate the user-visible transformation separately from the raw engine
+            // candidate. TranslationOutputSanitizer.prepare is the same pure cleanup,
+            // exact-source correction and Arabic guard used by progressive painting.
+            val cleanedCandidate = TranslationOutputSanitizer.clean(output)
+            val sourceCorrectedCandidate = ShortDialogueOverrides.apply(case.source, cleanedCandidate)
+            val visibleBlock = TranslationOutputSanitizer.prepare(
+                TranslatedBlock(case.id, case.source, output)
+            )
+            val visibleOutput = visibleBlock?.arabic.orEmpty()
+            val visibleIssue = if (visibleBlock != null) null else when {
+                sourceCorrectedCandidate.isBlank() -> ArabicValidator.Issue.EMPTY_OUTPUT
+                else -> ArabicValidator.issue(case.source, sourceCorrectedCandidate)
             }
-            val precision = if (actual.isEmpty()) 0.0 else common.toDouble() / actual.size
-            val recall = if (reference.isEmpty()) 0.0 else common.toDouble() / reference.size
-            val f1 = if (precision + recall == 0.0) 0.0 else 2.0 * precision * recall / (precision + recall)
+            val f1 = tokenF1(output, case.referenceArabic)
+            val visibleF1 = tokenF1(visibleOutput, case.referenceArabic)
             CaseResult(
                 id = case.id,
                 category = case.category,
@@ -118,9 +138,15 @@ object TranslationQualityBenchmark {
                 issue = issue,
                 exactMatch = normalize(output) == normalize(case.referenceArabic),
                 tokenF1 = f1,
+                visibleAccepted = visibleBlock != null,
+                visibleIssue = visibleIssue,
+                visibleExactMatch = normalize(visibleOutput) == normalize(case.referenceArabic),
+                visibleTokenF1 = visibleF1,
+                sourceOverrideApplied = sourceCorrectedCandidate != cleanedCandidate,
                 source = case.source,
                 referenceArabic = case.referenceArabic,
-                output = output
+                output = output,
+                visibleOutput = visibleOutput
             )
         }
         return Report(
@@ -137,6 +163,23 @@ object TranslationQualityBenchmark {
 
     private fun tokens(value: String): List<String> =
         normalize(value).split(Regex("\\s+")).filter { it.isNotBlank() }
+
+    private fun tokenF1(output: String, referenceArabic: String): Double {
+        val reference = tokens(referenceArabic)
+        val actual = tokens(output)
+        val overlap = reference.groupingBy { it }.eachCount().toMutableMap()
+        var common = 0
+        actual.forEach { token ->
+            val count = overlap[token] ?: 0
+            if (count > 0) {
+                common++
+                overlap[token] = count - 1
+            }
+        }
+        val precision = if (actual.isEmpty()) 0.0 else common.toDouble() / actual.size
+        val recall = if (reference.isEmpty()) 0.0 else common.toDouble() / reference.size
+        return if (precision + recall == 0.0) 0.0 else 2.0 * precision * recall / (precision + recall)
+    }
 
     private fun normalize(value: String): String {
         val normalized = Normalizer.normalize(value, Normalizer.Form.NFKC)
