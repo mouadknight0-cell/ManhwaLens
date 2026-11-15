@@ -101,6 +101,10 @@ object CTCDecoder {
             val leading = value.takeWhile { it.isWhitespace() }
             val trailing = value.takeLastWhile { it.isWhitespace() }
             val coreEnd = value.length - trailing.length
+            if (coreEnd <= leading.length) {
+                runs += value
+                return
+            }
             val core = value.substring(leading.length, coreEnd)
             if (leading.isNotEmpty()) runs += leading
             if (core.isNotEmpty()) runs += core
