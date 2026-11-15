@@ -333,7 +333,9 @@ class MlKitTranslator(
     private fun translateJoined(blocks: List<TranslationBlock>, strategy: SplitStrategy): JoinedOutcome {
         val sources = blocks.map { src(it.english) } // same text the engine is shown, so the mapping holds
         val out = try {
-            Tasks.await(client.translate(BatchSplitter.join(strategy, sources)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            withTranslationReadLock {
+                Tasks.await(client.translate(BatchSplitter.join(strategy, sources)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "mlkit joined request failed — ${e.javaClass.name}: ${e.message}", e)
             return JoinedOutcome(null, true, "error: ${e.javaClass.simpleName}")
@@ -379,7 +381,9 @@ class MlKitTranslator(
         val observer = onRawTranslation
         val started = if (observer != null) SystemClock.elapsedRealtime() else 0L
         val raw = try {
-            Tasks.await(client.translate(prepared), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            withTranslationReadLock {
+                Tasks.await(client.translate(prepared), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            }
         } catch (e: Exception) {
             if (observer != null) runCatching {
                 observer.invoke(MlKitTranslationTrace(
@@ -540,8 +544,9 @@ class MlKitTranslator(
 
         /** Raw engine call on the shared client (benchmark, self-test, warm-up). Throws on failure. */
         @JvmStatic
-        fun translateRaw(text: String): String =
+        fun translateRaw(text: String): String = withTranslationReadLock {
             Tasks.await(SHARED_CLIENT.translate(text), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+        }
 
         /**
          * Dummy "hello" call that keeps the engine loaded. Called at service start and on
@@ -565,12 +570,32 @@ class MlKitTranslator(
             }
         }
 
-        // Prevent background batching self-tests from competing with an explicit
-        // ML Kit vs Bergamot timing run on the same process-wide translator.
-        private val diagnosticLock = Any()
+        // A fair read/write gate keeps normal page requests concurrent with each other,
+        // while an explicit benchmark or batching self-test gets exclusive access to the
+        // process-wide ML Kit client. This prevents real reader traffic from contaminating
+        // benchmark timings without serializing ordinary per-bubble translation.
+        private val diagnosticLock = java.util.concurrent.locks.ReentrantReadWriteLock(true)
 
         @JvmStatic
-        fun <T> withDiagnosticLock(block: () -> T): T = synchronized(diagnosticLock) { block() }
+        fun <T> withDiagnosticLock(block: () -> T): T {
+            val lock = diagnosticLock.writeLock()
+            lock.lock()
+            try {
+                return block()
+            } finally {
+                lock.unlock()
+            }
+        }
+
+        private fun <T> withTranslationReadLock(block: () -> T): T {
+            val lock = diagnosticLock.readLock()
+            lock.lock()
+            try {
+                return block()
+            } finally {
+                lock.unlock()
+            }
+        }
 
         private val selfTestRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
