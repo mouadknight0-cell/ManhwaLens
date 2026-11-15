@@ -185,6 +185,8 @@ fun SettingsScreen(onBack: () -> Unit) {
         // Prepare the EN→AR model before going offline.
         OfflineTranslationModelCard()
         Spacer(Modifier.size(12.dp))
+        BergamotModelCard()
+        Spacer(Modifier.size(12.dp))
 
         // Translation result cache — separate from glossary, name memory and diagnostics.
         Section(stringResource(R.string.translation_cache_section)) {
