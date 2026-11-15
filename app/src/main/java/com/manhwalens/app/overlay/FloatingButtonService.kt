@@ -3364,6 +3364,7 @@ class FloatingButtonService : Service() {
                         val remoteEngineId = when (prefsL.engine) {
                             com.manhwalens.app.translate.TranslationEngine.GEMINI -> "gemini"
                             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
+            com.manhwalens.app.translate.TranslationEngine.BERGAMOT -> "bergamot_en_ar"
                             com.manhwalens.app.translate.TranslationEngine.BERGAMOT -> "bergamot_en_ar"
                         }
                         val tr: com.manhwalens.app.translate.PageTranslation = if (dual) {
