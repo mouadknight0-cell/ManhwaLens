@@ -528,3 +528,30 @@ Never use one label as evidence for another.
 4. Build a labeled OCR screenshot corpus and evaluate PaddleOCR CER/WER, detection recall/precision, grouping and screen-edge/UI contamination.
 5. Keep ML Kit default and Bergamot experimental; no paired Bergamot semantic results were supplied.
 6. Do not request phone installation until a verified v0.12.10-or-later GitHub Release APK and signing/version continuity are confirmed.
+
+
+## Engineering continuation — repair expanded-corpus CI regressions (2026-11-15 19:45 UTC)
+
+### CI evidence and root causes
+- The latest push/PR build on commit `d57311b597864e16d9e1a165c217f1b008fec139` failed: 789 unit tests completed, 6 failed.
+- Failures were stale 20-case assertions after the reference corpus had expanded to 23, a paired-engine test callback that did not apply the benchmark's Bergamot single-line normalization, and an exact source correction for `The magical core` being blocked because `Glossary.prepare` rewrote `core` to `الجوهرة` before the exact-source lookup.
+- These are test/normalization defects; they do not establish a runtime translation engine failure.
+
+### Fixes committed
+- Commit `8585dfab05ff88dacc4ea66c52cd79e1e35594b1`:
+  - Update quality benchmark expectations from 20 to 23 cases.
+  - Make the paired-engine test resolve each prepared input using the same `BergamotTextPreparation.asSingleLine(Glossary.prepare(...))` transformation as production.
+  - Match source-aware dialogue corrections against normalized raw OCR source, not Glossary-mutated text. This lets the exact fantasy phrase `The magical core` override the generic glossary term `core`.
+  - Update the magical-core regression test to exercise the glossary-collision case.
+- New push and dynamic validation were queued for this commit at the time of this report update; no pass result is claimed yet.
+
+### Release gate
+- App version metadata is `0.12.10`, versionCode `50`.
+- Latest published Release remains `v0.12.9`; it contains `ManhwaLens-v0.12.9-debug.apk`.
+- No v0.12.10 APK has been verified or published. Do not ask for installation until unit tests, build, signer fingerprint, package/versionCode and update compatibility all pass.
+
+### Next actions
+1. Verify CI on commit `8585dfab...`; inspect exact failures if any remain.
+2. Update this report after CI and after any source changes.
+3. Add a dedicated post-processing/visible-output quality evaluation separate from raw ML Kit benchmark results.
+4. Continue adversarial Joined-pipe mapping tests and OCR dataset evaluation.
