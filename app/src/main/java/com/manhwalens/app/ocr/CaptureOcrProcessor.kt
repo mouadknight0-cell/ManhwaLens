@@ -78,6 +78,7 @@ internal class CaptureOcrProcessor(
 
             val owned = ownedRectsOverride ?: ownedRects()
             var garbageDropped = 0
+            var ownUiDropped = 0
             val filtered = if (filterResult.kept.isEmpty()) {
                 emptyList()
             } else {
@@ -85,19 +86,25 @@ internal class CaptureOcrProcessor(
                     SystemClock.elapsedRealtime()
                 }
                 val noPatchRects = emptyList<Rect2D>()
+                val noOwnedRects = emptyList<Rect2D>()
                 filterResult.kept.filterNot { block ->
                     val verdict = classifier.classify(
                         block.text.replace('\n', ' ').trim(),
                         block.bounds,
                         patchRects = noPatchRects,
-                        ownedRects = owned
+                        ownedRects = noOwnedRects
                     )
+                    val isOwnUi = com.manhwalens.app.live.OwnUiFilter.isOwnUi(block.bounds, owned)
                     if (!verdict.keep) {
                         garbageDropped++
                         recordDrop(verdict.reason.name)
                         PipelineTracer.span("ocr drop", 0, "#${block.id}=${verdict.reason}")
+                    } else if (isOwnUi) {
+                        ownUiDropped++
+                        recordDrop("own-window")
+                        PipelineTracer.span("ocr drop", 0, "#${block.id}=own-window")
                     }
-                    !verdict.keep
+                    !verdict.keep || isOwnUi
                 }
             }
             PipelineTracer.record(
@@ -105,7 +112,7 @@ internal class CaptureOcrProcessor(
                 com.manhwalens.app.util.StageTrace.Status.OK,
                 SystemClock.elapsedRealtime() - filterStartedAt,
                 "kept=${filtered.size}/${grouped.size} blockFilter=${filterResult.removed.size} " +
-                    "garbage/window=$garbageDropped"
+                    "garbage=$garbageDropped ownUi=$ownUiDropped"
             )
             diagnostics?.recordOcr(lines, grouped, filtered, recognized.elapsedMs)
             filtered
