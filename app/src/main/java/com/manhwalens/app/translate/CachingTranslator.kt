@@ -57,7 +57,7 @@ class CachingTranslator(
      * and re-served for the rest of the chapter.
      */
     private val requiresArabicGuard: Boolean
-        get() = engineId == "gemini" || engineId == "libre_translate" || engineId == "ml_kit_en_ar"
+        get() = engineId == "gemini" || engineId == "ml_kit_en_ar"
 
     override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
         if (blocks.isEmpty()) {
