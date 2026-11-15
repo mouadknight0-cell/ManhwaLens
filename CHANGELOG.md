@@ -1,3 +1,10 @@
+## 0.12.7 — isolate engine comparison timing
+- Prevent the ML Kit background separator self-test from running concurrently with the explicit ML Kit vs Bergamot diagnostic, which shares the process-wide translator and would distort measured latency.
+- Add a benchmark-only ML Kit warm-up that verifies/downloads the model and loads the translator without scheduling a new batching self-test.
+- Serialize the comparison and any already-running batching self-test through one process-wide diagnostic lock.
+- Keep the comparator cache-free and read-only with respect to the selected translation engine and batching preferences.
+- ML Kit remains the default; Bergamot remains optional and experimental.
+
 ## 0.12.6 — offline translation quality benchmark
 - Extend Settings → Diagnostics with a fixed 20-case English→Arabic reference corpus spanning dialogue, narration, short replies, names and sound effects.
 - Report Arabic quality-guard acceptance/rejection, exact normalized reference matches, elapsed time and mean Arabic token-overlap F1; explicitly label token overlap as a lexical diagnostic, not semantic accuracy.
