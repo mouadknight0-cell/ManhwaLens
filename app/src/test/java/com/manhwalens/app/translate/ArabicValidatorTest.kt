@@ -56,7 +56,7 @@ class ArabicValidatorTest {
     @Test
     fun detectsCommonEnglishWordsHiddenByOcrApostrophes() {
         assertEquals(
-            ArabicValidator.Issue.UNTRANSLATED_FRAGMENT,
+            ArabicValidator.Issue.PARTIAL_TRANSLATION,
             ArabicValidator.issue(
                 "I barely pay my sick mother's medical bills with what the hunter guild pays me.",
                 "أنا أدفع فواتير والدتي المريضة مع s'What the hunter guild يدفع لي"
