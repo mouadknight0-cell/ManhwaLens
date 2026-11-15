@@ -1,3 +1,14 @@
+# v0.12.3 — PaddleOCR-only OCR and offline-first translation
+
+1. Install the v0.12.3 APK on an ARM64 or ARMv7 Android phone.
+2. Open Settings: confirm there is no OCR engine selector and no LibreTranslate/Argos option.
+3. Select ML Kit translation, download the English→Arabic model once, enable Offline mode, then disconnect Wi-Fi/mobile data.
+4. Translate several manhwa pages using tap and Live modes. Confirm PaddleOCR detections appear in the diagnostic trace and ML Kit translations still render without network access.
+5. Select Gemini only while online and verify it is unavailable when Offline mode is enabled.
+6. Check cold-start PaddleOCR load time, warm latency, line accuracy, bubble grouping, and memory; compare against the v0.12.2 benchmark baseline.
+
+---
+
 # MANUAL_TESTS.md — Redmi 13C checklist
 
 Device: Redmi 13C (Helio G85, 720×1600, MIUI/HyperOS). Browser: **Brave**.
@@ -26,7 +37,7 @@ the diagnostics/log output for any failure.
 5. **FAIL:** successful neighbours disappear, English is painted as Arabic, or a partial
    narration is presented as complete.
 
-### P2-08 — LibreTranslate partial quality rejection
+### Retired P2-08 — LibreTranslate partial quality rejection (removed in v0.12.3)
 1. Only if a trusted HTTPS LibreTranslate test endpoint is available, select it and translate
    a page with multiple bubbles.
 2. **PASS:** valid Arabic responses are kept; any rejected/English-echo bubble remains blank;
@@ -475,23 +486,25 @@ Never run `lint`/`lintVitalRelease` on this box (memory constrained).
 2. Translate a webtoon page: note the time to first Arabic patch.
 3. Scroll to 3 more pages: no page pays a failed joined attempt (trace shows the chosen strategy).
 
-# v0.10.0 — self-hosted open-source translation + output guard
+# Historical v0.10.0 — self-hosted translation tests (retired in v0.12.3)
+
+> Do not run the LibreTranslate setup/tests below: the engine, client, and tests were removed in v0.12.3. Current verification is the v0.12.3 section at the top of this file.
 
 ## Setup
 
 The app ships an HTTPS client only. Run a LibreTranslate server with an installed English→Arabic Argos package, expose it through HTTPS, then enter the server base URL (or `/translate` URL) under Settings → Translation → LibreTranslate / Argos. A server API key is optional. Do not use an endpoint you do not trust.
 
-## M0.1 HTTPS and settings
+## Retired M0.1 HTTPS and settings
 1. Select LibreTranslate / Argos; enter the server HTTPS URL and optional key; Save.
 2. Try `http://...`, a URL containing credentials, or a URL with query parameters.
 **Expected:** these are rejected locally; no request is sent. The settings note says only OCR text is sent and the app does not run the server.
 
-## M0.2 Batched API contract (unit test)
+## Retired M0.2 Batched API contract (unit test)
 **Steps:** Run `LibreTranslateWireTest` and `LibreTranslateTranslatorTest`.
 **Expected:** one JSON request contains the page's `q` array, source `en`, target `ar`, format `text`, and optional key in the JSON body; returned translations map back to the original bubble IDs/order.
 **Pass:** request/response and malformed-response tests pass without a live network.
 
-## M0.3 Progressive tap and Live fallback (device + trusted test server)
+## Retired M0.3 Progressive tap and Live fallback (device + trusted test server)
 1. Select LibreTranslate and configure the test server. Translate a page by tapping the lens, then repeat with Live.
 2. Compare the first-bubble time with ML Kit-only mode. Stop the server or disconnect the phone and repeat.
 **Expected:** ML Kit patches appear first. A valid Arabic batch may replace them in place; a timeout, malformed response, or English echo leaves the ML Kit draft visible. No screenshot is sent to LibreTranslate.
@@ -521,16 +534,16 @@ still paints, and a lone name bubble is not blanked.
 one from cache, and progressive painting is still visibly progressive (first bubble before the page ends).
 **Evidence to record:** device model, engine, page id, and before/after screenshots.
 
-## M0.5 Permissions and privacy
-**Steps:** Inspect app permissions and both privacy-policy versions; run one LibreTranslate test with a trusted HTTPS server.
-**Expected:** `INTERNET` permission is present for optional network engines; request is HTTPS-only; API keys are never logged or put in the URL; only recognized text is sent to LibreTranslate.
+## Historical M0.5 Permissions and privacy
+**Steps:** Inspect app permissions and both privacy-policy versions; verify that Offline mode blocks Gemini and that PaddleOCR/ML Kit Translation work locally.
+**Expected:** `INTERNET` permission is present for optional network engines; request is HTTPS-only; API keys are never logged or put in the URL; PaddleOCR and ML Kit process OCR/translation locally; only optional Gemini features send data to Google.
 **Pass:** data flow matches `PRIVACY.md`, `privacy-policy.html`, and the in-app policy.
 
 ## M0.6 Build and release checks
 - `./gradlew :app:testDebugUnitTest`
 - `./gradlew :app:assembleDebug`
 - Confirm `versionCode = 29`, `versionName = "0.10.0"`.
-- Manually verify tap and Live on a supported Android device. The sandbox cannot validate overlay timing or a real HTTPS LibreTranslate deployment.
+- Manually verify tap and Live on a supported Android device. The sandbox cannot validate overlay timing or real-device OCR accuracy.
 
 
 ## P4-A — collect an OCR/ML Kit evidence report (tap path)
