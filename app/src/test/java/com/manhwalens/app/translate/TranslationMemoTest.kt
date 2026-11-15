@@ -99,7 +99,7 @@ class TranslationMemoTest {
         // Same burst, different OCR spelling: served from the memo, no second engine call.
         val second = caching.translatePage(listOf(TranslationBlock(1, "Kraak"))) as PageTranslation.Success
         assertEquals(1, calls)
-        assertEquals("AR:KRAK!", second.blocks.single().arabic)
+        assertEquals("طَق!", second.blocks.single().arabic)
     }
 
     @Test
