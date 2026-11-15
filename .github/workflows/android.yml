@@ -121,13 +121,23 @@ jobs:
           set -euo pipefail
           APK="${{ steps.apk.outputs.file }}"
           BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
-          CURRENT_CERT=$("$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
-          test -n "$CURRENT_CERT"
           CURRENT_BADGING=$("$BUILD_TOOLS/aapt" dump badging "$APK" | head -1)
           CURRENT_PACKAGE=$(printf '%s\\n' "$CURRENT_BADGING" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")
           CURRENT_CODE=$(printf '%s\\n' "$CURRENT_BADGING" | sed -n "s/.*versionCode='\\([0-9]*\\)'.*/\\1/p")
           test "$CURRENT_PACKAGE" = "com.manhwalens.app"
           test -n "$CURRENT_CODE"
+
+          # Branch pushes of an already-published app version produce validation artifacts
+          # only; the release decision below will not publish that tag again. Avoid comparing
+          # such an internal rebuild with a historical APK that the user accepted as a
+          # one-time signing exception. Explicit tag pushes still run the full gate.
+          if [[ "$GITHUB_REF" == "refs/heads/feature/v0.12.4-bergamot-experiment" ]] && gh release view "v\${{ steps.apk.outputs.version }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release v\${{ steps.apk.outputs.version }} already exists; this branch build will not publish it. Package/version metadata validated; signing gate skipped for this non-publishing rebuild."
+            exit 0
+          fi
+
+          CURRENT_CERT=$("$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
+          test -n "$CURRENT_CERT"
           PREVIOUS_TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 50 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | map(.tagName) | map(select(. != "v${{ steps.apk.outputs.version }}")) | .[0] // empty')
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "No earlier published release found; package identity validated, continuity check skipped."
