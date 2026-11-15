@@ -839,3 +839,16 @@ Never use one label as evidence for another.
 3. On the next device capture, inspect `CANDIDATE AR` versus `FINAL AR` for fresh and cache/fuzzy hits to validate the new trace semantics.
 4. Re-run the three-stage quality benchmark on-device and compare raw/cleaned/visible results against the prior 23-case 49.6% raw lexical baseline; do not call any F1 change a semantic accuracy gain without human review.
 5. Build an OCR-labeled page corpus with screenshots, box coordinates and ground-truth text before tuning PaddleOCR detection/recognition or BubbleGrouper thresholds.
+
+
+## Verification refresh — repository state checked after user follow-up (2026-11-15 22:14 +01:00)
+
+- Re-queried the live GitHub branch and confirmed current HEAD at the time of review: `00742cfade73d33f888be3686342fe2a22ef83ed` (documentation-only commit recording the chapter-3 quality/trace work).
+- All three workflows on this exact HEAD completed successfully:
+  - Android build / push #43758351474 — success.
+  - Android build / pull_request #43758356361 — success.
+  - Automatic Dependency Submission / dynamic #43758351325 — success.
+- This validates CI for the current branch snapshot, including unit tests/build/signing/update checks in the Android build workflow. It does not constitute physical-device testing or semantic translation validation.
+- PR #4 remains open Draft, mergeable, and targets `feature/v0.12.3-paddle-default-settings`; preserve the stacked-branch integration order.
+- Release state unchanged: v0.12.10 remains the latest published prerelease APK. No new APK or release is claimed from this work.
+- Next engineering priority: validate cache provenance and post-processing against a fresh device pair log using the corrected raw-candidate/final-output fields; then collect OCR ground truth with bubble bounding boxes before changing PaddleOCR or grouping thresholds.
