@@ -80,7 +80,11 @@ object TranslationQualityBenchmark {
         Case(17, "dialogue", "It hurts… but I can still stand.", "هذا مؤلم... لكنني ما زلت قادرًا على الوقوف."),
         Case(18, "short", "Run!", "اهرب!"),
         Case(19, "dialogue", "Who gave you permission to enter this room?", "من سمح لك بدخول هذه الغرفة؟"),
-        Case(20, "dialogue", "From now on, you are my student.", "من الآن فصاعدًا، أنت تلميذي.")
+        Case(20, "dialogue", "From now on, you are my student.", "من الآن فصاعدًا، أنت تلميذي."),
+        // Added from the 2026-11-15 device capture: these exact inputs exposed idiom/terminology failures.
+        Case(21, "idiom", "Ha, this is a piece of cake.", "ها، هذا سهل للغاية."),
+        Case(22, "dialogue", "Looks like it's done!", "يبدو أن الأمر انتهى!"),
+        Case(23, "terminology", "The magical core", "النواة السحرية.")
     )
 
     fun run(
