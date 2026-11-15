@@ -19,7 +19,6 @@ import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
-import kotlin.math.ceil
 
 data class RecPreprocessResult(
     val tensorData: FloatArray,
