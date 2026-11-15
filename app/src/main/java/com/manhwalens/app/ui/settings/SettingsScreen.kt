@@ -376,9 +376,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Thread {
                         val report = try {
                             val mlkit = com.manhwalens.app.translate.mlkit.MlKitTranslator
-                            if (!mlkit.warmUpForBenchmark()) {
-                                throw IllegalStateException("ML Kit EN→AR model is not ready; connect to Wi-Fi once and retry")
-                            }
                             if (!com.wasimaster.wmkeyboard.core.translate.BergamotNative.supported ||
                                 !com.wasimaster.wmkeyboard.core.translate.BergamotNative.available) {
                                 throw IllegalStateException("Bergamot native runtime is not supported on this device")
@@ -388,9 +385,12 @@ fun SettingsScreen(onBack: () -> Unit) {
                             }
                             val bergamot = com.manhwalens.app.translate.bergamot.BergamotEnArTranslator(context)
                             try {
-                                // Serialize against the background ML Kit separator self-test:
-                                // concurrent calls to the shared client would distort timing.
+                                // Hold the diagnostic lock across ML Kit pre-warm AND every measured
+                                // pass so a pending background separator self-test cannot overlap.
                                 val comparison = com.manhwalens.app.translate.mlkit.MlKitTranslator.withDiagnosticLock {
+                                    if (!mlkit.warmUpForBenchmark()) {
+                                        throw IllegalStateException("ML Kit EN→AR model is not ready; connect to Wi-Fi once and retry")
+                                    }
                                     com.manhwalens.app.translate.EngineComparisonBenchmark.run(
                                         translateMlKitBatch = { inputs -> inputs.map { mlkit.translateRaw(it) } },
                                         translateBergamotBatch = { inputs ->
