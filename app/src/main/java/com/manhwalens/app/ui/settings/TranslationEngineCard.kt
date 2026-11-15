@@ -64,9 +64,6 @@ fun TranslationEngineCard() {
     var engine by remember { mutableStateOf(prefs.engine) }
     var keyField by remember { mutableStateOf(prefs.geminiKey) }
     var savedTick by remember { mutableStateOf(0) }
-    var libreEndpointField by remember { mutableStateOf(prefs.libreTranslateUrl) }
-    var libreKeyField by remember { mutableStateOf(prefs.libreTranslateApiKey) }
-    var libreSavedTick by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var checking by remember { mutableStateOf(false) }
@@ -203,13 +200,6 @@ fun TranslationEngineCard() {
                 selected = engine == TranslationEngine.GEMINI,
                 onSelect = { select(TranslationEngine.GEMINI) }
             )
-            EngineOption(
-                title = stringResource(R.string.engine_libre_translate),
-                caption = stringResource(R.string.engine_libre_translate_caption),
-                selected = engine == TranslationEngine.LIBRE_TRANSLATE,
-                onSelect = { select(TranslationEngine.LIBRE_TRANSLATE) }
-            )
-
             if (engine == TranslationEngine.GEMINI) {
                 Spacer(Modifier.size(12.dp))
                 OutlinedTextField(
@@ -302,62 +292,6 @@ fun TranslationEngineCard() {
                                 .padding(12.dp)
                                 .heightIn(max = 240.dp)
                                 .verticalScroll(rememberScrollState())
-                        )
-                    }
-                }
-            }
-
-            if (engine == TranslationEngine.LIBRE_TRANSLATE) {
-                Spacer(Modifier.size(12.dp))
-                OutlinedTextField(
-                    value = libreEndpointField,
-                    onValueChange = { libreEndpointField = it; libreSavedTick = false },
-                    label = { Text(stringResource(R.string.libre_translate_url_label)) },
-                    placeholder = { Text(stringResource(R.string.libre_translate_url_placeholder)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = libreKeyField,
-                    onValueChange = { libreKeyField = it; libreSavedTick = false },
-                    label = { Text(stringResource(R.string.libre_translate_key_label)) },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                )
-                Text(
-                    text = stringResource(R.string.libre_translate_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 6.dp)
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(onClick = {
-                        prefs.libreTranslateUrl = libreEndpointField
-                        prefs.libreTranslateApiKey = libreKeyField
-                        libreSavedTick = true
-                        testResult = null
-                    }) {
-                        Text(stringResource(R.string.libre_translate_save))
-                    }
-                    TextButton(onClick = {
-                        prefs.clearLibreTranslateSettings()
-                        libreEndpointField = ""
-                        libreKeyField = ""
-                        libreSavedTick = false
-                        testResult = null
-                    }) {
-                        Text(stringResource(R.string.libre_translate_clear))
-                    }
-                    if (libreSavedTick) {
-                        Text(
-                            text = stringResource(R.string.libre_translate_saved),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF4ADE80)
                         )
                     }
                 }
