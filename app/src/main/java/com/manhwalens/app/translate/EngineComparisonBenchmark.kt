@@ -39,6 +39,7 @@ object EngineComparisonBenchmark {
         fun toText(): String = buildString {
             appendLine("Offline engine comparison (same ${totalCases}-case EN→AR corpus)")
             appendLine("Identical preprocessing: glossary + single-line normalization · no app translation cache")
+            appendLine("Raw-engine comparison: cross-engine quality fallback is disabled; each engine is evaluated on its own outputs.")
             appendLine("ML Kit page dispatch: $mlKitDispatchDescription")
             appendLine("Bergamot page dispatch: one native multi-input request per pass for this fixed corpus")
             appendLine("Passes: ${MEASURED_PASSES} per engine; first pass reported separately (Bergamot may include native model loading; ML Kit model is prechecked), next ${MEASURED_PASSES - 1} are warm")
