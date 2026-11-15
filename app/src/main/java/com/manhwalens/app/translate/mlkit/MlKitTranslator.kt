@@ -521,17 +521,18 @@ class MlKitTranslator(
          * Returns true when ready. Bounded to 30 s; safe to call from a background thread.
          */
         @JvmStatic
-        fun warmUp(): Boolean = warmUpInternal(runBatchSelfTest = true)
+        fun warmUp(): Boolean = warmUpInternal(reason = "service start", runBatchSelfTest = true)
 
         /**
-         * Prepares the shared ML Kit model for a controlled engine comparison without
-         * launching the background batching self-test that would compete for the same
-         * translator and contaminate measured latency.
+         * Prepares the shared ML Kit model for a controlled diagnostic without launching
+         * the background batching self-test. The caller supplies the diagnostic name so
+         * warmth reports cannot confuse the batching benchmark with the engine comparison.
          */
         @JvmStatic
-        fun warmUpForBenchmark(): Boolean = warmUpInternal(runBatchSelfTest = false)
+        fun warmUpForBenchmark(reason: String): Boolean =
+            warmUpInternal(reason = reason, runBatchSelfTest = false)
 
-        private fun warmUpInternal(runBatchSelfTest: Boolean): Boolean = try {
+        private fun warmUpInternal(reason: String, runBatchSelfTest: Boolean): Boolean = try {
             Tasks.await(
                 SHARED_CLIENT.downloadModelIfNeeded(DownloadConditions.Builder().requireWifi().build()),
                 30L,
@@ -539,7 +540,7 @@ class MlKitTranslator(
             )
             sharedModelReady = true
             // Load the model into memory before measuring the warm ML Kit passes.
-            keepWarm(if (runBatchSelfTest) "service start" else "engine comparison")
+            keepWarm(reason)
             if (runBatchSelfTest) maybeStartSelfTest()
             true
         } catch (e: Exception) {
