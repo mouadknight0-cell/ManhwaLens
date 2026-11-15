@@ -62,7 +62,8 @@ class TextRecognizerClient(context: Context) {
                     context = appContext,
                     config = PaddleOCRConfig(
                         detLimitSideLen = PADDLE_DET_LIMIT_SIDE,
-                        detLimitType = "max",
+                        // Keep narrow phone text large; the 1920px cap bounds CPU and memory use.
+                        detLimitType = "min",
                         detMaxSideLimit = PADDLE_DET_MAX_SIDE,
                         recScoreThresh = PADDLE_MIN_REC_CONFIDENCE
                     ),
