@@ -25,6 +25,11 @@ object TranslationQualityBenchmark {
         val issue: ArabicValidator.Issue?,
         val exactMatch: Boolean,
         val tokenF1: Double,
+        /** Result after generic cleanup (labels, punctuation and dialogue hygiene), before source overrides. */
+        val cleanedAccepted: Boolean,
+        val cleanedIssue: ArabicValidator.Issue?,
+        val cleanedExactMatch: Boolean,
+        val cleanedTokenF1: Double,
         /** Final text produced by the same pure sanitizer used by the visible pipeline. */
         val visibleAccepted: Boolean,
         val visibleIssue: ArabicValidator.Issue?,
@@ -35,6 +40,7 @@ object TranslationQualityBenchmark {
         val source: String,
         val referenceArabic: String,
         val output: String,
+        val cleanedOutput: String,
         val visibleOutput: String
     )
 
@@ -48,6 +54,11 @@ object TranslationQualityBenchmark {
         val elapsedMs: Long,
         val cases: List<CaseResult>
     ) {
+        val cleanedAccepted: Int get() = cases.count { it.cleanedAccepted }
+        val cleanedRejected: Int get() = cases.size - cleanedAccepted
+        val cleanedExactMatches: Int get() = cases.count { it.cleanedExactMatch }
+        val meanCleanedTokenF1: Double get() =
+            if (cases.isEmpty()) 0.0 else cases.map { it.cleanedTokenF1 }.average()
         val visibleAccepted: Int get() = cases.count { it.visibleAccepted }
         val visibleRejected: Int get() = cases.size - visibleAccepted
         val visibleExactMatches: Int get() = cases.count { it.visibleExactMatch }
@@ -59,20 +70,23 @@ object TranslationQualityBenchmark {
             appendLine("ML Kit offline translation quality check (EN→AR)")
             appendLine("Engine: ML Kit only. The selected offline engine setting does not affect this diagnostic.")
             appendLine("Reference cases: $total · completed: $completed")
-            appendLine("RAW ENGINE: accepted $accepted/$total · rejected/missing $rejected · exact $exactMatches/$total · mean token F1 ${"%.1f".format(java.util.Locale.ROOT, meanTokenF1 * 100)}%")
-            appendLine("VISIBLE PIPELINE: accepted $visibleAccepted/$total · rejected $visibleRejected · exact $visibleExactMatches/$total · mean token F1 ${"%.1f".format(java.util.Locale.ROOT, meanVisibleTokenF1 * 100)}%")
-            appendLine("Exact source corrections applied: $sourceOverridesApplied · elapsed: ${elapsedMs}ms")
-            appendLine("Visible output applies shared cleanup + exact source dialogue corrections. Series NameSession overrides are not included in this standalone benchmark.")
-            appendLine("NOTE: both F1 values measure lexical overlap only, NOT semantic accuracy; alternate valid Arabic wording may score lower.")
+            appendLine("RAW ENGINE CANDIDATE: accepted $accepted/$total · rejected/missing $rejected · exact $exactMatches/$total · mean token F1 ${"%.1f".format(java.util.Locale.ROOT, meanTokenF1 * 100)}%")
+            appendLine("CLEANED CANDIDATE: accepted $cleanedAccepted/$total · rejected $cleanedRejected · exact $cleanedExactMatches/$total · mean token F1 ${"%.1f".format(java.util.Locale.ROOT, meanCleanedTokenF1 * 100)}%")
+            appendLine("FINAL VISIBLE OUTPUT: accepted $visibleAccepted/$total · rejected $visibleRejected · exact $visibleExactMatches/$total · mean token F1 ${"%.1f".format(java.util.Locale.ROOT, meanVisibleTokenF1 * 100)}%")
+            appendLine("Exact source corrections applied: $sourceOverridesApplied · elapsed: ${elapsedMs}ms (one engine result per case; remaining stages are local)")
+            appendLine("Stages: raw engine → shared cleanup (labels/punctuation/dialogue hygiene) → exact source dialogue corrections + final guard.")
+            appendLine("Series NameSession overrides are not included in this standalone benchmark.")
+            appendLine("NOTE: all F1 values measure lexical overlap only, NOT semantic accuracy; alternate valid Arabic wording may score lower.")
             fun appendWeakCases(title: String, selected: List<CaseResult>) {
                 if (selected.isEmpty()) return
                 appendLine(title)
                 selected.forEach {
-                    appendLine("  #${it.id} ${it.category}: raw F1 ${"%.2f".format(java.util.Locale.ROOT, it.tokenF1)} · visible F1 ${"%.2f".format(java.util.Locale.ROOT, it.visibleTokenF1)} · raw ${it.issue ?: if (it.accepted) "accepted" else "missing"} · visible ${it.visibleIssue ?: if (it.visibleAccepted) "accepted" else "missing"}")
+                    appendLine("  #${it.id} ${it.category}: F1 raw ${"%.2f".format(java.util.Locale.ROOT, it.tokenF1)} · cleaned ${"%.2f".format(java.util.Locale.ROOT, it.cleanedTokenF1)} · visible ${"%.2f".format(java.util.Locale.ROOT, it.visibleTokenF1)}")
                     appendLine("    EN: ${it.source}")
                     appendLine("    REF: ${it.referenceArabic}")
                     appendLine("    RAW: ${it.output.ifBlank { "<empty>" }}")
-                    appendLine("    VISIBLE: ${it.visibleOutput.ifBlank { "<empty>" }}")
+                    appendLine("    CLEANED: ${it.cleanedOutput.ifBlank { "<empty>" }} · ${it.cleanedIssue ?: if (it.cleanedAccepted) "accepted" else "missing"}")
+                    appendLine("    VISIBLE: ${it.visibleOutput.ifBlank { "<empty>" }} · ${it.visibleIssue ?: if (it.visibleAccepted) "accepted" else "missing"}")
                 }
             }
             appendWeakCases(
@@ -128,6 +142,8 @@ object TranslationQualityBenchmark {
             // candidate. TranslationOutputSanitizer.prepare is the same pure cleanup,
             // exact-source correction and Arabic guard used by progressive painting.
             val cleanedCandidate = TranslationOutputSanitizer.clean(output)
+            val cleanedIssue = ArabicValidator.issue(case.source, cleanedCandidate)
+            val cleanedAccepted = cleanedIssue == null
             val sourceCorrectedCandidate = ShortDialogueOverrides.apply(case.source, cleanedCandidate)
             val visibleBlock = TranslationOutputSanitizer.prepare(
                 TranslatedBlock(case.id, case.source, output)
@@ -138,6 +154,7 @@ object TranslationQualityBenchmark {
                 else -> ArabicValidator.issue(case.source, sourceCorrectedCandidate)
             }
             val f1 = tokenF1(output, case.referenceArabic)
+            val cleanedF1 = tokenF1(cleanedCandidate, case.referenceArabic)
             val visibleF1 = tokenF1(visibleOutput, case.referenceArabic)
             CaseResult(
                 id = case.id,
@@ -146,6 +163,10 @@ object TranslationQualityBenchmark {
                 issue = issue,
                 exactMatch = normalize(output) == normalize(case.referenceArabic),
                 tokenF1 = f1,
+                cleanedAccepted = cleanedAccepted,
+                cleanedIssue = cleanedIssue,
+                cleanedExactMatch = normalize(cleanedCandidate) == normalize(case.referenceArabic),
+                cleanedTokenF1 = cleanedF1,
                 visibleAccepted = visibleBlock != null,
                 visibleIssue = visibleIssue,
                 visibleExactMatch = normalize(visibleOutput) == normalize(case.referenceArabic),
@@ -154,6 +175,7 @@ object TranslationQualityBenchmark {
                 source = case.source,
                 referenceArabic = case.referenceArabic,
                 output = output,
+                cleanedOutput = cleanedCandidate,
                 visibleOutput = visibleOutput
             )
         }
