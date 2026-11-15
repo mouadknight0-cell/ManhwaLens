@@ -302,52 +302,53 @@ fun SettingsScreen(onBack: () -> Unit) {
                     benchmarkRunning = true
                     Thread {
                         val report = try {
-                            // v0.9.9: same shared, pre-warmed client the pipeline uses (no
-                            // second engine instance); warmUp() makes sure the model is there.
+                            // Keep the shared ML Kit client exclusive for the whole batching
+                            // diagnostic. Parallel worker callbacks bypass the read gate only
+                            // because they are owned by this exclusive diagnostic lease.
                             val policy = com.manhwalens.app.translate.TranslatorFactory.ensureBatchPolicy(context)
                             val mlkit = com.manhwalens.app.translate.mlkit.MlKitTranslator
-                            if (!mlkit.isModelReady() && !mlkit.warmUp()) {
-                                throw IllegalStateException("EN→AR model is not downloaded yet (needs internet once)")
-                            }
-                            val result = com.manhwalens.app.translate.BenchmarkRunner.run(
-                                translateOne = { text -> mlkit.translateRaw(text) }
-                            )
-                            // Fixed EN→AR reference corpus: report guard acceptance and lexical
-                            // overlap separately; this diagnostic never changes engine policy.
-                            val qualityReport = com.manhwalens.app.translate.TranslationQualityBenchmark.run(
-                                translateOne = { text -> mlkit.translateRaw(text) }
-                            )
-                            // The benchmark is the strongest proof available on this device:
-                            // adopt its verdict, unless joined mode is serving a failure ban.
-                            val verdict = result.recommend()
-                            policy.recordParallelLevel(result.bestPerBlockLevel())
-                            val current = policy.current()
-                            val currentRow = result.strategies.firstOrNull { it.strategy != null && it.strategy == current }
-                            val adopted = when {
-                                currentRow != null && !currentRow.mappedOk -> {
-                                    policy.noteJoinedFailure(currentRow.strategy!!, "benchmark: ${currentRow.detail}")
-                                    "runtime separator ${currentRow.strategy.label} FAILED here → that separator is banned for 7 days"
+                            mlkit.withDiagnosticLock {
+                                if (!mlkit.warmUpForBenchmark()) {
+                                    throw IllegalStateException("EN→AR model is not downloaded yet (needs internet once)")
                                 }
-                                policy.isJoinedBlocked() -> "joined stays disabled (earlier mismatches) — verdict not applied"
-                                verdict.strategy != null && policy.isBanned(verdict.strategy) -> {
-                                    policy.recordChoice(null, "benchmark: best separator is banned after a real-page mismatch")
-                                    "best separator ${verdict.strategy.label} is banned (failed on a real page) → parallel"
-                                }
-                                else -> {
-                                    policy.recordChoice(verdict.strategy, "benchmark: " + verdict.why)
-                                    "verdict applied"
-                                }
-                            }
-                            result.toText(
-                                listOf(
-                                    "Runtime now: " + policy.describe(),
-                                    "($adopted)",
-                                    "Warm state: " + com.manhwalens.app.translate.MlKitWarmth.describe(System.currentTimeMillis()),
-                                    "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}",
-                                    "",
-                                    qualityReport.toText()
+                                val raw = mlkit::translateRawForExclusiveDiagnostic
+                                val result = com.manhwalens.app.translate.BenchmarkRunner.run(translateOne = raw)
+                                // Fixed EN→AR reference corpus: report guard acceptance and lexical
+                                // overlap separately; it does not change the selected engine.
+                                val qualityReport = com.manhwalens.app.translate.TranslationQualityBenchmark.run(
+                                    translateOne = raw
                                 )
-                            )
+                                // The batching benchmark intentionally adopts its measured verdict.
+                                val verdict = result.recommend()
+                                policy.recordParallelLevel(result.bestPerBlockLevel())
+                                val current = policy.current()
+                                val currentRow = result.strategies.firstOrNull { it.strategy != null && it.strategy == current }
+                                val adopted = when {
+                                    currentRow != null && !currentRow.mappedOk -> {
+                                        policy.noteJoinedFailure(currentRow.strategy!!, "benchmark: ${currentRow.detail}")
+                                        "runtime separator ${currentRow.strategy.label} FAILED here → that separator is banned for 7 days"
+                                    }
+                                    policy.isJoinedBlocked() -> "joined stays disabled (earlier mismatches) — verdict not applied"
+                                    verdict.strategy != null && policy.isBanned(verdict.strategy) -> {
+                                        policy.recordChoice(null, "benchmark: best separator is banned after a real-page mismatch")
+                                        "best separator ${verdict.strategy.label} is banned (failed on a real page) → parallel"
+                                    }
+                                    else -> {
+                                        policy.recordChoice(verdict.strategy, "benchmark: " + verdict.why)
+                                        "verdict applied"
+                                    }
+                                }
+                                result.toText(
+                                    listOf(
+                                        "Runtime now: " + policy.describe(),
+                                        "($adopted)",
+                                        "Warm state: " + com.manhwalens.app.translate.MlKitWarmth.describe(System.currentTimeMillis()),
+                                        "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}",
+                                        "",
+                                        qualityReport.toText()
+                                    )
+                                )
+                            }
                         } catch (e: Exception) {
                             "Benchmark could not run: ${e.javaClass.simpleName} — ${e.message}"
                         }
