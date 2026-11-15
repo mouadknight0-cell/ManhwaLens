@@ -1038,3 +1038,32 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 3. طلب اختبار الهاتف وفق v0.12.7 في MANUAL_TESTS.md، بما في ذلك مقارنة المحركين دون اتصال ونسخ التقرير ومراجعة المعنى لكل حالة.
 
 حالة الجهاز: Not verified. حالة CI لـ v0.12.7: Pending. حالة Release لـ v0.12.7: Pending.
+
+## 19. v0.12.7 — verification and published APK (2026-11-15)
+
+### 19.1 Final fix on the development head
+- Commit: `213cb486297d231f1e2edb3616b14bc5a9d715e5` — `fix(benchmark): skip stale queued batching self-tests`.
+- The queued background batching self-test now rechecks `policy.needsSelfTest()` after acquiring the exclusive diagnostic lock. It exits without writing when the interactive diagnostic has already stored a fresh choice, avoiding stale policy overwrite.
+- This change complements the earlier fair read/write gate and the explicit comparison's exclusive section. Normal page translations remain shared; diagnostics are exclusive. The BatchAutoSelect worker callback bypasses read-lock acquisition only while its parent diagnostic owns the exclusive gate.
+
+### 19.2 CI
+| Workflow | Run | Result |
+|---|---:|---|
+| Development branch push | [43719094340](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43719094340) | Success |
+| PR #4 validation | [43719099811](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43719099811) | Success |
+
+- Both exact-head runs completed pinned PaddleOCR download/SHA-256 checks, pinned Bergamot ARM64 runtime checks, JVM unit tests and debug APK assembly.
+- The push run uploaded the APK and test reports and published v0.12.7. The PR run correctly skipped Release publication.
+- Run 43718878249 was superseded/cancelled during APK assembly after its unit-test step succeeded; it is not used as final green evidence.
+
+### 19.3 Release and install continuity
+- Published prerelease: [ManhwaLens v0.12.7](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.7).
+- Asset: `ManhwaLens-v0.12.7-debug.apk`; 71,347,910 bytes; SHA-256 `8f0eb02118c2cb70a93995acd6a79e8554459012b7bf57e0746bae2f6db6c84d`.
+- `applicationId=com.manhwalens.app`; `versionName=0.12.7`; `versionCode=47`; ABI filters: `arm64-v8a, armeabi-v7a`.
+- v0.12.6 used the same applicationId and versionCode 46.
+- The stable debug keystore source file is byte-identical across the v0.12.6 and v0.12.7 source commits (Git blob SHA `68bd7f5388218224353f11b456ff3c29fb44c64c`). Both CI workflows restore it to `~/.android/debug.keystore` before debug packaging. This is signing-key continuity evidence, not a substitute for the final real-device update-install check.
+
+### 19.4 Remaining verification
+- No phone test is claimed. Still outstanding: update-install on top of v0.12.6, actual offline OCR, Bergamot JNI/model inference, translation semantic review, latency and RAM.
+- ML Kit remains the default; Bergamot remains experimental until device evidence and manual semantic comparison justify a change.
+- PR #4 remains open Draft, based on `feature/v0.12.3-paddle-default-settings`; no merge to main was performed.
