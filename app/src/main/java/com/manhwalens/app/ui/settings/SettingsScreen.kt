@@ -376,7 +376,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Thread {
                         val report = try {
                             val mlkit = com.manhwalens.app.translate.mlkit.MlKitTranslator
-                            if (!mlkit.isModelReady() && !mlkit.warmUp()) {
+                            if (!mlkit.warmUp()) {
                                 throw IllegalStateException("ML Kit EN→AR model is not ready; connect to Wi-Fi once and retry")
                             }
                             if (!com.wasimaster.wmkeyboard.core.translate.BergamotNative.supported ||
