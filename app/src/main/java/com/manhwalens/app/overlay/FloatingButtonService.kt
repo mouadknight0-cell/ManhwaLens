@@ -504,13 +504,30 @@ class FloatingButtonService : Service() {
         }
     }
 
+    private val bergamotReleaseScheduled = AtomicBoolean(false)
+
+    /** Native release can wait for an in-flight translation; never block Android's main callback. */
+    private fun releaseBergamotAsync() {
+        if (!bergamotReleaseScheduled.compareAndSet(false, true)) return
+        Thread({
+            try {
+                com.manhwalens.app.translate.TranslatorFactory.releaseBergamot()
+            } finally {
+                bergamotReleaseScheduled.set(false)
+            }
+        }, "ManhwaLens-BergamotRelease").apply {
+            isDaemon = true
+            start()
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
             // Native model memory is sizeable; drop it under pressure and reload lazily later.
-            runCatching { com.manhwalens.app.translate.TranslatorFactory.releaseBergamot() }
+            releaseBergamotAsync()
         }
     }
 
