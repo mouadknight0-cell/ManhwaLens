@@ -521,8 +521,8 @@ class FloatingButtonService : Service() {
         liveHandler.removeCallbacks(liveTickRunnable)
         statusPill?.hide()
         statusPill = null
-        runCatching { ioExecutor.shutdown() }
-        runCatching { remoteExecutor.shutdown() }
+        runCatching { ioExecutor.shutdownNow() }
+        runCatching { remoteExecutor.shutdownNow() }
         patchOverlay?.detach()
         patchOverlay = null
         reviewWindow?.hide()
