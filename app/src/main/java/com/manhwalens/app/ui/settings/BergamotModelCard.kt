@@ -65,7 +65,7 @@ fun BergamotModelCard() {
                 Text(message, style = MaterialTheme.typography.bodySmall)
                 if (busy) {
                     Spacer(Modifier.size(8.dp))
-                    LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                    LinearProgressIndicator(progress = progress, modifier = Modifier.fillMaxWidth())
                 }
                 Spacer(Modifier.size(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
