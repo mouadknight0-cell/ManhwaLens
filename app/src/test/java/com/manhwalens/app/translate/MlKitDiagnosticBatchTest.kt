@@ -68,6 +68,30 @@ class MlKitDiagnosticBatchTest {
     }
 
     @Test
+    fun retriesOnlyMissingParallelBubblesOnceSequentially() {
+        val attempts = mutableMapOf<String, Int>()
+        val result = MlKitDiagnosticBatch.translate(
+            inputs = listOf("first", "second", "third"),
+            parallelLevel = 2,
+            joinedStrategy = null
+        ) { input ->
+            val count = synchronized(attempts) {
+                val next = (attempts[input] ?: 0) + 1
+                attempts[input] = next
+                next
+            }
+            if (input == "second" && count == 1) "" else "ترجمة $input"
+        }
+
+        assertEquals(listOf("ترجمة first", "ترجمة second", "ترجمة third"), result.outputs)
+        assertEquals(1, result.retriedCount)
+        assertEquals(2, attempts["second"])
+        assertEquals(1, attempts["first"])
+        assertEquals(1, attempts["third"])
+        assertTrue(result.dispatch.contains("sequential retry x1"))
+    }
+
+    @Test
     fun unsafeMarkerInSourceSkipsJoinedRequestWithoutChangingTheSource() {
         val calls = mutableListOf<String>()
         val result = MlKitDiagnosticBatch.translate(
