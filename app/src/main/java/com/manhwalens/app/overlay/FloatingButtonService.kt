@@ -2978,7 +2978,7 @@ class FloatingButtonService : Service() {
                                 "${tr.reason}: ${tr.message}"
                             )
                             // Remote failure → translate offline for THIS capture only.
-                            if (tr.engineId == "gemini" || tr.engineId == "libre_translate") {
+                            if (tr.engineId == "gemini") {
                                 if (tr.engineId == "gemini") {
                                     // The Gemini circuit prevents repeated slow/key failures.
                                     openGeminiCircuit(tr.reason, tr.message)
