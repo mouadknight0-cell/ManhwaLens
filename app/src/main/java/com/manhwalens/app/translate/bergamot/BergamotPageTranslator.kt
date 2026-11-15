@@ -10,14 +10,15 @@ import kotlinx.coroutines.runBlocking
 
 /** Blocking adapter matching ManhwaLens' existing Translator contract. */
 internal class BergamotPageTranslator(context: Context) : Translator {
-    private val engine = BergamotEnArTranslator(context.applicationContext)
+    private val app = context.applicationContext
+    private val engine = BergamotEnArTranslator(app)
     override val engineId: String = "bergamot_en_ar"
 
     override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
         if (blocks.isEmpty()) return PageTranslation.Failure(
             FailureReason.EMPTY_INPUT, "No blocks to translate", engineId
         )
-        if (!BergamotEnArModel.isInstalled(context = appContext)) return PageTranslation.Failure(
+        if (!BergamotEnArModel.isInstalled(app)) return PageTranslation.Failure(
             FailureReason.MODEL_DOWNLOAD_FAILED,
             "Download the Bergamot English→Arabic model in Settings first",
             engineId
@@ -39,9 +40,4 @@ internal class BergamotPageTranslator(context: Context) : Translator {
         }
     }
 
-    companion object {
-        private lateinit var appContext: Context
-    }
-
-    init { appContext = context.applicationContext }
 }
