@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ManhwaLens — Privacy Policy</title>
+<style>
+  body { max-width: 760px; margin: 40px auto; padding: 0 18px; font: 17px/1.6 -apple-system, Segoe UI, Roboto, sans-serif; color: #1d1d26; }
+  h1 { font-size: 1.6em; border-bottom: 3px solid #8B7CF6; padding-bottom: .3em; }
+  h2 { font-size: 1.15em; margin-top: 1.6em; color: #3d2ea8; }
+  code { background: #f0eefc; padding: 2px 6px; border-radius: 4px; }
+  table { border-collapse: collapse; } td, th { border: 1px solid #ddd; padding: 6px 10px; font-size: .92em; }
+  .muted { color: #6b6b7d; font-size: .9em; }
+</style>
+</head>
+<body>
+<h1>ManhwaLens — Privacy Policy</h1>
+<p class="muted">Effective 2026-11-13 · Version 0.10.0</p>
+<p>ManhwaLens captures the visible frame after Android's MediaProjection consent. OCR, bubble grouping, filtering, and overlay rendering happen on the device.</p>
+
+<h2>On-device mode</h2>
+<ul>
+  <li>With <strong>ML Kit</strong> selected, English→Arabic translation runs on-device; no translation text or frame is sent to a network service.</li>
+  <li>The memory and app-private disk translation cache contains source and translated text only. It can be cleared in Settings.</li>
+  <li>When diagnostics are enabled, a recent capture may be kept in app-private cache for review; it is not uploaded automatically.</li>
+</ul>
+
+<h2>Optional network engines</h2>
+<ul>
+  <li><strong>Gemini:</strong> if selected with your own API key, recognized bubble text is sent to Google's Gemini API over HTTPS. Text translation does not send screenshots. The key is stored in app-private preferences and sent in the <code>x-goog-api-key</code> header.</li>
+  <li><strong>AI cleanup:</strong> if separately enabled, cropped images of up to three bubbles and their Arabic translations may be sent to Gemini for image editing. It does not upload the full page.</li>
+  <li><strong>LibreTranslate / Argos:</strong> if selected, recognized text is sent in one batch over HTTPS to the LibreTranslate URL you configure. An optional server API key is sent in the HTTPS JSON request body. ManhwaLens does not operate or control that server; the server operator's privacy and retention rules apply. Use an endpoint you trust.</li>
+</ul>
+<p>The app does not log API keys or send analytics, ads, or telemetry. ManhwaLens has no user accounts and no translation server operated by the developer.</p>
+
+<h2>Permissions</h2>
+<table>
+  <tr><th>Permission</th><th>Purpose</th></tr>
+  <tr><td>Internet</td><td>Optional Gemini and user-configured HTTPS LibreTranslate requests</td></tr>
+  <tr><td>System alert window</td><td>Floating lens and translation overlay</td></tr>
+  <tr><td>MediaProjection / foreground service</td><td>User-consented screen capture</td></tr>
+  <tr><td>Notifications</td><td>Capture-session status and Stop action</td></tr>
+  <tr><td>Accessibility (optional)</td><td>Detect end of scrolling to trigger a capture; it does not read screen content</td></tr>
+</table>
+
+<h2>Your controls</h2>
+<ul>
+  <li>Choose ML Kit for on-device translation.</li>
+  <li>Clear Gemini and LibreTranslate settings, including keys, from Settings.</li>
+  <li>Clear the translation cache or disable diagnostics in Settings.</li>
+  <li>Revoke system permissions or uninstall at any time; uninstall removes app-private data.</li>
+</ul>
+
+<hr>
+<h2 dir="rtl">ملخص عربي</h2>
+<p dir="rtl">تُجرى معالجة OCR وتجميع الفقاعات على الجهاز بعد موافقة التقاط الشاشة. مع ML Kit تبقى الترجمة على الجهاز. اختيار Gemini يرسل نص الفقاعات إلى Google عبر HTTPS بمفتاحك، وخيار التنظيف التجريبي قد يرسل صورًا مقتطعة لما يصل إلى ثلاث فقاعات. اختيار LibreTranslate يرسل النص دفعة واحدة عبر HTTPS إلى عنوان الخادم الذي أدخلته، مع مفتاح اختياري في جسم JSON. لا يشغّل المطوّر خادمًا؛ تنطبق سياسة مشغّل الخادم الذي تختاره. يمكن مسح كاش النصوص والمفاتيح من الإعدادات. لا توجد تحليلات أو إعلانات أو بيانات قياس.</p>
+</body>
+</html>
