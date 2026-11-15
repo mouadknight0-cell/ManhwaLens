@@ -697,3 +697,13 @@ Never use one label as evidence for another.
 - Commit `e82fcf06e1c8f25a1067f84a73a35614548216c2` extends the KRAK/Kraak integration test: a fuzzy hit must not create an exact cache entry for Kraak, and a repeated Kraak request must still be served by the memo without another engine call.
 - Latest branch head verified: `e82fcf06e1c8f25a1067f84a73a35614548216c2`. No workflow run for this exact head was visible at the time of the check. The earlier run #43755298440 targets `6797b64e...` only and was still in progress; it is not final-head validation.
 - The latest report update itself is on the same branch and must be followed by CI verification for the final source/test head. No APK/release is claimed.
+
+
+### CI refresh after fuzzy-cache hardening (2026-11-15)
+- Final source/test head `e82fcf06e1c8f25a1067f84a73a35614548216c2` now has three GitHub Actions runs:
+  - #43755359766 — `in_progress`
+  - #43755355690 — `in_progress`
+  - #43755355154 — `in_progress`
+- Earlier runs on superseded heads `6797b64e...` and `2282f559...` were cancelled or are not final-head evidence. Run #43755297786 on `6797b64e...` completed successfully, but it predates the no-promotion hardening; do not use it to claim the latest source passed.
+- Documentation commit at the time of this check: `1deff5155c22b1f664c2e2ad2047f5ea800ff8b9`. The three active runs target the source/test head `e82fcf...`, not this docs-only commit.
+- CI has not yet supplied a final success/failure result for the fuzzy-cache fix. No new release APK is built or published.
