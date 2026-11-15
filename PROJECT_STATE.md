@@ -555,3 +555,34 @@ Never use one label as evidence for another.
 2. Update this report after CI and after any source changes.
 3. Add a dedicated post-processing/visible-output quality evaluation separate from raw ML Kit benchmark results.
 4. Continue adversarial Joined-pipe mapping tests and OCR dataset evaluation.
+
+
+
+## Engineering continuation — autonomous leadership protocol reaffirmed (2026-11-15 20:43 UTC)
+
+### User directive
+- Reaffirmed the standing engineering mandate: treat every ManhwaLens-related message as a continuation of one project; verify repository state before acting; update this handoff report after every project interaction, including analysis/decisions without source changes; distinguish verified work from pending/unverified work; prioritize OCR and Arabic translation quality; never fabricate execution or device-test claims.
+- Release requirements reaffirmed: every candidate release must be a visible GitHub Release (pre-release allowed), include an installable APK, preserve `com.manhwalens.app`, monotonically increase versionCode, and retain the v0.12.9 signing certificate for upgrade continuity. Request physical-phone testing only when a verified APK is ready and a behavior cannot be proven in CI.
+- No source-code change was made as a result of this protocol message; this section records governance and current repository evidence only.
+
+### Repository state freshly checked
+- Active branch: `feature/v0.12.4-bergamot-experiment`.
+- Current branch HEAD: `a35a659ac0e644fff18d20d6a697137a2068b789`, commit message: `docs: record v0.12.10 validation failures and fixes`.
+- HEAD parent: `8585dfab05ff88dacc4ea66c52cd79e1e35594b1` (the expanded-corpus validation repair commit).
+- PR #4 remains open and Draft; it targets `feature/v0.12.3-paddle-default-settings`, not main. Do not merge it directly to main or bypass the stacked-PR sequence.
+- GitHub Actions for HEAD are currently running, not yet concluded:
+  - Push run #43753928167: `in_progress`.
+  - Pull-request run #43753933415: `in_progress`.
+  - Both runs target exactly `a35a659ac0e644fff18d20d6a697137a2068b789`. No pass/fail conclusion is claimed.
+- Latest GitHub Releases API response confirms v0.12.9 is still the newest published release and contains `ManhwaLens-v0.12.9-debug.apk`. No v0.12.10 release or APK is present.
+- PROJECT_STATE.md was fetched from the active branch at this HEAD (blob SHA `6bdfa9a654d25fd58530ed2e9fc20be921bfa297`); the preceding report had stopped at the pre-verification note for commit 8585dfab. This section supersedes that stale “queued” status with the current exact HEAD and active workflow IDs, but does not imply the workflows have completed.
+
+### Current phase and next actions
+1. Wait for and inspect both final-HEAD workflow runs; retrieve failed job logs if either concludes unsuccessfully.
+2. If CI succeeds, verify unit-test count/report, APK build, package ID, versionName/versionCode, signer SHA-256 against the v0.12.9 baseline, artifact integrity and update compatibility before any release publication.
+3. Do not publish or request phone installation until all release gates pass. If a physical test becomes necessary, publish v0.12.10 as a GitHub pre-release with its APK and concise test instructions.
+4. Continue engineering after CI: validate Joined ` | ` parser adversarial cases; add separate raw-engine versus final-visible-output quality evaluation; build a labeled OCR screenshot corpus and measure detection/CER/WER/grouping. Keep ML Kit default and Bergamot experimental until paired semantic and resource measurements justify a change.
+
+### Verification boundary
+- Verified in this interaction: branch HEAD and parent; PR #4 state/base; two workflow run IDs/status/head SHA; latest release tag and APK asset; report blob SHA.
+- Not yet verified: final CI outcome, APK for v0.12.10, release publication, signer/package/version checks for a new APK, physical-device behavior, OCR accuracy, and semantic translation improvement.
