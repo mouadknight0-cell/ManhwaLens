@@ -149,3 +149,27 @@ Never use one label as evidence for another.
 3. Run CI and inspect failures/logs; fix and rerun until green.
 4. Re-verify the latest Release asset and APK metadata before asking for a phone installation.
 5. Only then prepare a physical-device checklist and request phone testing for JNI/model availability, OCR, semantic quality, latency/RAM and update-install compatibility.
+
+
+## Engineering continuation — fairer same-corpus comparison (2026-11-15)
+
+### Implemented
+- Reviewed the existing `EngineComparisonBenchmark` and its Settings integration. It already uses the same 20 prepared inputs for both engines, bypasses the app translation cache through raw engine callbacks, keeps runtime preferences out of the comparator, retries failed/malformed batches per case, and labels token F1 as lexical overlap only.
+- Identified a benchmark fairness issue: all ML Kit passes ran before all Bergamot passes, making the comparison sensitive to systematic run-order and thermal drift.
+- Changed the comparator to execute paired passes and alternate engine order on every pass (ML Kit→Bergamot, then Bergamot→ML Kit, repeated). First-pass timings remain separately reported; the next three passes are used for warm median/worst.
+- Added a deterministic JVM regression test asserting the exact alternating execution order and updated the report text to disclose the control.
+
+### Commits on development branch
+- `9f083b831e6e66e2837bd9225398d7133105eca7` — `perf: alternate engine benchmark pass order`
+- `16e7c02dc4267bc7338bdf9950016b8110d611c9` — `test: verify alternating engine benchmark order`
+- `3ca0c45e99a04cb8c07ac21ef1137e4b4f7da9cd` — `docs: explain balanced engine benchmark order`
+
+### Verification boundary
+- Source and test changes are committed; CI for the latest head has not yet been observed in this session. Do not label this change CI-verified until the new push/PR workflow completes successfully.
+- No physical-device benchmark was run. Alternating order reduces one source of bias but does not control ambient temperature, battery state, background load, or model warm-state differences.
+- ML Kit remains the default; Bergamot remains experimental.
+
+### Next actions
+1. Verify CI for latest head `3ca0c45e99a04cb8c07ac21ef1137e4b4f7da9cd`; inspect test/build results and repair failures.
+2. Review benchmark resource cleanup and output mapping under native failure, then retain device validation as a hard gate.
+3. Update `REPOSITORY_REPORT.md` with the implementation and exact CI evidence after verification.
