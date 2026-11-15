@@ -215,3 +215,30 @@ Never use one label as evidence for another.
 - Commit `a7a90475051ae09f6b06c7e4b01b33b14bd6ff03` moves the benchmark-only ML Kit warm-up inside the same diagnostic lock as the full comparison. This closes the remaining window in which a pending batching self-test could overlap the warm-up request.
 - Updated the device checklist and both engineering records to state that the lock covers warm-up as well as all measured passes.
 - Earlier PR workflow run `43718698863` was cancelled by subsequent branch updates before its build job began; it is not a test result. The latest branch state still requires a fresh green CI run.
+
+## Verified release handoff — v0.12.7 (2026-11-15)
+
+### Final head and code change
+- Development branch head: `213cb486297d231f1e2edb3616b14bc5a9d715e5`.
+- Final concurrency refinement: a queued ML Kit batching self-test rechecks `policy.needsSelfTest()` after it acquires the exclusive diagnostic gate. If a foreground benchmark has already written a fresh policy choice while the self-test was waiting, the stale self-test exits without overwriting it.
+- ML Kit stays the default offline translator; Bergamot remains optional/experimental. No engine promotion is inferred from CI.
+
+### CI evidence for the exact final head
+- Push workflow [43719094340](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43719094340): **success**.
+- PR validation [43719099811](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43719099811): **success**.
+- Both runs completed pinned PaddleOCR model retrieval/checksum checks, pinned Bergamot ARM64 runtime validation, JVM unit tests, and debug APK assembly. The push run also uploaded APK/test-report artifacts and published the Release. The PR run correctly skipped both Release-decision and Release-publication steps.
+- The earlier run 43718878249 was cancelled during APK assembly after tests passed because a newer branch head superseded it; it is not the final verification result.
+
+### Published artifact
+- GitHub Release: [v0.12.7](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.7) — published prerelease, not a draft.
+- APK: `ManhwaLens-v0.12.7-debug.apk`; 71,347,910 bytes.
+- GitHub asset SHA-256: `8f0eb02118c2cb70a93995acd6a79e8554459012b7bf57e0746bae2f6db6c84d`.
+- App metadata: applicationId `com.manhwalens.app`, versionName `0.12.7`, versionCode `47`, ABIs `arm64-v8a` and `armeabi-v7a`.
+- Previous published v0.12.6 metadata: same applicationId, versionCode 46.
+- Signing continuity evidence: `ci/experimental-debug.keystore.base64` has the same Git blob SHA (`68bd7f5388218224353f11b456ff3c29fb44c64c`) at the v0.12.6 build commit and the v0.12.7 head. Both versions' CI workflow restores this file as the Android debug keystore before `:app:assembleDebug`. This supports in-place update compatibility; an actual Android install-over-existing-app test remains outstanding.
+
+### Verification boundary / next action
+- CI-verified: JVM tests, pinned external runtime/model validation, debug APK assembly, artifact upload and Release publication at the exact head above.
+- Not device-verified: PaddleOCR accuracy/grouping, JNI inference, offline model availability on the phone, translation semantics, latency/RAM, and actual update installation.
+- Next required human/device check: install v0.12.7 over the existing v0.12.6 app without uninstalling; then test Offline mode, run Settings → Diagnostics → Compare ML Kit vs Bergamot with both models preinstalled, and collect the report plus latency/RAM observations. Do not switch the default engine based on CI or lexical scores alone.
+- PR #4 remains open Draft, targeting `feature/v0.12.3-paddle-default-settings`; preserve the stacked PR order and do not merge it directly to main.
