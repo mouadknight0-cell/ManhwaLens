@@ -79,6 +79,8 @@ class TextRecognizerClient(context: Context) {
         private const val PADDLE_DET_LIMIT_SIDE = 1280
         private const val PADDLE_DET_MAX_SIDE = 1920
         private const val PADDLE_THREADS = 4
+        // PaddleOCR's documented default drop_score is 0.5; filter uncertain lines before grouping.
+        private const val PADDLE_MIN_REC_CONFIDENCE = 0.5f
         private val PADDLE_LOCK = Any()
 
         @Volatile private var sharedPaddle: PaddleOCR? = null
