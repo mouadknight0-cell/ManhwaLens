@@ -23,8 +23,15 @@ android {
         applicationId = "com.manhwalens.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 41
-        versionName = "0.12.1"
+        versionCode = 42
+        versionName = "0.12.2"
+
+        // This is a phone-focused experimental APK. Keep both ARM ABIs while
+        // excluding x86 emulator libraries, which inflated the universal APK
+        // by tens of megabytes without helping physical Android phones.
+        ndk {
+            abiFilters += setOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     signingConfigs {
