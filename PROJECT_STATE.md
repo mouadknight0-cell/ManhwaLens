@@ -789,3 +789,53 @@ Never use one label as evidence for another.
 2. Further constrain fuzzy memo use only if new collision cases remain; current canonicalization deliberately keeps useful KRAK/Kraak reuse while protecting vowels, spaces, and source identity.
 3. Extend UI contamination testing with captured bounding boxes / frame zones before adding broader text rules; do not blacklist generic words or app names without geometry.
 4. Keep raw ML Kit lexical benchmark (49.6% F1 on 23 cases) separate from any future visible-output score. No semantic quality gain is claimed from these exact overrides or CI success.
+
+
+## Engineering continuation — chapter 3 diagnostics, three-stage quality scoring and raw pair-trace correction (2026-11-15)
+
+### User device evidence incorporated
+- New device benchmark: Joined `•` 725 ms median / 740 ms worst, mapped 20/20; parallel x2 1637 / 1676 ms. Joined `•` was ~55.7% faster than parallel x2 in this device run. This remains one-device timing evidence and proves structural mapping only, not semantic ordering. No global batching-policy change was made.
+- New raw ML Kit diagnostic: 23 reference cases, 22 Arabic-guard accepted, 1 rejected, 2 exact matches, mean token F1 49.6%. F1 is lexical overlap only and is not semantic accuracy.
+- The pair capture exposed semantic false-accepts (`No.` → `رقم`, `Run!` → `تشغيل!`), OCR noise (`YOL`, `B055 15`, `MINLTES`, `LNINJURED`), and non-manhwa Android/app UI. These categories must remain distinct in evaluation.
+
+### Fuzzy memo and chapter-3 correction work
+- Earlier fixes retained exact cache behavior while restricting fuzzy near-matching: preserve vowels and whitespace boundaries, ignore punctuation/case, collapse adjacent repeated letters, and reject weak canonical shapes. Useful `KRAK!!` / `Kraak` reuse remains; unrelated strings such as `AH...` / `YEAH`, `first` / `forest`, and `a man` / `aman` no longer share an eligible fuzzy key.
+- Approximate results are not promoted to exact cache keys. Exact memo hits are handled separately from fuzzy hits, and pair diagnostics emit `FUZZY_HIT` for fuzzy memo reuse.
+- Exact-source repairs were added and regression-tested for observed chapter-3 lines, including ALL CLEAR / LET'S GO, WHAT'RE YOL THINKING ABOUT, ABOUT 40 MINLTES, B055 15 / boss, HOW LONG DID WE WALK, ABOUT WHAT, I'M FINE..., TO BE HONEST..., IF YOU'RE THAT SORRY..., and WHAT EVEN MADE YOU SAY YES...
+- Narrow `SYSTEM_UI` OCR classification now filters the observed clock+carrier line, explicit mobile-data usage lines, and identified ManhwaLens capture notifications. Tests also protect ordinary dialogue containing generic terms such as "today", "ManhwaLens", or "mobilis". This does not establish general notification-shade detection or measurable OCR recall/precision.
+
+### Three-stage translation quality diagnostic
+- Updated `TranslationQualityBenchmark` to evaluate the same single raw model response at three distinct stages:
+  1. RAW ENGINE CANDIDATE — original ML Kit output;
+  2. CLEANED CANDIDATE — shared cleanup of labels, typography and dialogue noise;
+  3. FINAL VISIBLE OUTPUT — cleanup plus exact source dialogue correction and final guard.
+- Each stage reports acceptance, rejection, exact matches and lexical token F1. The report lists weakest raw cases separately from weakest visible cases, so source correction cannot disguise a model error.
+- Series NameSession overrides are explicitly excluded from this standalone diagnostic; only exact source-specific dialogue overrides are included.
+- Tests show `No.` raw `رقم` is accepted by the Arabic-script guard despite the wrong meaning, while the visible stage becomes `لا.`; `Run!` raw `تشغيل!` becomes `اهرب!`; `KRAK` raw `krak` is rejected while its visible output becomes `طَق!`.
+- A regression asserts exactly 23 engine calls for 23 cases: cleanup and post-processing do not call ML Kit again.
+- Relevant commits: `2b640954c9ffe2ff13b1e3ff68c3ae029671b489`, `0167b624503db43589388350c79649a56072a41f`, `89e9c133b94cff9f3818a53f0158bd86bb80147d`, `383e535b122dce8f41b3db3506f88ea0b3a590ae`, `a265e111c9dcabac999c584ae03082352cbf3552`, `271395f3fd07ee6af98422433594a7162a2609ac`.
+
+### Translation pair log correctness fix
+- Found that `CachingTranslator` was passing the already-cleaned/name-repaired/source-corrected text into `candidateArabic`, despite the report header claiming it was the engine candidate. This made the log unable to show precisely what ML Kit returned before app processing.
+- Commit `b2894213f05e3f243c18fef0af31639c4c8a3fcc` now preserves the raw delegate output by block ID before post-processing and records that as the fresh candidate; the returned/accepted post-processed text remains `finalArabic`.
+- For cache hits, the pre-current-processing value is preserved as candidate and the accepted value after current name/dialogue correction is final. Fuzzy entries remain labeled `FUZZY_HIT`; exact cache hits remain `CACHE_HIT`.
+- Commit `b22cfdb471d46608418285acdd908639619bda88` clarifies the trace data-class contract. Commit `c905aa0edb715de010f824dca2e65eedef5dfe55` updates the report header. Commit `b495d9e2026ecaa188ca2764d3f112c6bce5ab10` adds a test asserting raw `رقم` versus final `لا.` on a fresh translation, and the exact cached value on the subsequent cache hit. Commit `ca7eac725207f92a2d11396cde0e4a948f198612` notes that older local pair records may predate raw-candidate tracing and may therefore show post-processed candidate text.
+- No log data migration is attempted; old records remain readable and are explicitly annotated as legacy in the generated report.
+
+### CI and release status
+- On source/test head `271395f3fd07ee6af98422433594a7162a2609ac`, Push run #43757764999 completed success: unit tests, debug APK build, signer check, update compatibility, APK artifact and test-report upload all succeeded. Dynamic run #43757765124 succeeded. PR run #43757770613 was cancelled by later pushes and is not counted.
+- On pair-trace source head `b2894213f05e3f243c18fef0af31639c4c8a3fcc`, Push #43758014004, PR #43758018699 and Dynamic #43758013740 all completed success. This validates the initial raw-candidate-preservation change, prior to follow-up tests/docs.
+- The latest branch HEAD at this report update is `ca7eac725207f92a2d11396cde0e4a948f198612`. Workflows targeting this exact final head are still in progress:
+  - Push #43758291781
+  - PR #43758297362
+  - Dynamic #43758291558
+  Earlier runs for superseded heads were cancelled and are not treated as final-head evidence.
+- PR #4 remains open Draft and stacked on `feature/v0.12.3-paddle-default-settings`.
+- Latest published Release remains v0.12.10 prerelease with its existing APK. No new release was published and no new versionCode/APK should be presented as available from these commits.
+
+### Verification boundary and next actions
+1. Verify all three workflows on exact head `ca7eac...`; inspect any failed test/build logs and repair before treating the pair-log correction as validated.
+2. After final-head CI, add/retain a future device test request only when a new installable Release APK is published; the current work does not create a new public release.
+3. On the next device capture, inspect `CANDIDATE AR` versus `FINAL AR` for fresh and cache/fuzzy hits to validate the new trace semantics.
+4. Re-run the three-stage quality benchmark on-device and compare raw/cleaned/visible results against the prior 23-case 49.6% raw lexical baseline; do not call any F1 change a semantic accuracy gain without human review.
+5. Build an OCR-labeled page corpus with screenshots, box coordinates and ground-truth text before tuning PaddleOCR detection/recognition or BubbleGrouper thresholds.
