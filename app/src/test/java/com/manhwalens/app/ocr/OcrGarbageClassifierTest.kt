@@ -89,6 +89,17 @@ class OcrGarbageClassifierTest {
     }
 
     @Test
+    fun validConsonantHeavyEnglishWordsAreNotGarbage() {
+        val c = classifier()
+        for (text in listOf("STRENGTH", "RHYTHM", "STRENGTHS")) {
+            assertTrue(
+                "$text is a valid word and must survive the OCR garbage gate",
+                c.classify(text, rect(0f, 0f, 10f, 10f), emptyList(), emptyList()).keep
+            )
+        }
+    }
+
+    @Test
     fun emptyText_kept() {
         val c = classifier()
         assertTrue(c.classify("", rect(0f, 0f, 10f, 10f), emptyList(), emptyList()).keep)
