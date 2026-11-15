@@ -28,8 +28,13 @@ internal class BergamotEnArTranslator(context: Context) {
             check(output.size == texts.size) {
                 "Bergamot returned ${output.size} translations for ${texts.size} source blocks"
             }
+            val decoded = output.map { it.toString(Charsets.UTF_8) }
+            val emptyIndexes = decoded.indices.filter { decoded[it].isBlank() }
+            check(emptyIndexes.isEmpty()) {
+                "Bergamot JNI returned blank translation(s) at input index(es): ${emptyIndexes.joinToString()}"
+            }
             warmedUp = true
-            output.map { it.toString(Charsets.UTF_8) }
+            decoded
         }
     }
 
@@ -48,6 +53,8 @@ internal class BergamotEnArTranslator(context: Context) {
                 service, model, arrayOf("Hello.".toByteArray(Charsets.UTF_8))
             )
             check(output.size == 1) { "Bergamot warm-up returned an invalid result" }
+            val warmText = output.single().toString(Charsets.UTF_8)
+            check(warmText.isNotBlank()) { "Bergamot JNI warm-up returned an empty translation" }
             warmedUp = true
         }
     }
