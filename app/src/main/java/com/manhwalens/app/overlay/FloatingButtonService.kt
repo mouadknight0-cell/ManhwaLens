@@ -516,7 +516,6 @@ class FloatingButtonService : Service() {
 
     override fun onDestroy() {
         if (instance === this) instance = null
-        runCatching { com.manhwalens.app.translate.TranslatorFactory.releaseBergamot() }
         // Stop the live loop FIRST — no callbacks may fire once views start going away.
         liveLoopActive = false
         liveHandler.removeCallbacks(liveTickRunnable)
@@ -544,7 +543,9 @@ class FloatingButtonService : Service() {
         button = null
         liveThread.quitSafely()
         captureThread.quitSafely()
-        captureExecutor.shutdown()
+        captureExecutor.shutdownNow()
+        // Drop the native model only after stopping producers that could submit more work.
+        runCatching { com.manhwalens.app.translate.TranslatorFactory.releaseBergamot() }
         super.onDestroy()
     }
 
