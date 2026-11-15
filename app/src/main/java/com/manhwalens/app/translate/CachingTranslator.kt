@@ -71,6 +71,7 @@ class CachingTranslator(
 
         // 1) Serve what we can from cache (engine+style namespaced, normalized).
         val cached = LinkedHashMap<Int, String>(blocks.size)
+        val fuzzyCachedIds = HashSet<Int>()
         val misses = ArrayList<TranslationBlock>(blocks.size)
         var diskHits = 0
         var fuzzyHits = 0
@@ -87,7 +88,10 @@ class CachingTranslator(
                     hit = memoHit.arabic
                     fromFuzzy = !memoHit.exact
                     fromExactMemo = memoHit.exact
-                    if (fromFuzzy) fuzzyHits++
+                    if (fromFuzzy) {
+                        fuzzyHits++
+                        fuzzyCachedIds.add(b.id)
+                    }
                 }
             }
             // P1: a cached translation may pre-date a name correction — repair it BEFORE the
@@ -143,7 +147,15 @@ class CachingTranslator(
         cached.forEach { (id, arabic) ->
             val source = blocks.firstOrNull { it.id == id }?.english.orEmpty()
             runCatching {
-                onTranslationPair?.invoke(TranslationPairTrace(id, source, arabic, arabic, engineId, "CACHE_HIT", "served from cache", 0L))
+                val isFuzzy = id in fuzzyCachedIds
+                onTranslationPair?.invoke(
+                    TranslationPairTrace(
+                        id, source, arabic, arabic, engineId,
+                        if (isFuzzy) "FUZZY_HIT" else "CACHE_HIT",
+                        if (isFuzzy) "served from fuzzy memo" else "served from exact cache",
+                        0L
+                    )
+                )
             }
         }
         if (diskHits > 0) {
