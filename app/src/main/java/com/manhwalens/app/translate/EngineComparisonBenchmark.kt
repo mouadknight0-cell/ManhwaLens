@@ -106,7 +106,7 @@ object EngineComparisonBenchmark {
         val median = if (warm.isEmpty()) 0L else if (warm.size % 2 == 1) warm[warm.size / 2]
         else (warm[warm.size / 2 - 1] + warm[warm.size / 2]) / 2
         val summary = RunResult(
-            output = output,
+            outputs = output,
             firstPassMs = times.firstOrNull() ?: 0L,
             warmMedianMs = median,
             warmWorstMs = warm.lastOrNull() ?: 0L,
