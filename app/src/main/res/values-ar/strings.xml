@@ -197,7 +197,7 @@
 
     <!-- Benchmark (Part C) -->
     <string name="benchmark_button">اختبار تجميع طلبات ML Kit</string>
-    <string name="benchmark_summary">هذا اختبار خاص بـ ML Kit فقط، ويتجاهل محرك الترجمة غير المتصل المحدد في الإعدادات. يقيس ترجمة 20 جملة بالتتابع والتوازي وبطلبات مدمجة، ويشغّل فحص جودة خاصًا بـ ML Kit. لا يختبر Bergamot. للمقارنة الفعلية بين المحركين استخدم زر «مقارنة ML Kit مع Bergamot» أدناه.</string>
+    <string name="benchmark_summary">هذا اختبار خاص بـ ML Kit فقط، ويتجاهل محرك الترجمة غير المتصل المحدد في الإعدادات. يقيس ترجمة 20 جملة بالتتابع والتوازي وبطلبات مدمجة، ثم يحفظ أفضل سياسة لتجميع طلبات ML Kit وحده. لا يختبر Bergamot ولا يغيّر المحرك المحدد. للمقارنة الفعلية بين المحركين استخدم زر «مقارنة ML Kit مع Bergamot» أدناه.</string>
     <string name="benchmark_title">اختبار تجميع طلبات ML Kit</string>
     <string name="benchmark_running">جارٍ القياس…</string>
     <string name="benchmark_close">إغلاق</string>
