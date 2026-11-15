@@ -205,7 +205,15 @@ object EngineComparisonBenchmark {
         var recovered = false
         val failures = linkedSetOf<String>()
         val output = try {
-            translate(inputs).also { check(it.size == inputs.size) { "Engine output count mismatch: expected ${inputs.size}, received ${it.size}" } }
+            translate(inputs).also {
+                check(it.size == inputs.size) {
+                    "Engine output count mismatch: expected ${inputs.size}, received ${it.size}"
+                }
+                val blankIndexes = it.indices.filter { index -> it[index].isBlank() }
+                check(blankIndexes.isEmpty()) {
+                    "Engine returned blank output(s) at index(es): ${blankIndexes.joinToString()}"
+                }
+            }
         } catch (e: Exception) {
             recovered = true
             failures += "batch: ${brief(e)}"
