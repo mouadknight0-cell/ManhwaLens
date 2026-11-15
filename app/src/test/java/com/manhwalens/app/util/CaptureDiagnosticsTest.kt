@@ -23,6 +23,47 @@ class CaptureDiagnosticsTest {
     }
 
     @Test
+    fun reportIncludesPaddleEngineTimingsInputShapesAndConfidenceDrops() {
+        val line = DetectedLine("A TEXT LINE", Rect2D(10f, 20f, 180f, 52f), 0.91f)
+        val block = BubbleBlock(1, listOf(line))
+        val diagnostics = CaptureDiagnostics(720, 1600)
+        diagnostics.recordOcr(
+            lines = listOf(line),
+            grouped = listOf(block),
+            kept = listOf(block),
+            elapsedMs = 420L,
+            engineStats = OcrRunStats(
+                engine = "PaddleOCR",
+                detectionTimeMs = 110L,
+                recognitionTimeMs = 180L,
+                totalTimeMs = 310L,
+                detectionPreprocessMs = 20L,
+                detectionInferenceMs = 70L,
+                detectionPostprocessMs = 20L,
+                recognitionPreprocessMs = 30L,
+                recognitionInferenceMs = 130L,
+                recognitionPostprocessMs = 20L,
+                pipelineOverheadMs = 10L,
+                coldLoadTimeMs = 900L,
+                detectionInputShape = listOf(1, 3, 1920, 864),
+                recognitionInputShapes = listOf(listOf(1, 3, 48, 320)),
+                recognizedCandidateCount = 9,
+                lowConfidenceDroppedCount = 2,
+                confidenceThreshold = 0.5f
+            )
+        )
+
+        val report = diagnostics.report()
+
+        assertTrue(report.contains("[OCR ENGINE STATS] present=true"))
+        assertTrue(report.contains("engine=PaddleOCR detectionMs=110 recognitionMs=180 totalEngineMs=310 wrapperMs=420"))
+        assertTrue(report.contains("candidates=9 lowConfidenceDropped=2 recThreshold=0.500"))
+        assertTrue(report.contains("input=1x3x1920x864"))
+        assertTrue(report.contains("recognitionInputShapes=1x3x48x320"))
+        assertTrue(report.contains("coldLoadMs=900"))
+    }
+
+    @Test
     fun reportIncludesExactPreparedInputRawOutputAndOverlayText() {
         val diagnostics = CaptureDiagnostics(720, 1600)
         diagnostics.recordTranslation(MlKitTranslationTrace(

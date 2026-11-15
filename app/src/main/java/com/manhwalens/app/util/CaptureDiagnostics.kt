@@ -2,6 +2,7 @@ package com.manhwalens.app.util
 
 import com.manhwalens.app.ocr.BubbleBlock
 import com.manhwalens.app.ocr.DetectedLine
+import com.manhwalens.app.ocr.OcrRunStats
 import com.manhwalens.app.ocr.geometry.Rect2D
 import com.manhwalens.app.translate.mlkit.MlKitTranslationTrace
 import java.text.SimpleDateFormat
@@ -19,6 +20,7 @@ class CaptureDiagnostics(
     private var groupedBlocks = emptyList<BubbleBlock>()
     private var keptBlocks = emptyList<BubbleBlock>()
     private var ocrElapsedMs: Long = -1L
+    private var ocrEngineStats: OcrRunStats? = null
     private var rawLineTotal = 0
     private var groupedTotal = 0
     private var keptTotal = 0
@@ -40,7 +42,13 @@ class CaptureDiagnostics(
         val memberIds: List<Int>
     )
 
-    fun recordOcr(lines: List<DetectedLine>, grouped: List<BubbleBlock>, kept: List<BubbleBlock>, elapsedMs: Long) {
+    fun recordOcr(
+        lines: List<DetectedLine>,
+        grouped: List<BubbleBlock>,
+        kept: List<BubbleBlock>,
+        elapsedMs: Long,
+        engineStats: OcrRunStats? = null
+    ) {
         synchronized(lock) {
             rawLineTotal = lines.size
             groupedTotal = grouped.size
@@ -49,6 +57,7 @@ class CaptureDiagnostics(
             groupedBlocks = grouped.take(MAX_BLOCKS)
             keptBlocks = kept.take(MAX_BLOCKS)
             ocrElapsedMs = elapsedMs.coerceAtLeast(0L)
+            ocrEngineStats = engineStats
         }
     }
 
@@ -104,6 +113,29 @@ class CaptureDiagnostics(
                     "text=\"${safe(line.text)}\"")
             }
         }
+        val engineStats = ocrEngineStats?.let { stats ->
+            buildString {
+                appendLine(
+                    "engine=${stats.engine} detectionMs=${stats.detectionTimeMs} " +
+                        "recognitionMs=${stats.recognitionTimeMs} totalEngineMs=${stats.totalTimeMs} " +
+                        "wrapperMs=$ocrElapsedMs candidates=${stats.recognizedCandidateCount} " +
+                        "lowConfidenceDropped=${stats.lowConfidenceDroppedCount} " +
+                        "recThreshold=${formatConfidence(stats.confidenceThreshold)}"
+                )
+                appendLine(
+                    "detectionStageMs=pre:${stats.detectionPreprocessMs},infer:${stats.detectionInferenceMs}," +
+                        "post:${stats.detectionPostprocessMs} input=${stats.detectionInputShape.joinToString("x")}"
+                )
+                appendLine(
+                    "recognitionStageMs=pre:${stats.recognitionPreprocessMs},infer:${stats.recognitionInferenceMs}," +
+                        "post:${stats.recognitionPostprocessMs} pipelineOverheadMs=${stats.pipelineOverheadMs} " +
+                        "coldLoadMs=${stats.coldLoadTimeMs}"
+                )
+                if (stats.recognitionInputShapes.isNotEmpty()) {
+                    appendLine("recognitionInputShapes=${stats.recognitionInputShapes.take(4).joinToString(";") { it.joinToString("x") }}")
+                }
+            }
+        }.orEmpty()
         val grouped = buildString {
             groupedBlocks.forEach { block ->
                 appendLine("#${block.id} box=${box(block)} text=\"${safe(block.text)}\"")
@@ -140,6 +172,7 @@ class CaptureDiagnostics(
             appendLine("frame=${frameWidth}x${frameHeight} ocrMs=$ocrElapsedMs")
             appendLine("Privacy: opt-in debug-mode report; page text is not written to Logcat.")
             appendLine()
+            append(boundedSection("[OCR ENGINE STATS] present=${ocrEngineStats != null}", engineStats, OCR_STATS_SECTION_CHARS))
             append(boundedSection("[RAW OCR LINES] total=$rawLineTotal captured=${ocrLines.size}", rawOcr, OCR_SECTION_CHARS))
             append(boundedSection("[GROUPED BLOCKS] total=$groupedTotal captured=${groupedBlocks.size}", grouped, BLOCK_SECTION_CHARS))
             append(boundedSection("[KEPT FOR TRANSLATION] total=$keptTotal captured=${keptBlocks.size}", kept, BLOCK_SECTION_CHARS))
@@ -183,6 +216,7 @@ class CaptureDiagnostics(
         private const val MAX_OCR_LINES = 120
         private const val MAX_BLOCKS = 80
         private const val MAX_TRANSLATION_CALLS = 120
+        private const val OCR_STATS_SECTION_CHARS = 2_000
         private const val OCR_SECTION_CHARS = 10_000
         private const val BLOCK_SECTION_CHARS = 7_000
         private const val TRANSLATION_SECTION_CHARS = 20_000

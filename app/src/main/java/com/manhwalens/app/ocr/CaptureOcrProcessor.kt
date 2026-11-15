@@ -114,7 +114,7 @@ internal class CaptureOcrProcessor(
                 "kept=${filtered.size}/${grouped.size} blockFilter=${filterResult.removed.size} " +
                     "garbage=$garbageDropped ownUi=$ownUiDropped"
             )
-            diagnostics?.recordOcr(lines, grouped, filtered, recognized.elapsedMs)
+            diagnostics?.recordOcr(lines, grouped, filtered, recognized.elapsedMs, recognized.engineStats)
             filtered
         } finally {
             if (canCrop) runCatching { ocrBitmap.recycle() }

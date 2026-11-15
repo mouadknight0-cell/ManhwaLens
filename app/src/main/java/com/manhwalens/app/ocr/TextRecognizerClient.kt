@@ -15,7 +15,8 @@ import kotlinx.coroutines.runBlocking
 /** Raw OCR output: lines ready for the bubble grouper. */
 data class OcrResult(
     val lines: List<DetectedLine>,
-    val elapsedMs: Long
+    val elapsedMs: Long,
+    val engineStats: OcrRunStats? = null
 )
 
 /** Fixed on-device OCR adapter. PaddleOCR PP-OCRv5 Arabic/English runs locally. Call from a background thread. */
@@ -50,7 +51,29 @@ class TextRecognizerClient(context: Context) {
                 "candidates=${result.recognizedCandidateCount} rejectedLowConfidence=${result.lowConfidenceDroppedCount} " +
                 "threshold=${PADDLE_MIN_REC_CONFIDENCE})"
         )
-        OcrResult(lines, elapsed)
+        OcrResult(
+            lines = lines,
+            elapsedMs = elapsed,
+            engineStats = OcrRunStats(
+                engine = "PaddleOCR",
+                detectionTimeMs = result.detectionTimeMs,
+                recognitionTimeMs = result.recognitionTimeMs,
+                totalTimeMs = result.totalTimeMs,
+                detectionPreprocessMs = result.detPreprocessMs,
+                detectionInferenceMs = result.detInferenceMs,
+                detectionPostprocessMs = result.detPostprocessMs,
+                recognitionPreprocessMs = result.recPreprocessMs,
+                recognitionInferenceMs = result.recInferenceMs,
+                recognitionPostprocessMs = result.recPostprocessMs,
+                pipelineOverheadMs = result.pipelineOverheadMs,
+                coldLoadTimeMs = result.coldLoadTimeMs,
+                detectionInputShape = result.detInputShape,
+                recognitionInputShapes = result.recInputShapes,
+                recognizedCandidateCount = result.recognizedCandidateCount,
+                lowConfidenceDroppedCount = result.lowConfidenceDroppedCount,
+                confidenceThreshold = PADDLE_MIN_REC_CONFIDENCE
+            )
+        )
     }
 
     private fun paddleClient(): PaddleOCR {
