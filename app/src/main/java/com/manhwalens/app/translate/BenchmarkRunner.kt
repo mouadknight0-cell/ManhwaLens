@@ -74,7 +74,8 @@ object BenchmarkRunner {
         }
 
         fun toText(extraLines: List<String> = emptyList()): String = buildString {
-            appendLine("ManhwaLens translation benchmark (ML Kit, EN→AR)")
+            appendLine("ML Kit batching benchmark (EN→AR)")
+            appendLine("Engine: ML Kit only. The selected offline engine setting does not affect this diagnostic.")
             appendLine("Sample: $bubbles bubbles · $passes passes per method, first discarded (warm-up) · median / worst of ${passes - 1}")
             appendLine()
             appendLine("${"method".padEnd(22)} ${"median".padStart(7)} ${"worst".padStart(7)}  map       bad  detail")
