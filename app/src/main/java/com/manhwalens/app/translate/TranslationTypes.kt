@@ -51,4 +51,7 @@ enum class TranslationEngine {
     /** Google Gemini API; better colloquial quality; needs an API key. */
     GEMINI,
 
+    /** Mozilla Bergamot EN→AR, downloaded once and run fully on-device. */
+    BERGAMOT,
+
 }
