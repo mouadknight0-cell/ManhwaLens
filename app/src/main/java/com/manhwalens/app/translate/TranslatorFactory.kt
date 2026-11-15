@@ -10,6 +10,8 @@ import com.manhwalens.app.translate.gemini.GeminiTranslator
 import com.manhwalens.app.translate.gemini.HttpUrlConnectionGeminiApi
 import com.manhwalens.app.translate.mlkit.MlKitTranslator
 import com.manhwalens.app.translate.mlkit.MlKitTranslationTrace
+import com.manhwalens.app.translate.bergamot.BergamotPageTranslator
+import com.manhwalens.app.translate.bergamot.BergamotEnArModel
 import java.io.File
 
 /** Translator used when Gemini is selected but no key has been saved. */
@@ -125,7 +127,9 @@ object TranslatorFactory {
         val style = prefs.translationStyle
         val disk = disk(context)
         // Explicit offline mode is authoritative: never construct or call a cloud translator.
-        if (OfflineTranslationPolicy.mustUseLocal(prefs.offlineMode)) return createOffline(context)
+        if (OfflineTranslationPolicy.mustUseLocal(prefs.offlineMode)) {
+            return if (prefs.engine == TranslationEngine.BERGAMOT) createBergamot(context) else createOffline(context)
+        }
         return when (prefs.engine) {
             TranslationEngine.ML_KIT -> {
                 val session = names(context)
@@ -136,6 +140,7 @@ object TranslatorFactory {
             onTranslationPair = pairRecorder(context)
                 )
             }
+            TranslationEngine.BERGAMOT -> createBergamot(context)
             TranslationEngine.GEMINI ->
                 if (prefs.geminiCircuit.isOpen()) {
                     // Circuit open: do NOT gamble 3+6 s per tap — go straight offline.
@@ -156,6 +161,30 @@ object TranslatorFactory {
                     MissingKeyTranslator()
                 }
         }
+    }
+
+
+    /** Experimental Mozilla Bergamot EN→AR; never falls back silently when explicitly selected. */
+    private fun createBergamot(context: Context): Translator {
+        val style = styleOf(context)
+        if (!BergamotEnArModel.isInstalled(context)) {
+            return object : Translator {
+                override val engineId = "bergamot_en_ar"
+                override fun translatePage(blocks: List<TranslationBlock>) = PageTranslation.Failure(
+                    FailureReason.MODEL_DOWNLOAD_FAILED,
+                    "Bergamot model is not downloaded. Open Settings → Offline translation and download it first.",
+                    engineId
+                )
+            }
+        }
+        val session = names(context)
+        return CachingTranslator(
+            BergamotPageTranslator(context),
+            sharedCache, disk(context), style,
+            memo = memo("bergamot_en_ar", style),
+            pinnedOverride = session::rewrite,
+            onTranslationPair = pairRecorder(context)
+        )
     }
 
     /** ML Kit only (progressive pass): same shared caches, ignores the engine pref. */
