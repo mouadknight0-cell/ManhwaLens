@@ -166,7 +166,7 @@ class CachingTranslator(
                         // Apply authoritative series-name corrections BEFORE the quality guard,
                         // matching the cache-hit path. A preserved name such as "Will" must not
                         // be mistaken for an untranslated common English word.
-                        val cleaned = postProcess(raw.arabic)
+                        val cleaned = TranslationOutputSanitizer.clean(raw.arabic)
                         val nameOverride = pinnedOverride
                         val corrected = if (cleaned.isNotBlank() && nameOverride != null) {
                             runCatching { nameOverride.invoke(raw.english, cleaned) }.getOrDefault(cleaned)
@@ -269,12 +269,6 @@ class CachingTranslator(
     /** Exact text the engine is shown (glossary-prepared) — same string the caches key on. */
     private fun cachePrepared(source: String): String =
         runCatching { Glossary.cacheText(source) }.getOrDefault(source)
-
-    /** Shared output hygiene: noise, punctuation, duplicated words. */
-    private fun postProcess(arabic: String): String {
-        if (arabic.isBlank()) return arabic
-        return BubbleTextRules.tidyDialogue(BubbleTextRules.polishArabic(ArabicValidator.clean(arabic)))
-    }
 
     companion object {
         /**
