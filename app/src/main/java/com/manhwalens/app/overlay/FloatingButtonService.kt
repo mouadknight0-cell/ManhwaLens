@@ -3362,7 +3362,6 @@ class FloatingButtonService : Service() {
                             .remoteUpgradeAvailable(applicationContext)
                         val remoteEngineId = when (prefsL.engine) {
                             com.manhwalens.app.translate.TranslationEngine.GEMINI -> "gemini"
-                            com.manhwalens.app.translate.TranslationEngine.LIBRE_TRANSLATE -> "libre_translate"
                             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
                         }
                         val tr: com.manhwalens.app.translate.PageTranslation = if (dual) {
