@@ -1,12 +1,12 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.3  
-**تاريخ التحديث:** 2026-11-14  
+**الإصدار:** 5.4  
+**تاريخ التحديث:** 2026-11-15  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `arena/8a718184-manhwalens`  
-**طلب الدمج:** [PR #2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — مفتوح، غير مدمج  
-**آخر commit للكود على فرع التجربة:** `c9ae6ffcdefbec9ce58a0717c7c7ba218846eb98` (P5-A composite patches + تشخيص هندسة الرقع؛ تجهيز v0.11.5).  
-**آخر CI ناجح مكتمل:** [43627790075](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43627790075) على `7622589f3cdf343ba752f94a3e39c8e7aedc5eec` — نجح Unit tests وBuild debug APK ونشر v0.11.4. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
-**CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
+**طلب الدمج:** [PR #2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — مغلق ومُدمج في 2026-11-15 08:24 UTC؛ merge commit `23904fb0b11caf55e0f0297585e3e47b80fba766`. لم ينفذ هذا التحديث عملية الدمج.  
+**آخر commit على فرع التجربة:** `52206670a2f507cb9021ca62b3e78702417d3a47` (`docs: preserve history and record PaddleOCR 0.12.2`).  
+**آخر CI على HEAD الحالي `52206670`:** [43692867924](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43692867924) (push) و[43692872010](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43692872010) (pull request) — كلاهما `success`؛ اجتازت Unit tests وBuild debug APK ورفع APK وتقارير الاختبار. Artifacts من تشغيل push: APK `14153445581` (76,791,097 bytes كأرشيف artifact) وتقارير `14153400621` (107,705 bytes).  
+**CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`؛ هذا commit هو ancestor مباشر لسلسلة HEAD الحالية وفق GitHub Compare. التشغيل الأصلي [43600238711](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43600238711) أُلغي ولا يُعد دليلاً على النجاح. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
 > هذا الملف هو التقرير الهندسي الرسمي الوحيد للمشروع. يستبدل النسخة السابقة من `REPOSITORY_REPORT.md` بالكامل. لا تُنشئ تقارير منفصلة لكل مرحلة أو إصلاح؛ أضف جميع الأعمال المستقبلية إلى هذا الملف مع الاحتفاظ بالتواريخ والأدلة والقرارات وسجل التغييرات.
 
@@ -27,21 +27,21 @@ ManhwaLens تطبيق Android عائم لترجمة نصوص المانهوا و
 | P2-17 وP2-18 وP2-19 — إصلاحات المراجعة | منفذة، مختبرة، متحققة عبر CI |
 | P2-C — P2-05 | منفذ، مختبر، متحقق عبر CI |
 | P2-D — P2-06 | منفذ، مختبر، متحقق عبر CI (§5.15) |
-| P2-D — P2-08 | منفذ ومختبر ومتحقق عبر CI بنجاح على HEAD `49e85b0` (§5.16) |
+| P2-D — P2-08 | منفذ ومختبر؛ CI الخاص به ناجح على `49e85b0`، كما أن HEAD الحالي `52206670` اجتاز Unit tests وبناء APK (§5.16 و§18) |
 | P2-D — P2-16 | منفذ، مختبر، ومتحقق عبر CI بنجاح على `f50081e` (§5.17) |
 | P2-D — P2-14 | منفذ ومتحقق عبر CI على `fd08ca6` (§5.18)؛ اختبار v0.11.1 الفعلي كشف بطئاً وأخطاء ترجمة، وv0.11.2 بانتظار اختبار التشخيص |
 | P3 — الأداء والتخزين المؤقت | لم يبدأ كمرحلة هندسية |
 | P4-A — تشخيص OCR/ML Kit | منفذ ومتحقق عبر CI على `1fe34f1` (§13)؛ تقرير الجهاز وصل وتم تحليل مسار OCR/ML Kit |
 | P4-B — حماية حدود الإطار وتجميع الفقاعات | منفذ ومتحقق عبر CI على `7132f6a` (§15)؛ التحقق على الجهاز بانتظار تجربة المستخدم |
 | P4-C — تصفية علامة ManhuaPlus المشوّهة | منفذ ومتحقق عبر CI ونُشر ضمن v0.11.4 (§16)؛ التحقق على الجهاز بانتظار التجربة |
-| P5-A — تجميع رقع العرض المركبة | منفذ مع اختبارات regression؛ CI لـ v0.11.5 قيد التنفيذ (§17) |
-| P5-B — تشخيص حدود الرقع الفعلية | منفذ مع اختبار التقرير؛ CI لـ v0.11.5 قيد التنفيذ (§17) |
+| P5-A — تجميع رقع العرض المركبة | منفذ مع اختبارات regression؛ Unit tests وبناء APK ناجحان على HEAD `52206670`، والتحقق على الجهاز معلق (§17 و§18) |
+| P5-B — تشخيص حدود الرقع الفعلية | منفذ مع اختبار التقرير؛ Unit tests وبناء APK ناجحان على HEAD `52206670`، والتحقق على الجهاز معلق (§17 و§18) |
 | P5-C — قاموس المصطلحات/الأسماء والتحقق اللغوي | لم يبدأ؛ ينتظر أدلة OCR/ML Kit الخام |
 | P6 — الدمج النهائي والإصدار | لم يبدأ كمرحلة هندسية |
 
-**المرحلة الهندسية النشطة:** P5-A/P5-B — إصلاح تركيب الرقع وتسجيل حدودها الفعلية. CI لـ v0.11.5 قيد التنفيذ.  
+**آخر تحقق هندسي:** HEAD `52206670` اجتاز CI بالكامل؛ تبقى اختبارات الجهاز الفعلية خارج تحقق CI.  
 **التحقق على جهاز Android حقيقي:** التقارير الحالية تخص v0.11.2؛ لم تُختبر بعد تعديلات P4-B وP4-C وP5 على الجهاز.  
-**الدمج إلى `main`:** لم يحدث؛ PR #2 ما زال مفتوحاً.  
+**الدمج إلى `main`:** PR #2 مدمج؛ `main` عند merge commit `23904fb`. لم ينفذ هذا التحديث عملية الدمج.  
 **الإصدار التجريبي المنشور:** v0.11.4 (Version Code 34). الإصدار المجهز v0.11.5 (Version Code 35)، والنشر ينتظر نجاح CI.
 
 ### دليل الاختبارات وCI
@@ -1000,3 +1000,27 @@ Tap / Live scan
 4. إذا كان cover نفسه لا يشمل الأسطر الظاهرة، نراجع تجميع OCR بحذر. وإذا كان cover صحيحاً لكن النص المعروض ناقصاً، نراجع تركيب النص والـ StaticLayout. وإذا كان النص الخام من ML Kit خاطئاً، ننتقل إلى P5-C وجودة المحرك والقاموس المرتبط بالسلسلة.
 
 لا دمج إلى main ولا حذف أو استبدال للإصدارات السابقة في هذه المرحلة.
+
+
+---
+
+## 18. التحقق النهائي من P2-08 وHEAD الحالي (2026-11-15)
+
+### 18.1 حالة الفرع وطلب الدمج
+- HEAD فرع `arena/8a718184-manhwalens`: [`52206670a2f507cb9021ca62b3e78702417d3a47`](https://github.com/mouadknight0-cell/ManhwaLens/commit/52206670a2f507cb9021ca62b3e78702417d3a47).
+- أثبت GitHub Compare أن `49e85b02205fbb8c8f4d55c14fce020bca4bf4dd` هو merge-base مع HEAD الحالي، وأن HEAD متقدم عنه بـ149 commit؛ لذلك تغييرات P2-08 موجودة في سلسلة HEAD الحالية.
+- PR #2 أصبح `closed` و`merged=true` بتاريخ 2026-11-15 08:24:03 UTC، وmerge commit هو `23904fb0b11caf55e0f0297585e3e47b80fba766`. هذا تغير في حالة GitHub سبق هذا التحديث؛ لم تُنفذ عملية الدمج هنا.
+- `main` يشير حالياً إلى merge commit أعلاه.
+
+### 18.2 تشغيلات CI
+- التشغيل [43600238711](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43600238711) على `b9501c9` انتهى `cancelled`؛ لا يُحتسب نجاحاً.
+- تشغيل P2-08 النهائي [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) على `49e85b0` انتهى `success` بعد تصحيح ترتيب SceneNames/Glossary؛ راجع §5.16.
+- تشغيل push الأحدث [43692867924](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43692867924) وتشغيل pull request [43692872010](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43692872010) مرتبطان كلاهما بـHEAD `52206670` وانتهيا `success`.
+- في كلا التشغيلين اكتملت بنجاح خطوات Unit tests وBuild debug APK وUpload APK artifact وUpload test reports. كما نجحت خطوة تنزيل نماذج PaddleOCR المثبتة والتحقق من checksums في تشغيل push.
+- Artifacts من تشغيل push: `ManhwaLens-v0.12.2-debug-apk`، ID `14153445581`، حجم أرشيف artifact 76,791,097 bytes؛ و`test-reports`، ID `14153400621`، حجم 107,705 bytes.
+
+### 18.3 حدود الإثبات
+- نجاح CI يثبت اجتياز مجموعة Unit tests وبناء Debug APK ورفع المخرجات على HEAD الحالي؛ لا نستنتج عدداً محدداً للاختبارات دون قراءة ملفات JUnit داخل artifact.
+- لم يُثبت هذا التحقق عمل التطبيق على جهاز Android فعلي، أو سلوك Overlay/RTL على الجهاز.
+- لم يُنفذ اتصال حي بخادم LibreTranslate، ولا طلب Gemini حقيقي. لذلك P2-08 متحقق عبر اختبارات الوحدة وCI، وليس عبر اختبار خدمة بعيدة أو جهاز.
+- لم تُجرَ في هذا التحديث تعديلات كود، ولم يبدأ أو يُعدّل نطاق P2-14 أو P2-16. اقتصر التغيير على تحديث حالة التقرير والأدلة الحالية.
