@@ -96,7 +96,11 @@ class MlKitTranslator(
 
     private val client get() = SHARED_CLIENT
 
-    override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
+    override fun translatePage(blocks: List<TranslationBlock>): PageTranslation =
+        DiagnosticExecutionGate.shared { translatePageInternal(blocks) }
+
+    /** Entire page holds a shared lease so an exclusive engine diagnostic cannot overlap it. */
+    private fun translatePageInternal(blocks: List<TranslationBlock>): PageTranslation {
         val start = System.currentTimeMillis()
         if (blocks.isEmpty()) {
             return PageTranslation.Failure(FailureReason.EMPTY_INPUT, "No blocks to translate", engineId)
