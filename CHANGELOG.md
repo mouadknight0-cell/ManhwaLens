@@ -3,6 +3,9 @@
 ## 0.12.4 — Bergamot performance and lifecycle follow-up
 - Add adaptive sequential native batching: ordinary pages remain one JNI batch; unusually large pages are split by bubble count and total characters to bound temporary buffers.
 - Add timings for text preparation, each JNI batch, total translation time, duplicate reduction and native batch sizes in Pipeline Trace.
+- Add a per-page rule-based acceptance summary (accepted/rejected/empty/missing); explicitly label it as a non-semantic score.
+- Extract OCR normalization and adaptive batching into pure Kotlin helpers with JVM tests for wrapped lines, hyphenation, zero-width artifacts, ordering and batch bounds.
+- Cancel queued overlay work before releasing Bergamot native resources on service teardown.
 - Improve OCR cleanup for zero-width artifacts and words split across visual lines by a hyphen.
 - Release the process-scoped Bergamot native model/service on low-memory callbacks and overlay-service teardown; the next use reloads it lazily.
 - Retain shared Arabic output cleanup, quality guard and per-series name consistency; ML Kit remains the default.
