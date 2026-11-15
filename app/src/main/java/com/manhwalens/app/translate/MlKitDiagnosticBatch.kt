@@ -59,8 +59,8 @@ object MlKitDiagnosticBatch {
                     ""
                 } catch (_: Exception) {
                     ""
-                }.toMutableList()
-            }
+                }
+            }.toMutableList()
             // Match the production ML Kit page path: keep successful parallel replies,
             // then retry only blank/missing bubbles once, sequentially.
             var retried = 0
