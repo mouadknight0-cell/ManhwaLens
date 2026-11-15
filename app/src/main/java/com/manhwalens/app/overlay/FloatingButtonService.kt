@@ -2791,7 +2791,8 @@ class FloatingButtonService : Service() {
             // identical bubble strings are sent ONCE and fanned back out (Part B).
             val dedupePlan = com.manhwalens.app.translate.PagePlan.prepare(
                 pageBlocks,
-                ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS
+                ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS,
+                preprocess = { com.manhwalens.app.translate.Glossary.prepare(it) }
             )
             if (pageBlocks.size != dedupePlan.uniqueCount) {
                 com.manhwalens.app.util.PipelineTracer.span(
@@ -3332,7 +3333,8 @@ class FloatingButtonService : Service() {
                     // and are never painted; it also dedupes on the glossary-prepared text.
                     val pagePlan = com.manhwalens.app.translate.PagePlan.prepare(
                         newBlocks,
-                        ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS
+                        ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS,
+                        preprocess = { com.manhwalens.app.translate.Glossary.prepare(it) }
                     )
                     if (pagePlan.droppedCount > 0 || pagePlan.uniqueCount != pagePlan.originalCount) {
                         com.manhwalens.app.util.PipelineTracer.span(
