@@ -94,15 +94,27 @@ class TranslationMemoTest {
     }
 
     @Test
-    fun shapeOfCollapsesVowelsAndRepeats() {
+    fun shapeOfCollapsesRepeatedLettersAndPunctuationButPreservesVowelsAndWordBoundaries() {
         val memo = TranslationMemo()
-        // Doubled letters and vowels collapse; the consonant skeleton is what is compared.
         val krak = memo.shapeOf("krak")
+        assertEquals("krak", krak)
         assertEquals(krak, memo.shapeOf("kraak"))
-        assertEquals(krak, memo.shapeOf("KRAK!"))
+        assertEquals(krak, memo.shapeOf("KRAK!!"))
         assertEquals(memo.shapeOf("thud"), memo.shapeOf("thuud"))
-        // Two different words keep different shapes.
-        assertTrue(memo.shapeOf("krak") != memo.shapeOf("thud"))
+        assertEquals("you'regoing", memo.shapeOf("You're going.").replace(" ", ""))
+        assertTrue(memo.shapeOf("first") != memo.shapeOf("forest"))
+        assertTrue(memo.shapeOf("a man") != memo.shapeOf("aman"))
+        assertEquals("ah", memo.shapeOf("AH..."))
+        assertEquals("yeah", memo.shapeOf("YEAH"))
+    }
+
+    @Test
+    fun fuzzyCacheDoesNotCollideOnVowelOrWordBoundaryDifferences() {
+        val memo = TranslationMemo()
+        memo.put("first", "الأول")
+        assertNull("forest must not receive the translation of first", memo.get("forest"))
+        memo.put("a man", "رجل")
+        assertNull("aman must not receive the translation of a man", memo.get("aman"))
     }
 
     @Test
