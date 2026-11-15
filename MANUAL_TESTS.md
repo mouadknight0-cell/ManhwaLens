@@ -1,3 +1,21 @@
+# v0.12.4 — Bergamot offline translation experiment
+
+Run this section before judging Bergamot as an ML Kit replacement. Keep the same source page set for both engines.
+
+1. Install `ManhwaLens-v0.12.4-debug.apk` on an ARM64 Android 9+ phone. Confirm the app opens and ML Kit remains selected by default.
+2. In Settings → Offline translation, download the ML Kit EN→AR model. In the Bergamot card, download its model (~23.8 MB compressed, ~35.6 MB installed). Confirm both report ready.
+3. Select **Bergamot (experimental)**, enable **Offline mode**, then disable Wi-Fi and mobile data. Translate one page with Tap mode and one with Live mode.
+   - **PASS:** Arabic appears, the app stays responsive, no cloud request is attempted, and the same page can be translated again offline.
+   - **FAIL:** native crash, app freeze, empty page, missing bubbles, or network dependency after the model is installed.
+4. Repeat the exact same pages with **ML Kit / on-device**. Use at least 20 dialogue bubbles across 3–5 pages, including short answers, long narration, names, punctuation and mixed Latin/Arabic.
+5. Enable Settings → Diagnostics → Debug mode and collect the translation-pair report for each engine. Compare semantic accuracy, English echoes, omitted bubbles, consistency of names, total page time and time to first visible Arabic. Clear the translation-pair log between engine batches so the reports cannot mix.
+6. Repeat each engine once after a cold app restart. Record device model, Android version, free RAM if available, engine, model-ready state, page count, median page latency and any crash.
+7. **Decision rule:** keep ML Kit as default unless Bergamot completes all device checks without crashes and demonstrates a repeatable quality or speed advantage. Do not infer a winner from APK build success alone.
+
+**Known compatibility:** Bergamot's native runtime is ARM64 only and requires Android 9+. ARMv7 devices must stay on ML Kit. The Bergamot model is downloaded separately and is not included in the APK.
+
+---
+
 # v0.12.3 — PaddleOCR-only OCR and offline-first translation
 
 1. Install the v0.12.3 APK on an ARM64 or ARMv7 Android phone.
