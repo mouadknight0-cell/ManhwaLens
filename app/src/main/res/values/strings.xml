@@ -203,7 +203,7 @@
     <string name="ignore_list_summary">One phrase per line (or comma-separated), case-insensitive. Blocks containing any phrase are skipped before translation. Pre-filled with common site chrome: Subscribe, Get the app, Continue Reading, TOP, Episode, views, coins. Clear the field to disable.</string>
 
     <!-- Benchmark (Part C) -->
-    <string name="benchmark_button">Benchmark translation</string>
+    <string name="benchmark_button">ML Kit batching benchmark</string>
     <string name="benchmark_summary">ML Kit-only batching diagnostic; it ignores the selected offline translation engine. Translates the same 20 sentences one by one, in parallel (2/3/4/6 at once) and as one joined call with 8 separators. 5 passes each, first discarded; reports median/worst time and mapping integrity. It also runs the ML Kit-only quality check. Use Compare ML Kit vs Bergamot for a real engine comparison.</string>
     <string name="benchmark_title">ML Kit batching benchmark</string>
     <string name="benchmark_running">Running…</string>
