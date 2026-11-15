@@ -298,3 +298,28 @@ Never use one label as evidence for another.
 1. Inspect the push workflow triggered by commit `c2b26c15208469d42be8dcca0c40cca19fa14ef6`; fix any workflow-script issue and confirm certificate continuity against the latest release.
 2. If CI confirms v0.12.8 and the prior release use the same certificate, ask the user to try installing the APK directly over the existing app. If Android still requests uninstall, obtain the exact installer error and identify the currently installed version/signature before changing release signing.
 3. Do not increment app version or publish another APK until the update gate passes.
+
+
+## Signing policy — future update-compatible releases (2026-11-15)
+
+### User decision
+- The user explicitly accepts that the currently installed/current release may be ignored for update compatibility. The requirement applies to all future releases: each new APK must install over the preceding future release without uninstalling or losing app data.
+- Do not spend further work trying to make v0.12.8 compatible with a different historical signing identity.
+
+### Verified CI signing evidence
+- The single tracked CI signing input is `ci/experimental-debug.keystore.base64`; its Git blob SHA is identical at tags v0.12.7, v0.12.8 and the active development branch: `68bd7f5388218224353f11b456ff3c29fb44c64c`.
+- Workflow run [43726600572](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43726600572) on head `f15bd7623aff2ae4e7657a7c9009dc95b355ebc3` passed unit tests and assembled the APK, but the new update-compatibility gate correctly blocked publication because the newly built APK signer SHA-256 was `b22d6e73e3fa929ffd4f0afa428a20fbc522f193809974f9203bfd41a39ed5f7`, while v0.12.7 was signed with `5462bf33998170673eb32dcc2cd37e47d1cd67f51c46046a2faa202977a92253`.
+- This is a historical signing transition, not a reason to rotate or delete the current key. The next future release must establish the stable baseline using the current tracked key, then every subsequent APK must match it.
+
+### Mandatory release contract
+- Keep exactly one CI debug signing keystore input and restore it before every debug APK build; never regenerate or replace it during routine builds.
+- Preserve `applicationId=com.manhwalens.app` and increment `versionCode` strictly for every published APK.
+- Before publication, extract signer SHA-256 from the candidate APK and compare it to the most recent future-baseline release APK; reject mismatches, package changes or non-increasing version codes.
+- Once the first future baseline release is published, every later release must pass the same signer/package/version gate. A failed gate means no Release publication and no request for phone installation.
+- The user has accepted a one-time break from the currently installed historical build; do not claim the first future APK updates v0.12.8. Explain the one-time install transition only when that APK is ready.
+
+### Status
+- Implemented: CI key restoration and APK metadata/signature continuity gate.
+- CI-observed: current branch build is blocked solely by the expected mismatch with historical v0.12.7; unit tests and APK assembly succeeded.
+- Not yet verified: successful publication of the first future baseline APK and actual install-over-existing-future-release on a phone.
+- Next action: continue engineering on the active branch, increment app version for the next release, confirm the candidate signer matches the v0.12.8/current-key build baseline, then publish only after the gate passes.
