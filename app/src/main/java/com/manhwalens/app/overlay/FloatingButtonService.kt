@@ -3289,14 +3289,36 @@ class FloatingButtonService : Service() {
                     if (filtered.edgeWarnings.isNotEmpty()) {
                         com.manhwalens.app.util.PipelineTracer.span("live horizontal edge OCR", 0, filtered.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240))
                     }
-                    // v0.9.12: text sitting on our own UI (lens, caption, menu) is not page text.
+                    // Keep tap and Live OCR quality gates aligned: reject the same obvious
+                    // consonant-only recognition debris before it can be translated.
+                    // Geometric own-UI overlap keeps its dedicated 30% threshold below.
+                    val liveGarbageClassifier = com.manhwalens.app.ocr.OcrGarbageClassifier(
+                        com.manhwalens.app.util.OwnedWindows.UI_STRINGS
+                    ) { android.os.SystemClock.elapsedRealtime() }
+                    val noPatchRects = emptyList<com.manhwalens.app.ocr.geometry.Rect2D>()
+                    val noOwnedRects = emptyList<com.manhwalens.app.ocr.geometry.Rect2D>()
+                    val garbageDrops = LinkedHashMap<String, Int>()
                     val ownRects = liveOwnedRects(frame.width)
-                    val pageBlocks = filtered.kept.filterNot {
-                        com.manhwalens.app.live.OwnUiFilter.isOwnUi(it.bounds, ownRects)
+                    val pageBlocks = filtered.kept.filterNot { block ->
+                        val verdict = liveGarbageClassifier.classify(
+                            block.text.replace('\n', ' ').trim(),
+                            block.bounds,
+                            patchRects = noPatchRects,
+                            ownedRects = noOwnedRects
+                        )
+                        if (!verdict.keep) {
+                            garbageDrops[verdict.reason.name] = (garbageDrops[verdict.reason.name] ?: 0) + 1
+                        }
+                        !verdict.keep || com.manhwalens.app.live.OwnUiFilter.isOwnUi(block.bounds, ownRects)
+                    }
+                    if (garbageDrops.isNotEmpty()) {
+                        com.manhwalens.app.util.PipelineTracer.span(
+                            "live OCR quality drops", 0, garbageDrops.entries.joinToString { "${it.key}=${it.value}" }
+                        )
                     }
                     if (pageBlocks.size != filtered.kept.size) {
                         com.manhwalens.app.util.PipelineTracer.span(
-                            "live own-ui drop", 0, "${filtered.kept.size - pageBlocks.size} block(s) over the lens/menu"
+                            "live own-ui/garbage drop", 0, "${filtered.kept.size - pageBlocks.size} block(s)"
                         )
                     }
                     val newBlocks = pageBlocks
