@@ -24,7 +24,7 @@ internal class QualityFallbackTranslator(
             is PageTranslation.Failure -> {
                 when (val second = fallback.translatePage(blocks)) {
                     is PageTranslation.Success -> {
-                        onFallback?.invoke(blocks.size, second.elapsedMs, second.blocks.count { it.arabic.isNotBlank() })
+                        runCatching { onFallback?.invoke(blocks.size, second.elapsedMs, second.blocks.count { it.arabic.isNotBlank() }) }
                         second.copy(engineId = "${primary.engineId}+ml_kit_fallback")
                     }
                     is PageTranslation.Failure -> first
@@ -37,7 +37,7 @@ internal class QualityFallbackTranslator(
 
                 when (val second = fallback.translatePage(missing)) {
                     is PageTranslation.Failure -> {
-                        onFallback?.invoke(missing.size, 0L, 0)
+                        runCatching { onFallback?.invoke(missing.size, 0L, 0) }
                         first
                     }
                     is PageTranslation.Success -> {
@@ -53,7 +53,7 @@ internal class QualityFallbackTranslator(
                                 TranslatedBlock(original.id, original.english, fallbackText)
                             }
                         }
-                        onFallback?.invoke(missing.size, second.elapsedMs, filled)
+                        runCatching { onFallback?.invoke(missing.size, second.elapsedMs, filled) }
                         first.copy(
                             blocks = merged,
                             engineId = if (filled > 0) "${primary.engineId}+ml_kit_fallback" else primary.engineId,
