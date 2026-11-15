@@ -613,6 +613,12 @@ class MlKitTranslator(
                 try {
                     val t0 = System.currentTimeMillis()
                     withDiagnosticLock {
+                        // A manual diagnostic may have stored a fresh choice while this
+                        // self-test waited for the exclusive gate. Do not overwrite that newer result.
+                        if (!policy.needsSelfTest()) {
+                            Log.i(TAG, "batch self-test skipped: policy was updated while waiting for diagnostic lock")
+                            return@withDiagnosticLock
+                        }
                         val choice = BatchAutoSelect.run(
                             ::translateRawDuringExclusiveDiagnostic,
                             strategies = policy.allowedStrategies(),
