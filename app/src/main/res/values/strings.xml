@@ -204,8 +204,8 @@
 
     <!-- Benchmark (Part C) -->
     <string name="benchmark_button">Benchmark translation</string>
-    <string name="benchmark_summary">Translates the same 20 sentences with the on-device ML Kit engine (offline): one by one, in parallel (2/3/4/6 at once) and as one joined call with 8 different separators. 5 passes each, first one discarded; shows median and worst time and whether every bubble maps back. Takes about a minute. The result is also added to the self-check \"Copy report\".</string>
-    <string name="benchmark_title">Translation benchmark</string>
+    <string name="benchmark_summary">ML Kit-only batching diagnostic; it ignores the selected offline translation engine. Translates the same 20 sentences one by one, in parallel (2/3/4/6 at once) and as one joined call with 8 separators. 5 passes each, first discarded; reports median/worst time and mapping integrity. It also runs the ML Kit-only quality check. Use Compare ML Kit vs Bergamot for a real engine comparison.</string>
+    <string name="benchmark_title">ML Kit batching benchmark</string>
     <string name="benchmark_running">Running…</string>
     <string name="benchmark_close">Close</string>
     <string name="benchmark_copy">Copy results</string>
