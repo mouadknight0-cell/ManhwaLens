@@ -13,7 +13,7 @@ import java.util.concurrent.TimeoutException
  * never changes the saved BatchPolicy or the selected translation engine.
  */
 object MlKitDiagnosticBatch {
-    data class Result(val outputs: List<String>, val dispatch: String)
+    data class Result(val outputs: List<String>, val dispatch: String, val retriedCount: Int = 0)
 
     private const val JOINED_MAX_CHARS = 3000
     private const val REQUEST_TIMEOUT_SECONDS = 20L
@@ -61,13 +61,23 @@ object MlKitDiagnosticBatch {
                     ""
                 }
             }
+            // Match the production ML Kit page path: keep successful parallel replies,
+            // then retry only blank/missing bubbles once, sequentially.
+            var retried = 0
+            for (index in outputs.indices) {
+                if (outputs[index].isBlank()) {
+                    retried++
+                    outputs[index] = runCatching { translateOne(inputs[index]).trim() }.getOrDefault("")
+                }
+            }
             val reason = when {
                 joinedStrategy == null -> ""
                 inputs.sumOf { it.length } > JOINED_MAX_CHARS -> " (joined skipped: input too long)"
                 !BatchSplitter.sourcesSafe(joinedStrategy, inputs) -> " (joined skipped: marker in source)"
                 else -> " (joined ${joinedStrategy.label} did not map; parallel fallback)"
             }
-            Result(outputs, "parallel x$level$reason")
+            val retryNote = if (retried == 0) "" else "; sequential retry x$retried"
+            Result(outputs, "parallel x$level$reason$retryNote", retried)
         } finally {
             pool.shutdownNow()
         }
