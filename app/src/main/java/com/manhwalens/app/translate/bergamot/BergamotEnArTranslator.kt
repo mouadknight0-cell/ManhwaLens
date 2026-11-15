@@ -19,6 +19,7 @@ internal class BergamotEnArTranslator(context: Context) {
 
     suspend fun translate(texts: List<String>): List<String> = withContext(Dispatchers.Default) {
         require(texts.all { it.length <= 2500 }) { "Each segment must be at most 2500 characters" }
+        check(BergamotNative.supported && BergamotNative.available) { "Bergamot runtime is unavailable on this device" }
         check(BergamotEnArModel.isInstalled(app)) { "Download the English→Arabic offline model first" }
         synchronized(lock) {
             if (service == 0L) service = BergamotNative.nativeNewService(256)
