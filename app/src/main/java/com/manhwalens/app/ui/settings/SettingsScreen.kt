@@ -63,7 +63,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showLastCapture by remember { mutableStateOf(false) }
     var showLiveSelfCheck by remember { mutableStateOf(false) }
     var showClearTranslationCache by remember { mutableStateOf(false) }
-    var cacheEntryCount by remember { mutableStateOf(com.manhwalens.app.translate.TranslatorFactory.cacheSize()) }
+    var cacheEntryCount by remember { mutableStateOf(com.manhwalens.app.translate.TranslatorFactory.cacheSize(context)) }
 
     if (showPrivacy) {
         PrivacyPolicyScreen(onBack = { showPrivacy = false })
@@ -78,6 +78,29 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     if (showLastCapture) {
         LastCaptureDialog(onDismiss = { showLastCapture = false })
+    }
+
+    if (showClearTranslationCache) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showClearTranslationCache = false },
+            title = { Text(stringResource(R.string.translation_cache_reset_title)) },
+            text = { Text(stringResource(R.string.translation_cache_reset_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    com.manhwalens.app.translate.TranslatorFactory.clearCache(context)
+                    cacheEntryCount = 0
+                    showClearTranslationCache = false
+                    Toast.makeText(context, R.string.translation_cache_reset_done, Toast.LENGTH_SHORT).show()
+                }) {
+                    Text(stringResource(R.string.translation_cache_reset_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearTranslationCache = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     val prefs = remember { SettingsPrefs(context) }
@@ -161,6 +184,23 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         // Prepare the EN→AR model before going offline.
         OfflineTranslationModelCard()
+        Spacer(Modifier.size(12.dp))
+
+        // Translation result cache — separate from glossary, name memory and diagnostics.
+        Section(stringResource(R.string.translation_cache_section)) {
+            Text(
+                text = stringResource(R.string.translation_cache_summary, cacheEntryCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.size(8.dp))
+            OutlinedButton(
+                onClick = { showClearTranslationCache = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.translation_cache_reset_action))
+            }
+        }
         Spacer(Modifier.size(12.dp))
 
         // ---------- Live mode (Part C) ----------
