@@ -119,13 +119,19 @@ class TranslationMemoTest {
                 )
             }
         }
-        val caching = CachingTranslator(engine, TranslationCache(), memo = memo)
+        val cache = TranslationCache()
+        val caching = CachingTranslator(engine, cache, memo = memo)
         caching.translatePage(listOf(TranslationBlock(1, "KRAK!")))
         assertEquals(1, calls)
         // Same burst, different OCR spelling: served from the memo, no second engine call.
         val second = caching.translatePage(listOf(TranslationBlock(1, "Kraak"))) as PageTranslation.Success
         assertEquals(1, calls)
         assertEquals("طَق!", second.blocks.single().arabic)
+        // A fuzzy hit must never become an exact cache entry for different source text.
+        assertNull(cache.get("fake_engine", "Kraak"))
+        val third = caching.translatePage(listOf(TranslationBlock(1, "Kraak"))) as PageTranslation.Success
+        assertEquals("طَق!", third.blocks.single().arabic)
+        assertEquals(1, calls)
     }
 
     @Test
