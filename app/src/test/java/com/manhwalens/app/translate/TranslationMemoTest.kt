@@ -147,6 +147,21 @@ class TranslationMemoTest {
     }
 
     @Test
+    fun exactMemoHitIsRecognizedAndPromotedToTheExactCache() {
+        val memo = TranslationMemo()
+        val cache = TranslationCache()
+        val fake = FakeTranslator()
+        memo.put("Where are you?", "أين أنت؟")
+        val caching = CachingTranslator(fake, cache, memo = memo)
+
+        val result = caching.translatePage(listOf(TranslationBlock(1, "Where are you?"))) as PageTranslation.Success
+
+        assertEquals("أين أنت؟", result.blocks.single().arabic)
+        assertEquals(0, fake.calls)
+        assertEquals("أين أنت؟", cache.get("fake_engine", "Where are you?"))
+    }
+
+    @Test
     fun eachEngineNamespaceHasItsOwnMemo() {
         val a = CachingTranslator.memoFor("ml_kit_en_ar", "default")
         val b = CachingTranslator.memoFor("gemini", "default")
