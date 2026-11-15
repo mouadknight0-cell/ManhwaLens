@@ -18,15 +18,9 @@ data class OcrResult(
     val elapsedMs: Long
 )
 
-/**
- * Selectable on-device OCR adapter. ML Kit remains the safe default; PaddleOCR
- * is an explicitly experimental, fully local alternative using PP-OCRv5 Arabic.
- * Call from a background thread.
- */
+/** Fixed on-device OCR adapter. PaddleOCR PP-OCRv5 Arabic/English runs locally. Call from a background thread. */
 class TextRecognizerClient(context: Context) {
     private val appContext = context.applicationContext
-    private val client = SHARED_CLIENT
-
     fun recognize(bitmap: Bitmap): OcrResult = recognizePaddle(bitmap)
 
     private fun recognizePaddle(bitmap: Bitmap): OcrResult {
@@ -79,7 +73,6 @@ class TextRecognizerClient(context: Context) {
 
     companion object {
         private const val TAG = "MLCapture"
-        private const val OCR_TIMEOUT_SEC = 20L
         private const val PADDLE_DET_LIMIT_SIDE = 1280
         private const val PADDLE_DET_MAX_SIDE = 1920
         private const val PADDLE_THREADS = 4
