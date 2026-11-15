@@ -1,14 +1,23 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.4  
+**الإصدار:** 5.5  
 **تاريخ التحديث:** 2026-11-15  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر تغييرات خط التطوير الحالي:** v0.12.7 قيد التحقق؛ آخر commits التنفيذ e906fd4 و3dbfa11، وتجهيز الإصدار a7b314b.  
-**آخر CI ناجح مكتمل للخط الحالي قبل v0.12.7:** [43716970386](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43716970386) على `94febc3d25247e1cb696927051e99e276486396d` — نجحت Unit tests وتنزيل/فحص أصول PaddleOCR وBergamot وبناء Debug APK ورفع artifacts. CI لنسخة v0.12.7 ما زال بانتظار التحقق. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
+**آخر تغييرات خط التطوير الحالي:** v0.12.8 منشور كـ GitHub prerelease؛ commit الإصدار 614250692d384beaa3bb9a818aebf89d23dbbce1؛ applicationId هو com.manhwalens.app وversionCode هو 48.  
+**CI لنسخة v0.12.8:** [43724428631](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43724428631) — نجحت Unit tests والتحققات من نماذج PaddleOCR وBergamot ARM64 وبناء Debug APK ورفع artifacts. كان هذا تشغيل PR validation، لذا تخطّى خطوات نشر Release بشكل صحيح. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
 > هذا الملف هو التقرير الهندسي الرسمي الوحيد للمشروع. يستبدل النسخة السابقة من `REPOSITORY_REPORT.md` بالكامل. لا تُنشئ تقارير منفصلة لكل مرحلة أو إصلاح؛ أضف جميع الأعمال المستقبلية إلى هذا الملف مع الاحتفاظ بالتواريخ والأدلة والقرارات وسجل التغييرات.
+
+### مستجدات v0.12.8 — فصل تشخيص محركات الترجمة
+- تم فصل ثلاث وظائف تشخيصية: اختبار تجميع طلبات ML Kit، واختبار Bergamot وحده، والمقارنة الزوجية بين ML Kit وBergamot.
+- اختبار ML Kit batching يستدعي ML Kit دائمًا مهما كان المحرك المحدد، ويحدّث سياسة تجميع ML Kit فقط؛ لا يختبر Bergamot.
+- اختبار Bergamot-only يستدعي محول Bergamot native فقط، دون ML Kit أو fallback، ويعرض أول مرور منفصلًا عن ثلاثة warm passes مع المخرجات لكل حالة.
+- المقارنة الزوجية تأخذ نسخة من سياسة ML Kit المحفوظة للجهاز (joined مثبت وآمن أو parallel)، وتعيد محاولة فقاعات ML Kit الناقصة فقط، وتعطّل cross-engine fallback في القياس.
+- تقرير المقارنة يذكر استراتيجية dispatch المستخدمة، ويشرح أن الزمن هو page-batch wall time وليس sentence latency. Token F1 قياس تداخل معجمي وليس دقة معنوية.
+- Release v0.12.8 منشور: https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.8 ؛ APK حجمه 71,359,650 bytes وSHA-256 هو e28bcfc464ec39398d31ed04401dd34dd0c1d7c4b3fb31c280814737dc9530b5.
+- لم يُختبر التطبيق على هاتف المستخدم بعد؛ جودة OCR وBergamot JNI والترجمة والذاكرة والتحديث فوق النسخة السابقة ما زالت تتطلب تحققًا فعليًا.
 
 ---
 
