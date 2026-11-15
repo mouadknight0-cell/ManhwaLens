@@ -372,6 +372,55 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
             Spacer(Modifier.size(8.dp))
             Text(
+                text = stringResource(R.string.bergamot_benchmark_summary),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.size(6.dp))
+            OutlinedButton(
+                enabled = !benchmarkRunning,
+                onClick = {
+                    benchmarkRunning = true
+                    Thread {
+                        val report = try {
+                            if (!com.wasimaster.wmkeyboard.core.translate.BergamotNative.supported ||
+                                !com.wasimaster.wmkeyboard.core.translate.BergamotNative.available) {
+                                throw IllegalStateException("Bergamot native runtime is not supported on this device")
+                            }
+                            if (!com.manhwalens.app.translate.bergamot.BergamotEnArModel.isInstalled(context)) {
+                                throw IllegalStateException("Download the Bergamot EN→AR model in Offline translation settings first")
+                            }
+                            val bergamot = com.manhwalens.app.translate.bergamot.BergamotEnArTranslator(context)
+                            try {
+                                com.manhwalens.app.translate.EngineComparisonBenchmark.runSingleEngine(
+                                    engineName = "Bergamot",
+                                    translateBatch = { inputs ->
+                                        kotlinx.coroutines.runBlocking { bergamot.translate(inputs) }
+                                    },
+                                    dispatchDescription = "one native multi-input request per pass; Bergamot only"
+                                ).toText() +
+                                    "\\n\\nDevice: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
+                            } finally {
+                                bergamot.release()
+                            }
+                        } catch (e: Exception) {
+                            "Bergamot-only benchmark could not run: ${e.javaClass.simpleName} — ${e.message}"
+                        }
+                        runCatching {
+                            java.io.File(context.filesDir, com.manhwalens.app.overlay.FloatingButtonService.BENCHMARK_REPORT_FILE).writeText(report)
+                        }
+                        runCatching { com.manhwalens.app.util.ErrorLog.writeRaw(context, "bergamot_only_benchmark", report) }
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            benchmarkRunning = false
+                            benchmarkResult = report
+                        }
+                    }.start()
+                }
+            ) {
+                Text(if (benchmarkRunning) stringResource(R.string.benchmark_running) else stringResource(R.string.bergamot_benchmark_button))
+            }
+            Spacer(Modifier.size(8.dp))
+            Text(
                 text = stringResource(R.string.engine_comparison_summary),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
