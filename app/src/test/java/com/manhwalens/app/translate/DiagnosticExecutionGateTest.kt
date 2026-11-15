@@ -6,7 +6,6 @@ import org.junit.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 class DiagnosticExecutionGateTest {
     @Test
