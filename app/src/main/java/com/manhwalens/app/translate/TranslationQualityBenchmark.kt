@@ -40,7 +40,8 @@ object TranslationQualityBenchmark {
         val cases: List<CaseResult>
     ) {
         fun toText(): String = buildString {
-            appendLine("Offline translation quality check (EN→AR)")
+            appendLine("ML Kit offline translation quality check (EN→AR)")
+            appendLine("Engine: ML Kit only. The selected offline engine setting does not affect this diagnostic.")
             appendLine("Reference cases: $total · completed: $completed · accepted by Arabic guard: $accepted · rejected/missing: $rejected")
             appendLine("Exact normalized matches: $exactMatches/$total · mean Arabic token F1: ${"%.1f".format(java.util.Locale.ROOT, meanTokenF1 * 100)}%")
             appendLine("Elapsed: ${elapsedMs}ms")
