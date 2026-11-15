@@ -9,6 +9,7 @@
 - Package the pinned native runtime for ARM64 only; keep the language model on-demand and out of the APK. Include MPL-2.0 and third-party notices.
 - Add a Settings model downloader/status card and an explicit engine selector. The Live/tap pipelines route explicit Bergamot selection through the non-progressive page translator while preserving ML Kit's progressive path for its default engine.
 - Keep one native service/model per process to avoid repeated model loading and native-memory leaks.
+- Simplify Settings: remove the Automation, Ignore list, Character names and Names & terms sections; keep Live mode control in the floating lens menu; add a clearly labelled translation-pair log reset action.
 
 ### Verification
 - CI unit tests and debug APK assembly passed on the prototype branch.
@@ -21,7 +22,7 @@
 - Keep ML Kit English→Arabic as the on-device translation engine and Gemini as the optional cloud engine.
 - Remove the LibreTranslate/Argos option, endpoint/API-key settings, factory path, implementation and tests. Existing saved LibreTranslate selection safely falls back to ML Kit.
 - Remove the separate OCR engine settings section so users no longer confuse OCR selection with translation selection.
-- Simplify Settings: remove Automation, Ignore list, Character names, and Names & terms sections; move the Live mode controls directly below the offline translation model card.
+- Simplify Settings: remove Automation, Ignore list, Character names, and Names & terms sections; Live mode is controlled from the floating lens menu.
 
 ### Verification
 - CI build and unit tests pending for this branch; real-device PaddleOCR accuracy and translation latency still require measurement.
