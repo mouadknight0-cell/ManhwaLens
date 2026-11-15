@@ -37,6 +37,10 @@ object TranslatorFactory {
     @Volatile
     private var diskCache: PersistentTranslationCache? = null
 
+    /** One native Bergamot service/model per process; recreating it per capture leaks native RAM. */
+    @Volatile
+    private var bergamotDelegate: BergamotPageTranslator? = null
+
     /**
      * P1 — one name session per translator instance (i.e. per captured page).
      *
@@ -178,8 +182,11 @@ object TranslatorFactory {
             }
         }
         val session = names(context)
+        val delegate = bergamotDelegate ?: synchronized(this) {
+            bergamotDelegate ?: BergamotPageTranslator(context).also { bergamotDelegate = it }
+        }
         return CachingTranslator(
-            BergamotPageTranslator(context),
+            delegate,
             sharedCache, disk(context), style,
             memo = memo("bergamot_en_ar", style),
             pinnedOverride = session::rewrite,
