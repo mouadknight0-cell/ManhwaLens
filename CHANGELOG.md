@@ -1,7 +1,7 @@
 ## 0.12.7 — isolate engine comparison timing
 - Prevent the ML Kit background separator self-test from running concurrently with the explicit ML Kit vs Bergamot diagnostic, which shares the process-wide translator and would distort measured latency.
 - Add a benchmark-only ML Kit warm-up that verifies/downloads the model and loads the translator without scheduling a new batching self-test.
-- Serialize the comparison and any already-running batching self-test through one process-wide diagnostic lock.
+- Hold the same process-wide diagnostic lock across ML Kit benchmark warm-up and all measured passes, preventing pending or running batching self-tests from contaminating timing.
 - Keep the comparator cache-free and read-only with respect to the selected translation engine and batching preferences.
 - ML Kit remains the default; Bergamot remains optional and experimental.
 
