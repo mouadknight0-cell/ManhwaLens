@@ -71,6 +71,9 @@ class CachingTranslator(
 
         // 1) Serve what we can from cache (engine+style namespaced, normalized).
         val cached = LinkedHashMap<Int, String>(blocks.size)
+        // Keep the pre-correction cache value for diagnostics; finalArabic is the value
+        // that will actually be painted after name/dialogue overrides and quality checks.
+        val cachedCandidates = LinkedHashMap<Int, String>(blocks.size)
         val fuzzyCachedIds = HashSet<Int>()
         val misses = ArrayList<TranslationBlock>(blocks.size)
         var diskHits = 0
@@ -110,6 +113,7 @@ class CachingTranslator(
             } else null
             if (dialogueRepairedHit != null && issue == null) {
                 cached[b.id] = dialogueRepairedHit
+                if (rawHit != null) cachedCandidates[b.id] = rawHit
                 when {
                     diskHit != null || fromExactMemo -> {
                         // Promote only source-exact disk/memo hits. A fuzzy near-match must
@@ -148,9 +152,10 @@ class CachingTranslator(
             val source = blocks.firstOrNull { it.id == id }?.english.orEmpty()
             runCatching {
                 val isFuzzy = id in fuzzyCachedIds
+                val candidate = cachedCandidates[id] ?: arabic
                 onTranslationPair?.invoke(
                     TranslationPairTrace(
-                        id, source, arabic, arabic, engineId,
+                        id, source, arabic, candidate, engineId,
                         if (isFuzzy) "FUZZY_HIT" else "CACHE_HIT",
                         if (isFuzzy) "served from fuzzy memo" else "served from exact cache",
                         0L
@@ -180,6 +185,9 @@ class CachingTranslator(
                     return PageTranslation.Failure(result.reason, result.message, engineId)
                 }
                 is PageTranslation.Success -> {
+                    // Preserve the delegate's untouched candidate separately from the
+                    // sanitized/name-repaired/source-corrected value used by the quality guard.
+                    val rawCandidatesById = result.blocks.associate { it.id to it.arabic }
                     val polished = result.blocks.map { raw ->
                         // Apply authoritative series-name corrections BEFORE the quality guard,
                         // matching the cache-hit path. A preserved name such as "Will" must not
@@ -212,7 +220,8 @@ class CachingTranslator(
                         val issue = rejectedById[tb.id]
                         runCatching {
                             onTranslationPair?.invoke(TranslationPairTrace(
-                                tb.id, tb.english, if (issue == null) tb.arabic else "", tb.arabic,
+                                tb.id, tb.english, if (issue == null) tb.arabic else "",
+                                rawCandidatesById[tb.id] ?: tb.arabic,
                                 engineId,
                                 if (issue == null && tb.arabic.isNotBlank()) "OK" else if (issue != null) "QUALITY_REJECTED" else "EMPTY",
                                 issue?.name ?: if (tb.arabic.isBlank()) "empty translation" else "",
