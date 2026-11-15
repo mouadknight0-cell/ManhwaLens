@@ -1,6 +1,6 @@
 # ManhwaLens
 
-ManhwaLens is an Android floating overlay that reads English dialogue from a visible manhwa page and renders Arabic patches in place. Current experimental build: v0.12.4.
+ManhwaLens is an Android floating overlay that reads English dialogue from a visible manhwa page and renders Arabic patches in place. Current experimental release: [v0.12.8](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.8).
 
 ## v0.11.0 — what changed for the reader
 
@@ -16,9 +16,9 @@ ManhwaLens is an Android floating overlay that reads English dialogue from a vis
 - **Faster.** The plan drops duplicates and noise before the network call; Live only asks
   about text it has not painted yet.
 
-Debug APK: GitHub Actions artifact `ManhwaLens-debug-apk` (run on the branch, workflow
-*Android build*). No Android SDK/Gradle is available in the authoring sandbox, so the APK is
-built in CI only.
+**Download:** [ManhwaLens v0.12.8 APK](https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.8/ManhwaLens-v0.12.8-debug.apk) · [All GitHub Releases](https://github.com/mouadknight0-cell/ManhwaLens/releases).
+
+The APK is attached to a published GitHub Release; Actions artifacts are CI outputs, not the normal download path. CI retains a stable experimental debug-signing key and increases `versionCode` for each release. Actual install-over-existing-app behavior still requires physical-device verification.
 
 ## What this update adds
 
