@@ -74,7 +74,7 @@ fun OfflineTranslationModelCard() {
             Text("الترجمة دون إنترنت", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.size(6.dp))
             Text(
-                "يعتمد التطبيق على نموذج ML Kit المحلي. نزّله مرة واحدة عبر Wi‑Fi، وبعدها تتم الترجمة على الهاتف دون إرسال النصوص إلى خادم.",
+                "يوفر التطبيق محرك ML Kit المحلي، ويمكنك اختيار Bergamot التجريبي أيضاً. نزّل نموذج المحرك الذي تختاره مرة واحدة، ثم تتم الترجمة على الهاتف دون إرسال النصوص إلى خادم.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -86,7 +86,7 @@ fun OfflineTranslationModelCard() {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
                     Text("فرض الترجمة دون إنترنت", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "عند التفعيل: ML Kit فقط، مع تعطيل Gemini وLibreTranslate والترقية السحابية.",
+                        "عند التفعيل: تُستخدم المحركات المحلية فقط (ML Kit أو Bergamot عند اختياره)، مع تعطيل Gemini والترقية السحابية.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
