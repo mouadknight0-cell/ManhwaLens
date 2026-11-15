@@ -78,7 +78,7 @@ fun TranslationEngineCard() {
     var imageModelMenu by remember { mutableStateOf(false) }
     val hasGeminiKey = TranslationPrefs(context).hasGeminiKey
     var cacheLabel by remember { mutableStateOf("") }
-    cacheLabel = "${TranslatorFactory.cacheSize()} cached" // cheap read, refreshed on actions
+    cacheLabel = "${TranslatorFactory.cacheSize(context)} cached" // cheap read, refreshed on actions
 
     fun select(e: TranslationEngine) {
         engine = e
@@ -110,7 +110,7 @@ fun TranslationEngineCard() {
             Handler(Looper.getMainLooper()).post {
                 testing = false
                 testResult = msg
-                cacheLabel = "${TranslatorFactory.cacheSize()} cached"
+                cacheLabel = "${TranslatorFactory.cacheSize(context)} cached"
                 if (prefs.geminiModel != modelBefore) {
                     Toast.makeText(
                         context,
@@ -471,7 +471,7 @@ fun TranslationEngineCard() {
                     )
                 }
                 TextButton(onClick = {
-                    TranslatorFactory.clearCache()
+                    TranslatorFactory.clearCache(context)
                     cacheLabel = "0 cached"
                     testResult = null
                 }) {
