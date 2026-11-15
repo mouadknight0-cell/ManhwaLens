@@ -63,4 +63,18 @@ class EngineComparisonBenchmarkTest {
         val duplicate = TranslationQualityBenchmark.CASES.take(1) + TranslationQualityBenchmark.CASES.take(1)
         EngineComparisonBenchmark.run({ it.map { "نعم" } }, { it.map { "نعم" } }, duplicate)
     }
+
+    @Test
+    fun engineExecutionOrderAlternatesAcrossPairedPasses() {
+        val order = mutableListOf<String>()
+        EngineComparisonBenchmark.run(
+            translateMlKitBatch = { inputs -> order += "ML"; inputs.map { "ترجمة" } },
+            translateBergamotBatch = { inputs -> order += "Bergamot"; inputs.map { "ترجمة" } },
+            cases = TranslationQualityBenchmark.CASES.take(1)
+        )
+        assertEquals(
+            listOf("ML", "Bergamot", "Bergamot", "ML", "ML", "Bergamot", "Bergamot", "ML"),
+            order
+        )
+    }
 }
