@@ -29,15 +29,39 @@ internal class BergamotPageTranslator(context: Context) : Translator {
             // bubble to Bergamot as one continuous line, while keeping source.english
             // untouched below so diagnostics/cache identity retain the original OCR.
             val engineInput = blocks.map { block -> block.english.asSingleLine() }
-            val translated = runBlocking { engine.translate(engineInput) }
+
+            // Repeated sound effects and dialogue often occur more than once on a page.
+            // Translate each exact normalized bubble only once, then fan its result back
+            // to every original block ID. This reduces native inference work without
+            // merging different bubbles or changing their order/identity.
+            val uniqueIndexes = LinkedHashMap<String, Int>(engineInput.size)
+            val uniqueTexts = ArrayList<String>(engineInput.size)
+            val inputIndexes = engineInput.map { text ->
+                uniqueIndexes[text] ?: run {
+                    val index = uniqueTexts.size
+                    uniqueIndexes[text] = index
+                    uniqueTexts.add(text)
+                    index
+                }
+            }
+
+            val uniqueOutputs = if (uniqueTexts.isEmpty()) {
+                emptyList()
+            } else {
+                runBlocking { engine.translate(uniqueTexts) }
+            }
+            check(uniqueOutputs.size == uniqueTexts.size) {
+                "Bergamot returned ${uniqueOutputs.size} translations for ${uniqueTexts.size} unique bubbles"
+            }
+
             PageTranslation.Success(
-                blocks = blocks.zip(translated).map { (source, target) ->
-                    TranslatedBlock(source.id, source.english, target)
+                blocks = blocks.mapIndexed { index, source ->
+                    TranslatedBlock(source.id, source.english, uniqueOutputs[inputIndexes[index]])
                 },
                 engineId = engineId,
                 elapsedMs = System.currentTimeMillis() - started,
                 cacheHits = 0,
-                cacheMisses = blocks.size
+                cacheMisses = uniqueTexts.size
             )
         } catch (e: Exception) {
             PageTranslation.Failure(FailureReason.UNKNOWN, e.message ?: e.javaClass.simpleName, engineId)
@@ -45,12 +69,21 @@ internal class BergamotPageTranslator(context: Context) : Translator {
     }
 
     /**
-     * Join OCR-wrapped lines with spaces. Collapse remaining whitespace so CRLF,
-     * tabs and repeated spaces cannot reintroduce artificial sentence boundaries.
+     * Join OCR-wrapped lines with spaces. A small single-pass scanner avoids compiling
+     * a regular expression and allocating intermediate line lists for every bubble.
      */
-    private fun String.asSingleLine(): String =
-        lineSequence()
-            .joinToString(" ") { it.trim() }
-            .replace(Regex("\\s+"), " ")
-            .trim()
+    private fun String.asSingleLine(): String {
+        val out = StringBuilder(length)
+        var pendingSpace = false
+        for (char in this) {
+            if (char.isWhitespace()) {
+                if (out.isNotEmpty()) pendingSpace = true
+            } else {
+                if (pendingSpace) out.append(' ')
+                out.append(char)
+                pendingSpace = false
+            }
+        }
+        return out.toString()
+    }
 }
