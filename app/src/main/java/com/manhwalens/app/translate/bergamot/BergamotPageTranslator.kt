@@ -25,7 +25,11 @@ internal class BergamotPageTranslator(context: Context) : Translator {
         )
         val started = System.currentTimeMillis()
         return try {
-            val translated = runBlocking { engine.translate(blocks.map { it.english }) }
+            // OCR line wrapping is visual layout, not sentence structure. Send each
+            // bubble to Bergamot as one continuous line, while keeping source.english
+            // untouched below so diagnostics/cache identity retain the original OCR.
+            val engineInput = blocks.map { block -> block.english.asSingleLine() }
+            val translated = runBlocking { engine.translate(engineInput) }
             PageTranslation.Success(
                 blocks = blocks.zip(translated).map { (source, target) ->
                     TranslatedBlock(source.id, source.english, target)
@@ -40,4 +44,13 @@ internal class BergamotPageTranslator(context: Context) : Translator {
         }
     }
 
+    /**
+     * Join OCR-wrapped lines with spaces. Collapse remaining whitespace so CRLF,
+     * tabs and repeated spaces cannot reintroduce artificial sentence boundaries.
+     */
+    private fun String.asSingleLine(): String =
+        lineSequence()
+            .joinToString(" ") { it.trim() }
+            .replace(Regex("\\s+"), " ")
+            .trim()
 }
