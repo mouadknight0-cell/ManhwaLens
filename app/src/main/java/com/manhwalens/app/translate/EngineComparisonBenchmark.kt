@@ -16,7 +16,9 @@ object EngineComparisonBenchmark {
 
     data class EngineReport(
         val engine: String, val firstPassElapsedMs: Long, val warmMedianMs: Long, val warmWorstMs: Long,
-        val batchRecoveryCount: Int, val cases: List<CaseResult>
+        val batchRecoveryCount: Int,
+        val cases: List<CaseResult>,
+        val failureDetails: List<String> = emptyList()
     ) {
         val accepted: Int get() = cases.count { it.accepted }
         val rejected: Int get() = cases.size - accepted
@@ -240,7 +242,7 @@ object EngineComparisonBenchmark {
 
     private fun brief(error: Throwable): String {
         val root = error.cause ?: error
-        return "${root.javaClass.simpleName}: ${root.message.orEmpty()}".replace('\\n', ' ').take(220)
+        return "${root.javaClass.simpleName}: ${root.message.orEmpty()}".replace(Regex("[\\r\\n]+"), " ").take(220)
     }
 
     private fun tokens(value: String): List<String> = normalize(value).split(Regex("\\s+")).filter { it.isNotBlank() }
