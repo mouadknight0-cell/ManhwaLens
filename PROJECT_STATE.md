@@ -752,3 +752,40 @@ Never use one label as evidence for another.
   - Dynamic #43756727237 — in progress.
 - Earlier dynamic run #43756611369 succeeded on head `f8edcd8...`, but Android build workflows on that superseded head were cancelled. No completed Android-build success is claimed for the new trace/override changes yet.
 - The report update itself creates a new documentation-only head and new CI; final validation must be checked against that newest head.
+
+
+## Engineering continuation — chapter 3 cache, dialogue and Android UI OCR fixes validated (2026-11-15)
+
+### Final-head CI verification
+- Active branch HEAD checked: `2b47b8cb66364f26f20a3ab45750662abbe532e3`.
+- Android push workflow #43756991576 completed `success` on exactly that HEAD.
+  - Unit tests: success.
+  - Debug APK build and rename: success.
+  - Pinned experimental debug signing-certificate check: success; SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
+  - Update-compatibility validation step: success.
+  - APK and test-report artifacts uploaded successfully.
+  - The release-publication decision step succeeded and publishing was skipped because the existing v0.12.10 tag already exists. This run did NOT create a new Release or replace the v0.12.10 asset.
+- PR workflow #43756999835 completed `success` on the same HEAD; unit tests and debug APK build passed. Update compatibility and release publish are skipped in the PR event by workflow design.
+- Dynamic dependency validation #43756991568 completed `success` on the same HEAD.
+- Push APK artifact metadata: artifact `ManhwaLens-v0.12.10-debug-apk`, ZIP size 70,060,487 bytes, digest `5a795bcf90d722d0b4b343cc148fa647ba2adcc81db3cf67ffb926dce64ba0b5`. This is a CI artifact, not a published new APK Release.
+- PR #4 remains open Draft; base remains `feature/v0.12.3-paddle-default-settings`. Keep stacked-PR sequence intact.
+
+### Changes included on the validated head
+- Fuzzy memo canonicalization now preserves vowels and word boundaries, ignores punctuation/case, and collapses adjacent repeated letters. Minimum distinctive shape excludes whitespace. The AH/YEAH weak-key and first/forest / a man/aman collision cases are regression-tested.
+- `CachingTranslator` distinguishes exact memo hits from fuzzy hits and does not promote fuzzy hits into exact cache keys. Translation pair diagnostics now emit `FUZZY_HIT` for approximate memo results and preserve the actual source string.
+- Exact-source post-processing repairs include the chapter-3 OCR strings listed in the preceding section. Commit `d75c60c6c762a569abeb688a1800ae9d9886edb8` aligns override keys with the actual normalization of apostrophes (e.g. I'M → I M), so the tests address the same canonical key production computes.
+- Commit `aad049187e2e18890f0c64cf774d4f9a298b1144` clarifies the progressive callback's exact/fuzzy memo semantics in source documentation.
+- Commit `5e0f05b828c2b93d0fadc152f36cb7b7f18fad4a` adds a narrow `SYSTEM_UI` verdict to `OcrGarbageClassifier`: clock + known Algerian carrier, exact mobile-data usage text, and known ManhwaLens notification signatures are dropped before translation.
+- Commit `2b47b8cb66364f26f20a3ab45750662abbe532e3` adds positive/negative tests for these patterns. Ordinary dialogue containing words such as "today", "ManhwaLens" or "mobilis" alone remains retained.
+- These OCR rules target only the UI signatures visible in the supplied capture. They do not solve general Android notification-shade or third-party app UI detection, and no OCR CER/WER or recall improvement has been measured.
+
+### Release and device-test boundary
+- Latest published release remains v0.12.10 prerelease with its existing APK; release API confirms draft=false, prerelease=true, APK asset present. No new release was published by this work.
+- CI verification is not a physical-device test. No claim is made that the new fuzzy memo, output repairs or SYSTEM_UI filter have been tested on the user's phone.
+- The user-supplied Joined `•` benchmark (725 ms median, 20/20 mapped) remains a device measurement. No batching policy change was made in this interaction.
+
+### Next engineering actions
+1. Add a visible-output regression corpus that records raw OCR source, candidate engine text, post-processed text, cache tier, and expected Arabic meaning separately. Include a distinction between OCR-corrupted source and valid source with mistranslation.
+2. Further constrain fuzzy memo use only if new collision cases remain; current canonicalization deliberately keeps useful KRAK/Kraak reuse while protecting vowels, spaces, and source identity.
+3. Extend UI contamination testing with captured bounding boxes / frame zones before adding broader text rules; do not blacklist generic words or app names without geometry.
+4. Keep raw ML Kit lexical benchmark (49.6% F1 on 23 cases) separate from any future visible-output score. No semantic quality gain is claimed from these exact overrides or CI success.
