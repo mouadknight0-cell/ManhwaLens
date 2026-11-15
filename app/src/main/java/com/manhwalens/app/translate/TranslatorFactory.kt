@@ -205,13 +205,26 @@ object TranslatorFactory {
         val delegate = bergamotDelegate ?: synchronized(this) {
             bergamotDelegate ?: BergamotPageTranslator(context).also { bergamotDelegate = it }
         }
-        return CachingTranslator(
+        val bergamot = CachingTranslator(
             delegate,
             sharedCache, disk(context), style,
             memo = memo("bergamot_en_ar", style),
             pinnedOverride = session::rewrite,
             onTranslationPair = pairRecorder(context)
         )
+        // Keep Bergamot as the primary engine, but recover bubbles withheld by the shared
+        // Arabic quality guard with the already-installed offline ML Kit engine. The fallback
+        // receives only blank/rejected bubbles; accepted Bergamot output is never retranslated.
+        return QualityFallbackTranslator(
+            primary = bergamot,
+            fallback = createOffline(context)
+        ) { requested, elapsedMs, filled ->
+            com.manhwalens.app.util.PipelineTracer.span(
+                "Bergamot -> ML Kit fallback",
+                elapsedMs,
+                "requested=$requested filled=$filled"
+            )
+        }
     }
 
     /** ML Kit only (progressive pass): same shared caches, ignores the engine pref. */
