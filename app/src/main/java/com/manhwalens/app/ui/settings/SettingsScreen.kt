@@ -399,14 +399,36 @@ fun SettingsScreen(onBack: () -> Unit) {
                                     if (!mlkit.warmUpForBenchmark("ML Kit vs Bergamot comparison")) {
                                         throw IllegalStateException("ML Kit EN→AR model is not ready; connect to Wi-Fi once and retry")
                                     }
-                                    com.manhwalens.app.translate.EngineComparisonBenchmark.run(
-                                        translateMlKitBatch = { inputs -> inputs.map { mlkit.translateRaw(it) } },
+                                    val batchPolicy = com.manhwalens.app.translate.TranslatorFactory.ensureBatchPolicy(context)
+                                    val mlKitParallelLevel = batchPolicy.parallelLevel()
+                                    val joinedStrategy = batchPolicy.current()
+                                    val dispatchDescription = joinedStrategy?.let {
+                                        "joined ${it.label} when safe and within 3000 characters; fallback parallel x$mlKitParallelLevel"
+                                    } ?: "parallel x$mlKitParallelLevel (saved ML Kit policy)"
+                                    val observedDispatches = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+                                    val comparisonResult = com.manhwalens.app.translate.EngineComparisonBenchmark.run(
+                                        translateMlKitBatch = { inputs ->
+                                            val result = com.manhwalens.app.translate.MlKitDiagnosticBatch.translate(
+                                                inputs = inputs,
+                                                parallelLevel = mlKitParallelLevel,
+                                                joinedStrategy = joinedStrategy,
+                                                translateOne = mlkit::translateRawForExclusiveDiagnostic
+                                            )
+                                            observedDispatches.add(result.dispatch)
+                                            result.outputs
+                                        },
                                         translateBergamotBatch = { inputs ->
                                             kotlinx.coroutines.runBlocking { bergamot.translate(inputs) }
-                                        }
+                                        },
+                                        mlKitDispatchDescription = dispatchDescription
                                     )
+                                    comparisonResult to synchronized(observedDispatches) {
+                                        observedDispatches.joinToString("; ")
+                                    }
                                 }
-                                comparison.toText() + "\n\nDevice: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
+                                comparison.first.toText() +
+                                    "\nML Kit dispatch observed: " + comparison.second +
+                                    "\n\nDevice: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
                             } finally {
                                 bergamot.release()
                             }
