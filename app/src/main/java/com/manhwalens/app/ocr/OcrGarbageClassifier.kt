@@ -43,7 +43,7 @@ class OcrGarbageClassifier(
     private val nowMs: () -> Long
 ) {
 
-    private val VOWELS = setOf('A', 'E', 'I', 'O', 'U')
+    private val VOWELS = setOf('A', 'E', 'I', 'O', 'U', 'Y')
 
     companion object {
         /** Conservative all-caps consonant noise threshold (fraction of letters). */
@@ -97,6 +97,10 @@ class OcrGarbageClassifier(
         val letters = text.toList().filter { it.isLetter() }
         if (letters.size < GARBAGE_MIN_LETTERS) return false
         if (letters.any { !it.isUpperCase() }) return false
+        // A real English word such as STRENGTH can be consonant-heavy without being OCR
+        // debris. Require a vowel-free token sequence as well as the ratio; Y counts as a
+        // vowel (RHYTHM must survive). Random OCR output like "NPHGRK ZXCV" remains rejected.
+        if (letters.any { VOWELS.contains(it) }) return false
         val consonants = letters.count { !VOWELS.contains(it) }
         return consonants / letters.size.toDouble() >= CONSONANT_RATIO_MIN
     }
