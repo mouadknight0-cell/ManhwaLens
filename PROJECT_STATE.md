@@ -323,3 +323,52 @@ Never use one label as evidence for another.
 - CI-observed: current branch build is blocked solely by the expected mismatch with historical v0.12.7; unit tests and APK assembly succeeded.
 - Not yet verified: successful publication of the first future baseline APK and actual install-over-existing-future-release on a phone.
 - Next action: continue engineering on the active branch, increment app version for the next release, confirm the candidate signer matches the v0.12.8/current-key build baseline, then publish only after the gate passes.
+
+
+## Deep source audit continuation — 2026-11-15
+
+### Current development head
+- Branch: `feature/v0.12.4-bergamot-experiment`
+- Current head: `3e1a2e72a5cb8a905cb37e7c80de4992b740d2d7`
+- PR #4 remains the active stacked development PR; do not merge it directly into main.
+
+### Implemented source fixes
+1. **Arabic rendering — commit `2123436dd867b48e17873371639fb64c69baa775`.**
+   - Force RTL paragraph direction in both text measurement and the actual fill/outline StaticLayouts.
+   - Remove the four-line drawing cap so the number of measured and rendered lines matches.
+   - If the complete translation cannot fit at minimum size, withhold the patch and retain the original artwork rather than painting a truncated sentence.
+   - PR validation run #43739136295 succeeded (Unit tests and Debug APK build). The push workflow did not pass the old update gate at that head; it was not a Kotlin compilation/test failure.
+
+2. **Release signing and update gate — commit `d1a086173b0ebbe1b730294184b2b5f823e01af0`.**
+   - Set next app metadata to versionName `0.12.9`, versionCode `49`.
+   - Explicitly bind the Debug build to `ci/experimental-debug.keystore` (PKCS#12) rather than relying on implicit AGP debug-key discovery through `~/.android/debug.keystore`.
+   - Added an APK signer fingerprint check against that exact keystore before upload/publish.
+   - Fixed the current release-tag lookup by passing `APP_VERSION` / `VERSION_TAG` through the shell environment; do not embed the version expression in a quoted string with an extra backslash.
+   - Kept the previously recorded user-authorized one-time transition: v0.12.9 may establish the future signing baseline after checking package/versionCode continuity against v0.12.8; after that, every new APK must match the preceding future release certificate exactly. Do not claim v0.12.9 updates the historical v0.12.8.
+   - The repository key fingerprint is `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`. The v0.12.8 published APK fingerprint was measured as `a2a5188b32649600b739d006c41e5509dcc05270afaaf41723da46c5e3bf8dc5`; they differ, as anticipated by the recorded one-time transition.
+
+3. **PaddleOCR native memory lifecycle — commit `3e1a2e72a5cb8a905cb37e7c80de4992b740d2d7`.**
+   - Serialize OCR inference and shared PaddleOCR teardown through the same process-wide lock.
+   - Expose `TextRecognizerClient.releaseShared()`, which clears the shared reference and closes ONNX Runtime sessions after any active inference completes.
+   - Schedule PaddleOCR release off the main thread alongside Bergamot release on `TRIM_MEMORY_RUNNING_LOW` and service shutdown.
+   - This addresses retained ONNX sessions; device RAM profiling is still required to establish the actual reclaimed amount and cold-reload cost.
+
+### CI state at this handoff
+- Latest push run #43740757702 and PR validation run #43740762499 target head `3e1a2e72a5cb8a905cb37e7c80de4992b740d2d7`; both were in progress when this note was written. Inspect exact jobs/steps before claiming success.
+- No v0.12.9 Release or new APK has been published by these commits.
+- No phone/device verification has been performed.
+
+### Deep audit findings still open
+- **OCR batching:** `PaddleOCRConfig.recBatchSize` is 1. Recognition therefore invokes ONNX once per detected text crop. `OCREngine` supports batching, but any increase needs a benchmark on a fixed screenshot corpus with cold/warm latency and peak RAM, because batch padding grows to the widest crop.
+- **OCR data evidence:** current unit tests validate decoder/config/resize/grouping/filtering logic, not end-to-end word accuracy on real manga screenshots. No controlled ML Kit-versus-Paddle screenshot corpus result is available. Keep OCR selection and confidence threshold open pending evidence.
+- **Bubble grouping:** `BubbleGrouper` performs pairwise O(n²) union-find and blocks components with excessive horizontal center spread. It intentionally permits vertical chain merging; tests cover horizontal bridges, but vertically adjacent distinct bubbles with similar centers and screenshot-based grouping remain untested. This is a risk to measure, not a confirmed defect.
+- **Arabic CTC order:** decoder reverses RTL visual runs while preserving Latin/number runs. Verify diacritics/combining marks against the actual pinned model dictionary before altering Unicode handling.
+- **Name learning:** `NameMemory.plan` accepts optional page-level Arabic decisions, but the observed production call through `CharacterResolver.resolve` currently plans without pageArabic. The page-model-learning branch appears dormant unless a separate call site supplies it. `pageNameSpellings` indexes the supplied text list using the bubble ID directly; verify the ID/list index contract and add tests before treating the suspected off-by-one as a defect.
+- **Translation quality:** ArabicValidator and quality fallback are guardrails, not semantic evaluation. The 20-case report's token F1 is lexical overlap only. ML Kit remains the reader's default; Bergamot remains diagnostic/experimental and must not be promoted without same-corpus human semantic review, echo/omission rates, latency and memory.
+- **Device testing:** PaddleOCR model accuracy, OCR bubble detection, Arabic visual quality, Bergamot JNI, true offline model availability, RAM/latency and future-release in-place update remain Not verified.
+
+### Next actions
+1. Confirm runs #43740757702 and #43740762499. The push job must pass unit tests, Debug APK build, exact pinned-key signer check, and v0.12.9 baseline metadata gate. PR validation should skip publication.
+2. If the signer step fails, do not publish; inspect actual build APK certificate and Gradle signing configuration. Never bypass the expected-key check.
+3. After CI success, audit remaining OCR/translation paths and add targeted unit tests where a deterministic defect is demonstrated.
+4. Only after the first future baseline APK is published and its metadata/signature are verified should a phone installation be requested. The actual in-place update between future releases still needs user-side device verification.
