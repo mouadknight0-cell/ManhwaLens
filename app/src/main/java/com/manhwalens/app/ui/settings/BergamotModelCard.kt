@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import com.manhwalens.app.translate.bergamot.BergamotEnArModel
-import com.manhwalens.app.translate.TranslatorFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
