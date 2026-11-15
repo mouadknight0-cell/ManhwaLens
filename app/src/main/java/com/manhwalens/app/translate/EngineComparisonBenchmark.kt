@@ -55,7 +55,65 @@ object EngineComparisonBenchmark {
         }.trim()
     }
 
+    data class SingleReport(
+        val totalCases: Int,
+        val engine: EngineReport,
+        val dispatchDescription: String
+    ) {
+        fun toText(): String = buildString {
+            appendLine("Offline engine benchmark — ${engine.engine} only (same ${totalCases}-case EN→AR corpus)")
+            appendLine("Preprocessing: glossary + single-line normalization · no app translation cache")
+            appendLine("Dispatch: $dispatchDescription")
+            appendLine("Passes: ${MEASURED_PASSES}; first pass reported separately and may include native service/model initialization; next ${MEASURED_PASSES - 1} are warm")
+            appendLine("No ML Kit invocation or ML Kit fallback is part of this benchmark.")
+            appendLine("Quality results and per-case outputs are from the final pass; human semantic review is required.")
+            appendLine()
+            appendEngine(engine)
+            appendLine()
+            appendLine("Token F1 measures lexical overlap only; it is not semantic accuracy.")
+            appendLine("A failed batch is retried one case at a time to isolate failures.")
+        }.trim()
+    }
+
     private data class RunResult(val outputs: List<String>, val firstPassMs: Long, val warmMedianMs: Long, val warmWorstMs: Long, val recoveries: Int)
+
+    /**
+     * A true one-engine benchmark: the supplied engine callback is the only engine invoked.
+     * The first pass includes adapter/model startup when the caller creates a fresh adapter;
+     * subsequent passes measure the warmed adapter. No runtime engine or batching preference
+     * is read or changed here.
+     */
+    fun runSingleEngine(
+        engineName: String,
+        translateBatch: (List<String>) -> List<String>,
+        cases: List<TranslationQualityBenchmark.Case> = TranslationQualityBenchmark.CASES,
+        clock: () -> Long = { System.nanoTime() / 1_000_000L },
+        dispatchDescription: String = "one raw multi-input batch per pass"
+    ): SingleReport {
+        require(engineName.isNotBlank()) { "Engine name must not be blank" }
+        require(cases.map { it.id }.distinct().size == cases.size) { "Case IDs must be unique" }
+        val inputs = cases.map { BergamotTextPreparation.asSingleLine(Glossary.prepare(it.source)) }
+        val times = ArrayList<Long>(MEASURED_PASSES)
+        var output = List(inputs.size) { "" }
+        var recoveries = 0
+        repeat(MEASURED_PASSES) {
+            val pass = runPass(inputs, translateBatch, clock)
+            output = pass.output
+            times += pass.elapsedMs
+            if (pass.recovered) recoveries++
+        }
+        val warm = times.drop(1).sorted()
+        val median = if (warm.isEmpty()) 0L else if (warm.size % 2 == 1) warm[warm.size / 2]
+        else (warm[warm.size / 2 - 1] + warm[warm.size / 2]) / 2
+        val summary = RunResult(
+            output = output,
+            firstPassMs = times.firstOrNull() ?: 0L,
+            warmMedianMs = median,
+            warmWorstMs = warm.lastOrNull() ?: 0L,
+            recoveries = recoveries
+        )
+        return SingleReport(cases.size, score(engineName, cases, summary), dispatchDescription)
+    }
 
     /** Raw engine callbacks only. A failed/malformed batch is retried per case. */
     fun run(
