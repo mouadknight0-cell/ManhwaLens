@@ -23,7 +23,8 @@ class TextRecognizerClient(context: Context) {
     private val appContext = context.applicationContext
     fun recognize(bitmap: Bitmap): OcrResult = recognizePaddle(bitmap)
 
-    private fun recognizePaddle(bitmap: Bitmap): OcrResult {
+    private fun recognizePaddle(bitmap: Bitmap): OcrResult = synchronized(PADDLE_LOCK) {
+        // The same lock protects model teardown, so ONNX sessions cannot be closed mid-inference.
         val t0 = SystemClock.elapsedRealtime()
         val paddle = paddleClient()
         val result = runBlocking(Dispatchers.IO) { paddle.recognize(bitmap) }
@@ -49,7 +50,7 @@ class TextRecognizerClient(context: Context) {
                 "candidates=${result.recognizedCandidateCount} rejectedLowConfidence=${result.lowConfidenceDroppedCount} " +
                 "threshold=${PADDLE_MIN_REC_CONFIDENCE})"
         )
-        return OcrResult(lines, elapsed)
+        OcrResult(lines, elapsed)
     }
 
     private fun paddleClient(): PaddleOCR {
@@ -85,6 +86,19 @@ class TextRecognizerClient(context: Context) {
         private val PADDLE_LOCK = Any()
 
         @Volatile private var sharedPaddle: PaddleOCR? = null
+
+        /**
+         * Release process-wide ONNX sessions when Android reports memory pressure or the
+         * foreground service is stopped. Caller must run this off the main thread.
+         * The same lock is held by recognizePaddle(), so release waits for active inference.
+         */
+        fun releaseShared() {
+            synchronized(PADDLE_LOCK) {
+                val current = sharedPaddle ?: return
+                sharedPaddle = null
+                runBlocking(Dispatchers.IO) { current.release() }
+            }
+        }
 
     }
 }

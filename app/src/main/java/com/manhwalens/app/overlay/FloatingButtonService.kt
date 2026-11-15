@@ -504,6 +504,23 @@ class FloatingButtonService : Service() {
         }
     }
 
+    private val paddleReleaseScheduled = AtomicBoolean(false)
+
+    /** ONNX teardown waits for any active recognition; keep it off Android's main callback. */
+    private fun releasePaddleAsync() {
+        if (!paddleReleaseScheduled.compareAndSet(false, true)) return
+        Thread({
+            try {
+                TextRecognizerClient.releaseShared()
+            } finally {
+                paddleReleaseScheduled.set(false)
+            }
+        }, "ManhwaLens-PaddleRelease").apply {
+            isDaemon = true
+            start()
+        }
+    }
+
     private val bergamotReleaseScheduled = AtomicBoolean(false)
 
     /** Native release can wait for an in-flight translation; never block Android's main callback. */
@@ -526,7 +543,8 @@ class FloatingButtonService : Service() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
-            // Native model memory is sizeable; drop it under pressure and reload lazily later.
+            // Release both sizeable native runtimes; each is re-created lazily on the next use.
+            releasePaddleAsync()
             releaseBergamotAsync()
         }
     }
@@ -561,7 +579,8 @@ class FloatingButtonService : Service() {
         liveThread.quitSafely()
         captureThread.quitSafely()
         captureExecutor.shutdownNow()
-        // Drop the native model only after stopping producers that could submit more work.
+        // Stop capture producers first, then release both native inference runtimes off-main.
+        releasePaddleAsync()
         releaseBergamotAsync()
         super.onDestroy()
     }
