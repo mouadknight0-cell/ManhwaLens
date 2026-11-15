@@ -376,7 +376,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Thread {
                         val report = try {
                             val mlkit = com.manhwalens.app.translate.mlkit.MlKitTranslator
-                            if (!mlkit.warmUp()) {
+                            if (!mlkit.warmUpForBenchmark()) {
                                 throw IllegalStateException("ML Kit EN→AR model is not ready; connect to Wi-Fi once and retry")
                             }
                             if (!com.wasimaster.wmkeyboard.core.translate.BergamotNative.supported ||
@@ -388,12 +388,16 @@ fun SettingsScreen(onBack: () -> Unit) {
                             }
                             val bergamot = com.manhwalens.app.translate.bergamot.BergamotEnArTranslator(context)
                             try {
-                                val comparison = com.manhwalens.app.translate.EngineComparisonBenchmark.run(
-                                    translateMlKitBatch = { inputs -> inputs.map { mlkit.translateRaw(it) } },
-                                    translateBergamotBatch = { inputs ->
-                                        kotlinx.coroutines.runBlocking { bergamot.translate(inputs) }
-                                    }
-                                )
+                                // Serialize against the background ML Kit separator self-test:
+                                // concurrent calls to the shared client would distort timing.
+                                val comparison = com.manhwalens.app.translate.mlkit.MlKitTranslator.withDiagnosticLock {
+                                    com.manhwalens.app.translate.EngineComparisonBenchmark.run(
+                                        translateMlKitBatch = { inputs -> inputs.map { mlkit.translateRaw(it) } },
+                                        translateBergamotBatch = { inputs ->
+                                            kotlinx.coroutines.runBlocking { bergamot.translate(inputs) }
+                                        }
+                                    )
+                                }
                                 comparison.toText() + "\n\nDevice: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
                             } finally {
                                 bergamot.release()
