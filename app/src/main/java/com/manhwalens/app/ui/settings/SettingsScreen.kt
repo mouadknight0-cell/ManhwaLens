@@ -1,7 +1,5 @@
 package com.manhwalens.app.ui.settings
 
-import android.content.Intent
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,8 +51,7 @@ import com.manhwalens.app.ui.theme.PanelAmber
 
 /**
  * Settings screen — single scrolling page:
- *  Appearance (Arabic font size) · Translation (engine + key) · Live mode
- *  controls · Diagnostics · About (version, privacy policy).
+ *  Appearance · Translation engines and saved translations · Diagnostics · About.
  */
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -107,12 +104,6 @@ fun SettingsScreen(onBack: () -> Unit) {
     var fontScale by remember { mutableStateOf(prefs.fontScale) }
     var debugMode by remember { mutableStateOf(prefs.debugMode) }
     var pairLogCount by remember { mutableStateOf(TranslationPairLog.count(context)) }
-    var liveMode by remember { mutableStateOf(prefs.liveMode) }
-    var liveApps by remember { mutableStateOf(prefs.liveAllowedApps) }
-    var ignoreTop by remember { mutableStateOf(prefs.ignoreTopPct) }
-    var ignoreBottom by remember { mutableStateOf(prefs.ignoreBottomPct) }
-    var liveStableMs by remember { mutableStateOf(prefs.liveStableWindowMs) }
-    var liveSensitivity by remember { mutableStateOf(prefs.liveSensitivity) }
     var lensTapMode by remember { mutableStateOf(prefs.lensTapMode) }
     val translationPrefs = remember { com.manhwalens.app.data.TranslationPrefs(context) }
     var benchmarkRunning by remember { mutableStateOf(false) }
@@ -205,130 +196,6 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
         Spacer(Modifier.size(12.dp))
 
-        // ---------- Live mode (Part C) ----------
-        Section(stringResource(R.string.live_mode_title)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = stringResource(R.string.live_mode_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.live_mode_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                Switch(
-                    checked = liveMode,
-                    onCheckedChange = { checked ->
-                        liveMode = checked
-                        prefs.liveMode = checked
-                        prefs.liveOptOut = !checked
-                        Toast.makeText(
-                            context,
-                            if (checked) R.string.live_enabled_toast else R.string.live_disabled_toast,
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                )
-            }
-            Spacer(Modifier.size(10.dp))
-            Text(
-                text = stringResource(R.string.live_apps_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = stringResource(R.string.live_apps_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            androidx.compose.material3.OutlinedTextField(
-                value = liveApps,
-                onValueChange = { value ->
-                    liveApps = value
-                    prefs.liveAllowedApps = value
-                },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.live_apps_hint)) },
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-            )
-            Spacer(Modifier.size(6.dp))
-            OutlinedButton(onClick = {
-                runCatching { context.startActivity(Intent("android.settings.USAGE_ACCESS_SETTINGS")) }
-                    .onFailure { Toast.makeText(context, R.string.toast_capture_failed, Toast.LENGTH_SHORT).show() }
-            }) {
-                Text(stringResource(R.string.live_apps_grant))
-            }
-            Spacer(Modifier.size(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.live_stability_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(R.string.live_stability_value, liveStableMs),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = LensVioletSoft
-                )
-            }
-            Text(
-                text = stringResource(R.string.live_stability_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            androidx.compose.material3.Slider(
-                value = liveStableMs.toFloat(),
-                onValueChange = {
-                    val v = it.toInt().coerceIn(200, 1000)
-                    liveStableMs = v
-                    prefs.liveStableWindowMs = v
-                },
-                valueRange = 200f..1000f,
-                steps = 15
-            )
-            Spacer(Modifier.size(8.dp))
-            Text(
-                text = stringResource(R.string.live_sensitivity_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = stringResource(R.string.live_sensitivity_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            Spacer(Modifier.size(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SensitivityChip(stringResource(R.string.live_sensitivity_low), liveSensitivity == SettingsPrefs.SENS_LOW) {
-                    liveSensitivity = SettingsPrefs.SENS_LOW; prefs.liveSensitivity = SettingsPrefs.SENS_LOW
-                }
-                SensitivityChip(stringResource(R.string.live_sensitivity_medium), liveSensitivity == SettingsPrefs.SENS_MEDIUM) {
-                    liveSensitivity = SettingsPrefs.SENS_MEDIUM; prefs.liveSensitivity = SettingsPrefs.SENS_MEDIUM
-                }
-                SensitivityChip(stringResource(R.string.live_sensitivity_high), liveSensitivity == SettingsPrefs.SENS_HIGH) {
-                    liveSensitivity = SettingsPrefs.SENS_HIGH; prefs.liveSensitivity = SettingsPrefs.SENS_HIGH
-                }
-            }
-        }
-        Spacer(Modifier.size(12.dp))
-
-
         // ---------- Tap on the lens (v0.9.4 Part C) ----------
         Section(stringResource(R.string.lens_tap_title)) {
             Text(
@@ -345,46 +212,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                     lensTapMode = SettingsPrefs.TAP_TRANSLATE; prefs.lensTapMode = SettingsPrefs.TAP_TRANSLATE
                 }
             }
-        }
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Frame edges (Part D) ----------
-        Section(stringResource(R.string.edge_ignore_title)) {
-            Text(
-                text = stringResource(R.string.edge_ignore_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.size(10.dp))
-            Text(
-                text = stringResource(R.string.edge_ignore_top, ignoreTop.toInt()),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            androidx.compose.material3.Slider(
-                value = ignoreTop,
-                onValueChange = {
-                    ignoreTop = it
-                    prefs.ignoreTopPct = it
-                },
-                valueRange = 0f..30f,
-                steps = 29
-            )
-            Spacer(Modifier.size(6.dp))
-            Text(
-                text = stringResource(R.string.edge_ignore_bottom, ignoreBottom.toInt()),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            androidx.compose.material3.Slider(
-                value = ignoreBottom,
-                onValueChange = {
-                    ignoreBottom = it
-                    prefs.ignoreBottomPct = it
-                },
-                valueRange = 0f..30f,
-                steps = 29
-            )
         }
         Spacer(Modifier.size(12.dp))
 
