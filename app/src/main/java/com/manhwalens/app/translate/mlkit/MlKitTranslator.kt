@@ -113,7 +113,7 @@ class MlKitTranslator(
             try {
                 Log.i(TAG, "en->ar model not present yet; requesting download (one-time, ~30 MB)")
                 Tasks.await(
-                    client.downloadModelIfNeeded(DownloadConditions.Builder().requireWifi().build()),
+                    client.downloadModelIfNeeded(DownloadConditions.Builder().build()),
                     MODEL_TIMEOUT_SEC,
                     TimeUnit.SECONDS
                 )
@@ -534,7 +534,7 @@ class MlKitTranslator(
 
         private fun warmUpInternal(reason: String, runBatchSelfTest: Boolean): Boolean = try {
             Tasks.await(
-                SHARED_CLIENT.downloadModelIfNeeded(DownloadConditions.Builder().requireWifi().build()),
+                SHARED_CLIENT.downloadModelIfNeeded(DownloadConditions.Builder().build()),
                 30L,
                 TimeUnit.SECONDS
             )
