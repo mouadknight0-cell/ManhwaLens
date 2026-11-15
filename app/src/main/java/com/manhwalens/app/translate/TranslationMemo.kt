@@ -111,7 +111,10 @@ class TranslationMemo(
                 last = c
             } else {
                 // Punctuation is ignored, while real whitespace remains a token boundary.
-                if (c.isWhitespace()) pendingSpace = true
+                if (c.isWhitespace()) {
+                    pendingSpace = true
+                    last = ' '
+                }
             }
         }
         return sb.toString()
