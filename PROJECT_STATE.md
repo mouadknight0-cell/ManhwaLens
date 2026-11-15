@@ -656,3 +656,36 @@ Never use one label as evidence for another.
 1. Verify the four new PIPE tests and full build on final commit `9a9f213...`; inspect and repair any failures.
 2. Keep the user's v0.12.10 install/upgrade + first-run ML Kit model-download + real manga scan as the required device validation gate; automated CI cannot replace it.
 3. Continue the separate visible-output quality audit and OCR dataset work without conflating raw engine scores, post-processing, OCR errors, and semantic accuracy.
+
+
+## Engineering continuation — Solo Leveling chapter 3 device diagnostics and fuzzy-cache collision fix (2026-11-15)
+
+### User-provided device evidence
+- User supplied a new ML Kit EN→AR batching benchmark from Xiaomi 23106RN0DA / Android 14: Joined `•` median 725 ms / worst 740 ms, map OK, 20/20 mapped; Parallel x2 median 1637 ms / worst 1676 ms. Joined `•` is about 55.7% faster than Parallel x2 in this sample. Joined `<1>` (750 ms), `[1]` (766 ms), and `###` (906 ms) also mapped 20/20; `@@@`, newline, and double newline failed. This is one device benchmark, not a semantic-order proof or cross-device guarantee.
+- User supplied a 23-case raw ML Kit quality run: 22 accepted by the Arabic guard, 1 rejected, 2/23 exact normalized matches, mean token F1 49.6%. F1 is lexical overlap only, not semantic accuracy.
+- The pair log contains strong OCR noise (`YOL`, `LNINJURED`, `B055 15`, `MINLTES`, fragmented lines) and non-manhwa screen/UI/notification text. Do not attribute all resulting errors to ML Kit translation.
+- Clear semantic false-accepts include `No.` → `رقم`, `Run!` → `تشغيل!`, and context-sensitive dialogue rendered literally. Arabic-character presence is not a semantic quality test.
+- Critical cache anomaly: distinct short sources such as `AH...` and `YEAH` appeared with an identical unrelated Arabic result in CACHE_HIT entries (also other short replies reused a prior line). This indicates an incorrect memory hit rather than an ordinary engine mistranslation.
+
+### Confirmed root cause and source fix
+- Audited `TranslationMemo.kt`: fuzzy keys remove vowels and punctuation and collapse repeated letters. Consequently `AH...` and `YEAH` both reduce to the one-letter shape `h`; very short unrelated dialogue can therefore collide.
+- Commit `e7c9ba5b1fe00a12535ad9528eb94d3ddd6297b7` changes fuzzy memo admission and lookup to require a consonant shape of at least 3 characters and at least 2 distinct letters. Unsafe short shapes are neither stored nor read from the fuzzy tier. Exact cache behavior is unchanged.
+- Commit `6797b64e3b26203ced3a7484f559cb22d61a6ce3` adds regression tests for `AH...` vs `YEAH`, other ambiguous short dialogue, and an end-to-end CachingTranslator assertion that both distinct strings reach the engine instead of cross-serving.
+- This intentionally preserves the useful `KRAK!!` / `Kraak` fuzzy hit (shape `krk`) while rejecting one- and two-letter ambiguous shapes.
+- No production cache clear or migration was added. Existing bad fuzzy memo entries are process-memory-only and disappear on process restart; exact memory/disk cache remains separate. If a wrongly served fuzzy result was promoted into exact/disk cache by an earlier runtime, that case needs separate consideration and tests before asserting all stale entries are gone.
+
+### CI / repository state
+- Active branch: `feature/v0.12.4-bergamot-experiment`.
+- Branch head verified through GitHub API: `6797b64e3b26203ced3a7484f559cb22d61a6ce3`.
+- Android build workflow run #43755298440 targets exactly this head and was pending at the last check. Do not claim the new tests or build passed until the run completes.
+- PR #4 remains open Draft and targets `feature/v0.12.3-paddle-default-settings`; preserve stacked-PR integration order.
+- No new APK or Release was created by these commits. Existing v0.12.10 pre-release remains the last verified APK and is not rebuilt by this source branch commit.
+
+### Next actions
+1. Verify CI run #43755298440 and inspect the unit-test/build result. Fix failures before further changes.
+2. Add a focused test proving fuzzy memo hits cannot be promoted into an exact cache entry under a different source key; verify whether prior process-local fuzzy collisions can pollute persistent exact storage.
+3. Add regression coverage for the observed CACHE_HIT anomalies (`AH...`, `YEAH`, `SORRY.`, `YEAH.`) and ensure trace source/result identity remains correct.
+4. Improve semantic guard: treat short ambiguous phrases as context-sensitive, and never equate “contains Arabic” with “meaning correct”. Keep exact source overrides narrow and corpus-tested.
+5. Add a post-processed visible-output corpus distinct from the raw ML Kit corpus; include chapter-3 dialogue and SFX, and score OCR source quality separately from translation quality.
+6. Keep Joined `•` as the best device-reported separator candidate, but do not change the shipped default solely from this one run. The device-local benchmark verdict is already applied on the user's device.
+7. Continue OCR/UI contamination and bubble segmentation investigation; the supplied log includes external screen content and badly fragmented bubbles.
