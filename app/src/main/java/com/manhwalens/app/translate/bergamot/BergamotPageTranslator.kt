@@ -168,7 +168,7 @@ internal class BergamotPageTranslator(context: Context) : Translator {
                 var lookahead = index + 1
                 var crossedLine = false
                 while (lookahead < length && this[lookahead].isWhitespace()) {
-                    if (this[lookahead] == '\\n' || this[lookahead] == '\\r') crossedLine = true
+                    if (this[lookahead] == '\n' || this[lookahead] == '\r') crossedLine = true
                     lookahead++
                 }
                 if (crossedLine && lookahead < length && this[lookahead].isLowerCase()) {
