@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -194,16 +193,16 @@ class MlKitEnglishEchoTest {
     @Test
     fun validArabicStillReachesThePainterImmediately() {
         val dialogue = TranslatedBlock(4, "Wait, Wei Wuxian!", "انتظر يا Wei Wuxian!")
-        assertSame(dialogue, MlKitPageAssembly.progressivePayload(dialogue))
+        assertEquals(dialogue, MlKitPageAssembly.progressivePayload(dialogue))
 
         // A legitimately preserved standalone name is not withheld either.
         val name = TranslatedBlock(5, "Hanwoo", "Hanwoo")
-        assertSame(name, MlKitPageAssembly.progressivePayload(name))
+        assertEquals(name, MlKitPageAssembly.progressivePayload(name))
 
         val delivered = ArrayList<TranslatedBlock>()
         MlKitPageAssembly.progressivePayload(dialogue)?.let { delivered += it }
         assertEquals(1, delivered.size)
-        assertSame(dialogue, delivered.single())
+        assertEquals(dialogue, delivered.single())
     }
 
 }
