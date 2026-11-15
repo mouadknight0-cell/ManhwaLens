@@ -113,6 +113,7 @@ object CTCDecoder {
 
         for (char in text) {
             if (char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' ||
+                char in '\u0660'..'\u0669' || char in '\u06F0'..'\u06F9' ||
                 char in ":*./%+-" || char.isWhitespace()
             ) {
                 latin.append(char)
