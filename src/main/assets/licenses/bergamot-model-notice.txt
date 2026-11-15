@@ -1,5 +1,0 @@
-Firefox Translations English→Arabic model (en-ar, release 3.0)
-Source: Mozilla Firefox Translations Remote Settings, translations-models-v2.
-Model licence: Mozilla Public License 2.0 (MPL-2.0).
-The model is downloaded directly from Mozilla CDN at runtime; it is not bundled in the APK.
-Compressed assets and unpacked files are SHA-256 verified against pinned catalogue values before use.

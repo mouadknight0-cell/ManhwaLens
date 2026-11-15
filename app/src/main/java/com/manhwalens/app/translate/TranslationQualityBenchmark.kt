@@ -23,7 +23,10 @@ object TranslationQualityBenchmark {
         val accepted: Boolean,
         val issue: ArabicValidator.Issue?,
         val exactMatch: Boolean,
-        val tokenF1: Double
+        val tokenF1: Double,
+        val source: String,
+        val referenceArabic: String,
+        val output: String
     )
 
     data class Report(
@@ -45,7 +48,12 @@ object TranslationQualityBenchmark {
             val weak = cases.sortedBy { it.tokenF1 }.take(5)
             if (weak.isNotEmpty()) {
                 appendLine("Lowest lexical-overlap cases (inspect source/reference/output in translation-pair log):")
-                weak.forEach { appendLine("  #${it.id} ${it.category}: F1 ${"%.2f".format(java.util.Locale.ROOT, it.tokenF1)} · ${it.issue ?: if (it.accepted) "accepted" else "missing"}") }
+                weak.forEach {
+                    appendLine("  #${it.id} ${it.category}: F1 ${"%.2f".format(java.util.Locale.ROOT, it.tokenF1)} · ${it.issue ?: if (it.accepted) "accepted" else "missing"}")
+                    appendLine("    EN: ${it.source}")
+                    appendLine("    REF: ${it.referenceArabic}")
+                    appendLine("    OUT: ${it.output.ifBlank { "<empty>" }}")
+                }
             }
         }.trim()
     }
@@ -104,7 +112,10 @@ object TranslationQualityBenchmark {
                 accepted = accepted,
                 issue = issue,
                 exactMatch = normalize(output) == normalize(case.referenceArabic),
-                tokenF1 = f1
+                tokenF1 = f1,
+                source = case.source,
+                referenceArabic = case.referenceArabic,
+                output = output
             )
         }
         return Report(
