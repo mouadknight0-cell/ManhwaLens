@@ -23,8 +23,8 @@ android {
         applicationId = "com.manhwalens.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 42
-        versionName = "0.12.2"
+        versionCode = 43
+        versionName = "0.12.3"
 
         // This is a phone-focused experimental APK. Keep both ARM ABIs while
         // excluding x86 emulator libraries, which inflated the universal APK
@@ -100,7 +100,6 @@ kotlin {
 }
 
 dependencies {
-    implementation(libs.mlkit.text.recognition)
     implementation(libs.mlkit.translate)
     implementation(libs.onnxruntime.android)
     implementation(libs.opencv.android)
