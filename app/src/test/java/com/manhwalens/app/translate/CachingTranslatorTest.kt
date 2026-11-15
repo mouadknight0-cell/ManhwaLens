@@ -265,19 +265,29 @@ class CachingTranslatorTest {
             }
         }
         val cache = TranslationCache()
+        val traces = ArrayList<TranslationPairTrace>()
         val caching = CachingTranslator(
             delegate = engine,
             cache = cache,
-            pinnedOverride = { _, arabic -> "$arabic شخصية" }
+            pinnedOverride = { _, arabic -> "$arabic شخصية" },
+            onTranslationPair = { traces += it }
         )
 
         val first = caching.translatePage(blocks(1 to "No.")) as PageTranslation.Success
         assertEquals("لا.", first.blocks.single().arabic)
         assertEquals("لا.", cache.get("ml_kit_en_ar", "No."))
+        assertEquals("OK", traces[0].status)
+        assertEquals("رقم", traces[0].candidateArabic)
+        assertEquals("لا.", traces[0].finalArabic)
 
         val second = caching.translatePage(blocks(1 to "No.")) as PageTranslation.Success
         assertEquals("لا.", second.blocks.single().arabic)
         assertEquals(1, engineCalls)
+        assertEquals("CACHE_HIT", traces[1].status)
+        // Cache stores the previous accepted result. Its candidate is distinct from
+        // the fresh raw model candidate above, which proves the two trace paths are honest.
+        assertEquals("لا.", traces[1].candidateArabic)
+        assertEquals("لا.", traces[1].finalArabic)
     }
 
     @Test
