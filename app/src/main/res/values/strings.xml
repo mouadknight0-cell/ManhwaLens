@@ -210,6 +210,8 @@
     <string name="benchmark_close">Close</string>
     <string name="benchmark_copy">Copy results</string>
     <string name="benchmark_copied">Benchmark copied</string>
+    <string name="engine_comparison_button">Compare ML Kit vs Bergamot</string>
+    <string name="engine_comparison_summary">Runs the same 20 prepared bubbles through both offline engines. Both models must be installed. This comparison does not change the selected engine or ML Kit batching settings.</string>
 
     <string name="safe_mode_title">Safe Mode</string>
     <string name="safe_mode_body">The app crashed twice at startup, so it launched without the floating button, translation and Live mode. Your settings were left untouched. Tap below to retry normally.</string>
