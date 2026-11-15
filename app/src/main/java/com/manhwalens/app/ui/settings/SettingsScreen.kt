@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Button
 import androidx.compose.ui.window.Dialog
@@ -57,8 +56,8 @@ import com.manhwalens.app.ui.theme.PanelAmber
 
 /**
  * Settings screen — single scrolling page:
- *  Appearance (Arabic font size) · Translation (engine + key) · Automation
- *  Live mode controls · Diagnostics · About (version, privacy policy).
+ *  Appearance (Arabic font size) · Translation (engine + key) · Live mode
+ *  controls · Diagnostics · About (version, privacy policy).
  */
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
