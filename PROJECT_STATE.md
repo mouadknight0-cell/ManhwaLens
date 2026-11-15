@@ -852,3 +852,32 @@ Never use one label as evidence for another.
 - PR #4 remains open Draft, mergeable, and targets `feature/v0.12.3-paddle-default-settings`; preserve the stacked-branch integration order.
 - Release state unchanged: v0.12.10 remains the latest published prerelease APK. No new APK or release is claimed from this work.
 - Next engineering priority: validate cache provenance and post-processing against a fresh device pair log using the corrected raw-candidate/final-output fields; then collect OCR ground truth with bubble bounding boxes before changing PaddleOCR or grouping thresholds.
+
+## Engineering continuation — exact-source dialogue correction (2026-11-15)
+
+### Implemented
+- Source/test commit: 31d467b5ad0f382f190d43517854211e19aa9c90 — fix: correct observed behind-me dialogue wording.
+- Added one narrow exact-source repair for the device-observed line "Stay behind me and don't say a word.", replacing the awkward Arabic candidate seen in the trace ("البقاء ورائي ولا تقل كلمة.") with the natural reference wording "ابقَ خلفي ولا تنطق بكلمة.".
+- The correction is applied only when the normalized English source matches the complete phrase. No global vocabulary substitution or fuzzy source matching was added.
+- Added a direct regression test and extended the three-stage quality benchmark test to prove the raw model candidate remains visible as the raw score while the final visible output receives the exact-source repair.
+- Files changed:
+  - app/src/main/java/com/manhwalens/app/translate/ShortDialogueOverrides.kt
+  - app/src/test/java/com/manhwalens/app/translate/ShortDialogueOverridesTest.kt
+  - app/src/test/java/com/manhwalens/app/translate/TranslationQualityBenchmarkTest.kt
+
+### Verification on source commit
+- Android push run #43762854838 and PR run #43762861270 both reached and passed the Unit tests step on source commit 31d467b5.
+- The Android debug APK build was still in progress at the time of this report update; therefore this source commit is Unit-tested, but not yet labelled as a completed successful build or signer/update-compatibility verification.
+- Automatic Dependency Submission run #43762855422 completed successfully on the same source commit.
+- No Release was created and no APK was promoted for installation.
+- Latest published prerelease remains v0.12.10 with its existing APK. This dialogue-only fix does not justify a new public release by itself.
+
+### OCR decision
+- Reviewed the live PaddleOCR adapter, detection resize path, capture pipeline, BubbleGrouper, BlockFilter, OcrGarbageClassifier, and CaptureDiagnostics.
+- Capture diagnostics already retain each recognized line's text, confidence and bounding box, plus grouped/kept block bounds. This is the evidence needed to distinguish recognition errors from grouping/filtering errors.
+- Did not change detector/recognizer confidence thresholds, image resize limits, or bubble grouping geometry without a screenshot-linked ground-truth set. Such changes could trade missed text for false detections and cannot be safely selected from translation-pair text alone.
+
+### Release / device boundary
+- PR #4 remains open Draft and stacked on feature/v0.12.3-paddle-default-settings; preserve the stack.
+- No physical-device validation is claimed. No installation request is made for this source-only correction.
+- Next action: verify the Android push and PR workflows on the latest branch head, then use a new capture diagnostic containing OCR confidence/coordinates and translation candidate/final pairs before tuning PaddleOCR or grouping behavior.
