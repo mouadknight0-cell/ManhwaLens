@@ -34,7 +34,9 @@ object Glossary {
     private var compiledCache: Compiled? = null
 
     fun refresh(userText: String, mergeLines: Boolean) {
-        config = Config(userText, mergeLines)
+        val next = Config(userText, mergeLines)
+        if (config == next) return
+        config = next
         compiledCache = null
     }
 
