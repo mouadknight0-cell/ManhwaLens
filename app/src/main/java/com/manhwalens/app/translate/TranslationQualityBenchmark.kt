@@ -64,10 +64,10 @@ object TranslationQualityBenchmark {
             appendLine("Exact source corrections applied: $sourceOverridesApplied · elapsed: ${elapsedMs}ms")
             appendLine("Visible output applies shared cleanup + exact source dialogue corrections. Series NameSession overrides are not included in this standalone benchmark.")
             appendLine("NOTE: both F1 values measure lexical overlap only, NOT semantic accuracy; alternate valid Arabic wording may score lower.")
-            val weak = cases.sortedBy { it.visibleTokenF1 }.take(5)
-            if (weak.isNotEmpty()) {
-                appendLine("Lowest visible-output lexical-overlap cases (inspect source/reference/raw/visible):")
-                weak.forEach {
+            fun appendWeakCases(title: String, selected: List<CaseResult>) {
+                if (selected.isEmpty()) return
+                appendLine(title)
+                selected.forEach {
                     appendLine("  #${it.id} ${it.category}: raw F1 ${"%.2f".format(java.util.Locale.ROOT, it.tokenF1)} · visible F1 ${"%.2f".format(java.util.Locale.ROOT, it.visibleTokenF1)} · raw ${it.issue ?: if (it.accepted) "accepted" else "missing"} · visible ${it.visibleIssue ?: if (it.visibleAccepted) "accepted" else "missing"}")
                     appendLine("    EN: ${it.source}")
                     appendLine("    REF: ${it.referenceArabic}")
@@ -75,6 +75,14 @@ object TranslationQualityBenchmark {
                     appendLine("    VISIBLE: ${it.visibleOutput.ifBlank { "<empty>" }}")
                 }
             }
+            appendWeakCases(
+                "Lowest raw-engine lexical-overlap cases (post-processing must not hide model errors):",
+                cases.sortedBy { it.tokenF1 }.take(5)
+            )
+            appendWeakCases(
+                "Lowest visible-output lexical-overlap cases (what the overlay would keep):",
+                cases.sortedBy { it.visibleTokenF1 }.take(5)
+            )
         }.trim()
     }
 
