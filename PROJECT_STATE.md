@@ -173,3 +173,39 @@ Never use one label as evidence for another.
 1. Verify CI for latest head `3ca0c45e99a04cb8c07ac21ef1137e4b4f7da9cd`; inspect test/build results and repair failures.
 2. Review benchmark resource cleanup and output mapping under native failure, then retain device validation as a hard gate.
 3. Update `REPOSITORY_REPORT.md` with the implementation and exact CI evidence after verification.
+
+
+## Session continuation — 2026-11-15 (benchmark isolation and v0.12.7)
+
+### Reconciled handoff state
+- The previous handoff's item to implement a same-corpus ML Kit/Bergamot comparison is superseded: PR #4 already contains `EngineComparisonBenchmark`, a fixed 20-case corpus runner, four passes per engine (first pass + three warm passes), per-case output/guard metrics, batch recovery, and JVM regression tests.
+- The comparison is exposed in Settings → Diagnostics as **Compare ML Kit vs Bergamot**. It uses raw local engine callbacks and bypasses the app translation cache; it does not switch the selected runtime engine.
+- CI run [43716970386](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43716970386) on commit `94febc3d25247e1cb696927051e99e276486396d` completed successfully: unit tests, pinned PaddleOCR model downloads/checksums, Bergamot ARM64 runtime validation, debug APK build, APK artifact upload and test-report upload all passed. The run was a PR validation run; it did not publish a Release. APK artifact size: 70,020,409 bytes. No test count is asserted because the JUnit report has not been extracted.
+- Existing v0.12.6 remains the published prerelease with its APK. The 70 MB artifact from run 43716970386 is a separate Actions artifact, not the published v0.12.6 APK.
+
+### Engineering finding and fix — diagnostic interference
+- Found that the comparison called `MlKitTranslator.warmUp()`, which can start the background ML Kit separator self-test. That self-test uses the same process-wide `translateRaw` client and could run concurrently with the comparison, contaminating latency and resource observations.
+- Added `warmUpForBenchmark()` to prepare the shared ML Kit model without scheduling a new batching self-test.
+- Added a process-wide diagnostic lock. The background separator self-test and the explicit ML Kit/Bergamot comparison both use it, preventing their measured requests from overlapping.
+- Settings now runs the comparison under this lock. Runtime engine selection and saved batching policy are not changed by the comparison itself.
+
+### Changes pushed to the development branch
+- `e906fd4d40bb4efd4a1988360e445e22997ea6cb` — isolate ML Kit warm-up and self-test behind a diagnostic lock.
+- `3dbfa11e88d291113498d84d1154812cabb1951a` — serialize the explicit engine comparison and use benchmark-only warm-up.
+- `a7b314b4cc7869a38fe39ce32ddffbb4b5a9c9b2` — prepare v0.12.7 / versionCode 47.
+- `e83687b83161c3966463dd7a16b515ab628cd76a` — document the benchmark isolation fix in CHANGELOG.
+- `97ef808863a8c2fc85433ee948f98f128ccd67b8` — update the device checklist for the multi-engine comparison and isolation behavior.
+- Branch: `feature/v0.12.4-bergamot-experiment`. No changes to `main`, no PR merge.
+
+### Verification state
+- The source and documentation updates are **Implemented**; CI for the new v0.12.7 head is pending and must be checked before claiming CI-verified or Release-published.
+- Prior baseline CI remains successful at run 43716970386 / commit 94febc3; it does not verify the new commits.
+- The workflow is configured to publish a real prerelease from a push to the designated development branch after tests and APK packaging pass. Confirm the resulting tag and attached APK before asking for installation.
+- No physical-device test is claimed. Bergamot JNI/model inference, PaddleOCR accuracy, semantic quality, latency/RAM and update-install compatibility remain **Not device-verified**.
+
+### Next actions
+1. Inspect the latest push and PR workflow runs for the new v0.12.7 head; require green unit tests and APK packaging and verify PR runs skip Release publication.
+2. Confirm GitHub Release `v0.12.7` exists with the APK attached; verify package ID, versionCode, ABI and signing identity against the previously installed build before claiming update compatibility.
+3. Once CI and Release are confirmed, prepare the v0.12.7 phone test from `MANUAL_TESTS.md`: run the same-corpus comparison offline, copy the report and screenshots, and return actual phone results.
+4. Keep ML Kit default and Bergamot experimental until semantic review and real-device reliability/performance evidence support a decision.
+5. Preserve PR #3 → PR #4 stacked order; do not merge PR #4 directly to main while PR #3 remains its base.
