@@ -1,3 +1,12 @@
+# v0.12.5 — Bergamot offline quality fallback
+
+1. Select Bergamot, disable Wi-Fi/mobile data, and translate a page with short dialogue and long narration. **PASS:** no cloud request is made; accepted Bergamot bubbles remain visible.
+2. Use a page containing text that Bergamot previously mistranslated or left partly English. **PASS:** bubbles rejected by the shared Arabic quality guard are retried by ML Kit; accepted Bergamot bubbles are not retransmitted.
+3. Open Diagnostics → Pipeline trace. **PASS:** when recovery occurs, a `Bergamot -> ML Kit fallback` entry reports requested, filled and elapsed values.
+4. Compare the same page with ML Kit selected directly. **PASS:** ML Kit remains independently selectable and remains the default; fallback does not change the saved engine preference.
+5. Force or simulate a Bergamot native failure. **PASS:** the page is retried through offline ML Kit; if both engines fail, no English output is painted.
+6. Repeat a page where all Bergamot outputs pass validation. **PASS:** no fallback trace appears and no additional ML Kit translation pass is run.
+
 # v0.12.4 — Settings cleanup regression
 
 1. Open Settings. **PASS:** the page contains Appearance, Translation engines/models, Saved translations, Tap on the lens, Diagnostics, Last error, Pipeline trace and About. There is no Automation, Ignore list, Character names, Names & terms or Live mode settings section.
