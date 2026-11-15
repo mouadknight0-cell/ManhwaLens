@@ -38,12 +38,20 @@ class TranslationMemoTest {
     fun ambiguousShortDialogueNeverFuzzyMatchesDifferentWords() {
         val memo = TranslationMemo()
         memo.put("AH...", "آه...")
-        assertNull("YEAH must not reuse AH's one-letter consonant shape", memo.get("YEAH"))
+        assertNull("YEAH must not reuse AH's weak canonical shape", memo.get("YEAH"))
 
         memo.put("NO.", "لا.")
-        assertNull("RUN must not reuse a two-letter consonant shape", memo.get("RUN"))
+        assertNull("RUN must not reuse NO's weak canonical shape", memo.get("RUN"))
         memo.put("SORRY.", "آسف.")
         assertNull("short dialogue with an ambiguous shape must miss", memo.get("AH"))
+    }
+
+    @Test
+    fun whitespaceDoesNotArtificiallyMakeAWeakShapeEligible() {
+        val memo = TranslationMemo()
+        memo.put("a b", "أ ب")
+        assertEquals(0, memo.fuzzySize())
+        assertNull(memo.get("a-b"))
     }
 
     @Test
