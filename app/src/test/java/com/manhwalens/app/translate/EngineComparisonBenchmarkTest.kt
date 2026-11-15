@@ -6,6 +6,52 @@ import org.junit.Test
 
 class EngineComparisonBenchmarkTest {
     @Test
+    fun singleEngineBenchmarkInvokesOnlyTheSuppliedEngineForEveryPass() {
+        var calls = 0
+        val seen = mutableListOf<List<String>>()
+        val report = EngineComparisonBenchmark.runSingleEngine(
+            engineName = "Bergamot",
+            translateBatch = { inputs ->
+                calls++
+                seen += inputs
+                inputs.map { input ->
+                    TranslationQualityBenchmark.CASES.first {
+                        BergamotTextPreparation.asSingleLine(Glossary.prepare(it.source)) == input
+                    }.referenceArabic
+                }
+            },
+            dispatchDescription = "Bergamot native batch only"
+        )
+
+        assertEquals(EngineComparisonBenchmark.MEASURED_PASSES, calls)
+        assertEquals(EngineComparisonBenchmark.MEASURED_PASSES, seen.size)
+        assertTrue(seen.all { it == seen.first() })
+        assertEquals("Bergamot", report.engine.engine)
+        assertEquals(20, report.totalCases)
+        assertEquals(20, report.engine.accepted)
+        assertEquals(20, report.engine.exactMatches)
+        assertTrue(report.toText().contains("No ML Kit invocation"))
+    }
+
+    @Test
+    fun singleEngineBenchmarkRecoversFailedBatchPerCase() {
+        var calls = 0
+        val report = EngineComparisonBenchmark.runSingleEngine(
+            engineName = "Bergamot",
+            translateBatch = { inputs ->
+                calls++
+                if (inputs.size > 1) error("synthetic native batch failure")
+                listOf("ترجمة صحيحة")
+            },
+            cases = TranslationQualityBenchmark.CASES.take(2)
+        )
+
+        assertEquals(EngineComparisonBenchmark.MEASURED_PASSES * 3, calls)
+        assertEquals(EngineComparisonBenchmark.MEASURED_PASSES, report.engine.batchRecoveryCount)
+        assertEquals(2, report.engine.cases.size)
+    }
+
+    @Test
     fun bothEnginesReceiveIdenticalPreparedCorpusAndStableIds() {
         val seenMl = mutableListOf<List<String>>()
         val seenBergamot = mutableListOf<List<String>>()
