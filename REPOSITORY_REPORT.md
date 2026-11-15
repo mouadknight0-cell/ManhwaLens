@@ -1150,3 +1150,45 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - Translation semantics: insufficient; mean lexical F1 52.0%, no semantic human-scoring data.
 - OCR quality: unresolved; malformed OCR strings visible in the same capture.
 - Next: inspect current source implementations and test coverage for batching parser, `ShortDialogueOverrides`, progressive/cache paths and quality benchmark; implement regression tests and a post-processing evaluation, then re-run CI.
+
+
+## Engineering continuation — fixes from 59-pair device diagnostics (2026-11-15)
+
+### Source changes implemented on the development branch
+- Expanded exact, source-aware final-output corrections in `ShortDialogueOverrides` for observed mistranslations:
+  - `Looks like it's done!` → `يبدو أن الأمر انتهى!`
+  - `Ha, this is a piece of cake.` → `ها، هذا سهل للغاية.`
+  - `The magical core` → `النواة السحرية.`
+  - Exact observed longer sentence about receiving the magical core → `هذا ما تحصل عليه بعد قتل الوحش: النواة السحرية.`
+- Added unit tests for each correction. Matching is based on normalized exact English source, not the wrong Arabic output; longer unrelated sentences remain untouched.
+- Added `live mode on` and `live mode off` to ManhwaLens-owned UI strings so this exact status label is dropped instead of translated as page text; added a regression test.
+- Expanded the fixed raw ML Kit reference corpus from 20 to 23 cases with the observed idiom, completion phrase and fantasy terminology; updated stable-ID/category tests. This corpus still measures raw ML Kit + Glossary output, not post-processed visible output; the report must continue to say so.
+
+### Commits
+- `3e10f36347fadeedfeaed79cbebdff5a88e294ab` — source-aware translation corrections.
+- `7818a88d10a98270fc97a3168a7c923ba3554ff1` — correction regression tests.
+- `77d9144c451822ad64ffc864bc85d5dcda51618b` — filter Live mode status label.
+- `0fbbcbab6beb132982f38b51611fad5a73e181f1` — owned-UI regression test.
+- `1c3b690f06575a4359a76fb4497ab650933b29fc` — expand raw quality corpus to observed failures.
+- `911ac443e3b20d347be3945e313789fe3f2d9373` — update corpus test expectations.
+- Latest observed PR #4 head: `911ac443e3b20d347be3945e313789fe3f2d9373`.
+
+### CI state at this update
+- Push run #43753300917 on the latest head: build job in progress; not yet verified.
+- PR run #43753306049 on the latest head: queued; not yet verified.
+- Earlier per-commit runs were cancelled by newer pushes; they are not pass/fail evidence for the final head.
+- No APK/release was produced or verified by these source edits. Latest published release remains v0.12.9; v0.12.10 is not confirmed published.
+
+### Analysis / limitations
+- The 59-entry capture contains non-manhwa screen content (notification shade, Android/app UI, launcher/menu text) mixed with comic dialogue. The OCR pipeline has top/bottom edge filtering and own-window filtering, but arbitrary external app/launcher surfaces are not reliably identifiable by exact text. Do not globally suppress common words or translate every screen block as manga without a screen-context policy.
+- OCR strings such as `YOL`, `LNINJURED`, `UNINOURED`, and `B055 15` are upstream recognition errors or segmentation defects; translation corrections cannot safely reconstruct them without contextual OCR evidence. Preserve raw OCR and measure recognition separately.
+- The joined ` | ` batching result remains 644 ms median, 649 ms worst, 20/20 mapped in the supplied sample; newline and `@@@` mappings failed. Keep ` | ` pending broader adversarial tests and repeatable device runs.
+- The 20-case run's 52.0% token F1 and 2/20 exact matches are raw lexical indicators, not semantic scores. The corpus is now 23 cases on source; the next run will provide a new raw baseline after CI and on-device execution.
+
+### Next actions
+1. Wait for final-head push and PR CI; inspect unit-test result and APK packaging, repair any failure.
+2. Add adversarial tests for PIPE splitting (empty, extra, missing, reordered, marker collisions and fallback) before treating the delimiter as generally robust.
+3. Add a separate post-processing/visible-output quality report, so raw engine output and final overlay text are never conflated.
+4. Build a labeled OCR screenshot corpus and evaluate PaddleOCR CER/WER, detection recall/precision, grouping and screen-edge/UI contamination.
+5. Keep ML Kit default and Bergamot experimental; no paired Bergamot semantic results were supplied.
+6. Do not request phone installation until a verified v0.12.10-or-later GitHub Release APK and signing/version continuity are confirmed.
