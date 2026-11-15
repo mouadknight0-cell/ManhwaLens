@@ -53,6 +53,7 @@ object TranslationPairLog {
             appendLine("ManhwaLens translation pair diagnostics")
             appendLine("entries=${lines.size} · local only · Debug mode capture")
             appendLine("EN = original OCR source · CANDIDATE AR = raw engine/cache value before current processing · FINAL AR = accepted value returned for display (blank if rejected)")
+            appendLine("Note: entries captured before raw-candidate tracing was added may show a post-processed value in CANDIDATE AR.")
             appendLine()
             lines.forEachIndexed { index, line ->
                 val fields = line.split('\t').map(::decode)
