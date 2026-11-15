@@ -627,3 +627,32 @@ Never use one label as evidence for another.
 2. Independently continue source audit and test development: adversarial Joined-pipe mapping tests; separate raw-engine and final-visible-output quality evaluation; OCR labeled image corpus with detection recall/precision and CER/WER; bubble grouping/order regression tests.
 3. Keep ML Kit default and Bergamot experimental until paired semantic quality, latency and RAM evidence supports a change.
 4. Refresh this report after every subsequent ManhwaLens-related interaction, including discussions that do not change source code.
+
+
+## Engineering continuation — joined PIPE adversarial test coverage (2026-11-15)
+
+### Source audit
+- Reviewed active-branch implementations of `BatchSplitter.kt`, `BatchPolicy.kt`, `MlKitTranslator.kt`, `CachingTranslator.kt`, `ShortDialogueOverrides.kt`, and `ArabicValidator.kt` (not the default-branch search excerpts).
+- Confirmed joined mode is opt-in per-device: `BatchPolicy.current()` returns a proven, device-bound strategy only; otherwise ML Kit uses parallel per-block translation. Runtime mapping failures quarantine only the failed separator for seven days and trigger a new self-test. The user's diagnostic showing `Joined | (verdict applied)` is therefore consistent with a device-local persisted PIPE choice, not a global app default.
+- Confirmed `MlKitTranslator` validates the full joined response through `BatchSplitter.validate` before emitting any progressive results; failed mapping is redone per-block.
+- Audit finding: PIPE input collision is explicitly guarded by `sourcesSafe`; existing tests covered broad strategies but did not directly pin several PIPE-specific adversarial conditions. Mapping validation is structural (count, empties, Arabic presence, length bounds, marker residue); it cannot prove semantic order when a model returns the correct number of plausible but swapped translations. Do not describe structural mapping as semantic correctness.
+
+### Test-only change
+- Commit `9a9f213775112703dbca78647103c5c154e5b38c` adds four PIPE-specific JVM regression tests:
+  1. reject source text already containing the pipe marker;
+  2. reject an extra pipe inside a translated segment;
+  3. reject a missing separator;
+  4. accept whitespace variations around the separator.
+- No production behavior changed in this commit.
+- Current branch HEAD observed after this change: `9a9f213775112703dbca78647103c5c154e5b38c`.
+- CI for this test commit has not completed at report time: push run #43754406712 pending; dynamic run #43754407036 queued. Prior commit `fad697400545028845e7fc9ad58d39bc7de9e6f1` workflows were still running when last checked; they are superseded for final-head evidence.
+
+### Release status remains
+- v0.12.10 is already published and verified as a GitHub pre-release, APK asset present, versionCode 50, package `com.manhwalens.app`, signer fingerprint matching v0.12.9, CI update-compatibility gate passed.
+- APK SHA-256: `a3b879e090aee65d7f9b8ce84207ead652826afa677023036782f6677e5877a1`.
+- This later test-only commit does not change the published v0.12.10 asset; workflow configuration explicitly skips republishing an existing tag for later branch commits.
+
+### Next actions
+1. Verify the four new PIPE tests and full build on final commit `9a9f213...`; inspect and repair any failures.
+2. Keep the user's v0.12.10 install/upgrade + first-run ML Kit model-download + real manga scan as the required device validation gate; automated CI cannot replace it.
+3. Continue the separate visible-output quality audit and OCR dataset work without conflating raw engine scores, post-processing, OCR errors, and semantic accuracy.
