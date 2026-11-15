@@ -1,6 +1,6 @@
 package com.manhwalens.app.translate
 
-/** Final per-bubble pair after shared cleanup and quality validation. */
+/** Per-bubble diagnostic: candidate is the pre-processing engine/cache value; final is the accepted value returned for display (blank when rejected). */
 data class TranslationPairTrace(
     val blockId: Int,
     val sourceEnglish: String,
