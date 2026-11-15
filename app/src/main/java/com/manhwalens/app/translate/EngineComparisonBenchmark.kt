@@ -30,13 +30,21 @@ object EngineComparisonBenchmark {
         val meanTokenF1: Double get() = if (cases.isEmpty()) 0.0 else cases.map { it.tokenF1 }.average()
     }
 
-    data class Report(val totalCases: Int, val mlKit: EngineReport, val bergamot: EngineReport) {
+    data class Report(
+        val totalCases: Int,
+        val mlKit: EngineReport,
+        val bergamot: EngineReport,
+        val mlKitDispatchDescription: String
+    ) {
         fun toText(): String = buildString {
             appendLine("Offline engine comparison (same ${totalCases}-case EN→AR corpus)")
             appendLine("Identical preprocessing: glossary + single-line normalization · no app translation cache")
+            appendLine("ML Kit page dispatch: $mlKitDispatchDescription")
+            appendLine("Bergamot page dispatch: one native multi-input request per pass for this fixed corpus")
             appendLine("Passes: ${MEASURED_PASSES} per engine; first pass reported separately (Bergamot may include native model loading; ML Kit model is prechecked), next ${MEASURED_PASSES - 1} are warm")
             appendLine("Paired execution order alternates each pass to reduce systematic thermal/order bias.")
-            appendLine("Device diagnostic only; human semantic review is required.")
+            appendLine("Timing is page-batch wall time using each engine's dispatch path; it is not isolated single-sentence model latency.")
+            appendLine("Quality counts and outputs below are from the final pass; human semantic review is required.")
             appendLine()
             appendEngine(mlKit)
             appendLine()
@@ -54,7 +62,8 @@ object EngineComparisonBenchmark {
         translateMlKitBatch: (List<String>) -> List<String>,
         translateBergamotBatch: (List<String>) -> List<String>,
         cases: List<TranslationQualityBenchmark.Case> = TranslationQualityBenchmark.CASES,
-        clock: () -> Long = { System.nanoTime() / 1_000_000L }
+        clock: () -> Long = { System.nanoTime() / 1_000_000L },
+        mlKitDispatchDescription: String = "caller-defined raw requests"
     ): Report {
         require(cases.map { it.id }.distinct().size == cases.size) { "Case IDs must be unique" }
         val inputs = cases.map { BergamotTextPreparation.asSingleLine(Glossary.prepare(it.source)) }
@@ -98,7 +107,8 @@ object EngineComparisonBenchmark {
         return Report(
             cases.size,
             score("ML Kit", cases, summarize(mlOutput, mlTimes, mlRecoveries)),
-            score("Bergamot", cases, summarize(bergamotOutput, bergamotTimes, bergamotRecoveries))
+            score("Bergamot", cases, summarize(bergamotOutput, bergamotTimes, bergamotRecoveries)),
+            mlKitDispatchDescription
         )
     }
 
