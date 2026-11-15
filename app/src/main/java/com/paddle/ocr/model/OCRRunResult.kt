@@ -34,4 +34,6 @@ data class OCRRunResult(
     val recInputShapes: List<List<Int>> = emptyList(),
     // Per-line timing (only populated when recBatchSize == 1)
     val perLineRecMs: List<Long> = emptyList(),
+    val recognizedCandidateCount: Int = 0,
+    val lowConfidenceDroppedCount: Int = 0,
 )
