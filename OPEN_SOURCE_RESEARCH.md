@@ -1,4 +1,6 @@
-# Open-source project review for ManhwaLens v0.10.0
+# Historical open-source project review for ManhwaLens (reviewed 2026-11-13)
+
+> Historical research snapshot. Its implementation-status statements describe v0.10.0 and are superseded by v0.12.3: PaddleOCR is now bundled as the sole OCR backend, ML Kit Translation remains the offline EN→AR engine, and LibreTranslate/Argos has been removed from the app.
 
 **Reviewed:** 2026-11-13. The app is an Android overlay; the current hot path uses on-device ML Kit OCR/translation, page glossary preprocessing, progressive painting, a persistent cache, and an optional Gemini upgrade. The main extension added here is a user-hosted, open-source translation backend that can run beside the local draft.
 
