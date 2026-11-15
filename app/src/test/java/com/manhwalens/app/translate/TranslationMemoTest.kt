@@ -132,7 +132,8 @@ class TranslationMemoTest {
             }
         }
         val cache = TranslationCache()
-        val caching = CachingTranslator(engine, cache, memo = memo)
+        val traces = ArrayList<TranslationPairTrace>()
+        val caching = CachingTranslator(engine, cache, memo = memo, onTranslationPair = { traces += it })
         caching.translatePage(listOf(TranslationBlock(1, "KRAK!")))
         assertEquals(1, calls)
         // Same burst, different OCR spelling: served from the memo, no second engine call.
@@ -144,6 +145,8 @@ class TranslationMemoTest {
         val third = caching.translatePage(listOf(TranslationBlock(1, "Kraak"))) as PageTranslation.Success
         assertEquals("طَق!", third.blocks.single().arabic)
         assertEquals(1, calls)
+        assertEquals(listOf("OK", "FUZZY_HIT", "FUZZY_HIT"), traces.map { it.status })
+        assertEquals(listOf("KRAK!", "Kraak", "Kraak"), traces.map { it.sourceEnglish })
     }
 
     @Test
