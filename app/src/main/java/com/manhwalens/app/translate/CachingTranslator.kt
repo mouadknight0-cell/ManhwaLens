@@ -110,11 +110,11 @@ class CachingTranslator(
                         cache.put(engineId, b.english, dialogueRepairedHit, style)
                         diskHits++
                     }
-                    fromFuzzy && repairedHit != null -> cache.put(engineId, b.english, dialogueRepairedHit, style)
                 }
-                // Persist the final value after BOTH name and source-aware dialogue repairs.
-                // Otherwise a corrected short line can be re-read from cache in its old form.
-                if (dialogueRepairedHit != rawHit) {
+                // Persist corrections only for source-exact cache entries. A fuzzy result
+                // remains in the fuzzy tier and must be re-evaluated for each new OCR variant.
+                // Never promote an approximate decision into an exact key for different text.
+                if (!fromFuzzy && dialogueRepairedHit != rawHit) {
                     cache.put(engineId, b.english, dialogueRepairedHit, style)
                 }
             } else {
