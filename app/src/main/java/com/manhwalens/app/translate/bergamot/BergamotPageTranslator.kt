@@ -14,6 +14,9 @@ internal class BergamotPageTranslator(context: Context) : Translator {
     private val engine = BergamotEnArTranslator(app)
     override val engineId: String = "bergamot_en_ar"
 
+    /** Warm native service/model before the first reader capture. Run off the main thread. */
+    fun warmUp() = engine.warmUp()
+
     override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
         if (blocks.isEmpty()) return PageTranslation.Failure(
             FailureReason.EMPTY_INPUT, "No blocks to translate", engineId
