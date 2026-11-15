@@ -2911,8 +2911,9 @@ class FloatingButtonService : Service() {
                     // and PageTranslation.Failure carries no elapsedMs of its own.
                     val tapTranslateStartedAt = android.os.SystemClock.elapsedRealtime()
                     var tr: com.manhwalens.app.translate.PageTranslation
-                    if (painter != null) {
-                        // Tap path always paints progressively (ML Kit, priority order).
+                    val selectedTranslationEngine = com.manhwalens.app.data.TranslationPrefs(applicationContext).engine
+                    if (painter != null && selectedTranslationEngine != com.manhwalens.app.translate.TranslationEngine.BERGAMOT) {
+                        // Tap path paints progressively with ML Kit except when Bergamot is explicitly selected.
                         val mlkit = com.manhwalens.app.translate.TranslatorFactory.createProgressive(
                             applicationContext,
                             painter::onBlockReady,
