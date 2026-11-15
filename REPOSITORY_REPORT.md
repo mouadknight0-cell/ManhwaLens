@@ -1025,7 +1025,7 @@ Tap / Live scan
 | MANUAL_TESTS.md | خطوات اختبار المقارنة على الهاتف |
 | PROJECT_STATE.md | تحديث سجل التسليم والحالة |
 
-Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24.
+Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up moved inside the lock), c792078 (report synchronization).
 
 ### 18.4 التحقق والإصدار
 - CI baseline: run [43716970386](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43716970386) على 94febc3 نجح في Unit tests وDebug APK، لكنه يسبق تعديلات v0.12.7 ولا يُعد تحققاً لها.
