@@ -1,6 +1,6 @@
 # ManhwaLens
 
-ManhwaLens is an Android floating overlay that reads English dialogue from a visible manhwa page and renders Arabic patches in place. Current experimental release: v0.12.3.
+ManhwaLens is an Android floating overlay that reads English dialogue from a visible manhwa page and renders Arabic patches in place. Current experimental build: v0.12.4.
 
 ## v0.11.0 — what changed for the reader
 
@@ -23,7 +23,7 @@ built in CI only.
 ## What this update adds
 
 - **PaddleOCR on-device recognition:** PP-OCRv5 Arabic/English models are bundled in the APK. PaddleOCR is the sole OCR backend and runs locally without a runtime model download.
-- **Offline translation:** ML Kit English→Arabic runs on-device after its one-time translation-model download. Offline mode blocks every optional cloud feature.
+- **Offline translation:** ML Kit English→Arabic remains the default local engine. Optional Mozilla Bergamot EN→AR can also run fully on-device after its one-time model download; Offline mode blocks every cloud feature.
 - **Fast first paint:** ML Kit runs locally first. The selected remote engine runs in parallel and can replace the draft only after the reply passes the Arabic output guard.
 - **Quality guard:** blocks empty replies, malformed output, and ordinary English echoes before they can be cached or overwrite a readable draft. A single unfamiliar character name may remain unchanged.
 - **Optional cloud translation:** Gemini remains available with the user's own API key; the local ML Kit result remains the offline path.
@@ -33,9 +33,10 @@ built in CI only.
 
 1. **PaddleOCR** — sole on-device OCR engine for English/Arabic text detection and recognition.
 2. **ML Kit Translation** — default on-device English→Arabic translation; offline after the translation model is downloaded.
-3. **Gemini** — optional cloud translation with the user's own API key; disabled by Offline mode.
+3. **Bergamot (experimental)** — optional Mozilla Firefox Translations EN→AR engine; about 23.8 MB compressed / 35.6 MB installed, downloaded on demand, ARM64 + Android 9+ only.
+4. **Gemini** — optional cloud translation with the user's own API key; disabled by Offline mode.
 
-OCR and translation are separate stages: PaddleOCR extracts text; ML Kit or optional Gemini translates it.
+OCR and translation are separate stages: PaddleOCR extracts text; ML Kit or Bergamot translates locally, while Gemini is optional cloud translation. Bergamot is experimental and must be benchmarked on a real phone before being preferred over ML Kit.
 
 ## Build
 
