@@ -52,7 +52,11 @@ class TranslationMemo(
             exact.get(key)?.let { return Hit(it, true) }
             if (source.length > fuzzyMaxChars) return null
             val shape = shapeOf(key)
-            if (shape.isEmpty()) return null
+            // A one- or two-consonant skeleton is far too ambiguous for dialogue:
+            // "AH..." and "YEAH" both collapse to "h", while "NO", "RUN" and
+            // "SORRY" also produce tiny shapes. Keep fuzzy reuse for distinctive
+            // short SFX (e.g. KRAK!! / Kraak -> "krk") only.
+            if (!isFuzzySafeShape(shape)) return null
             val hit = fuzzy.get(shape) ?: return null
             return Hit(hit, false)
         }
@@ -65,7 +69,7 @@ class TranslationMemo(
             exact.put(key, arabic)
             if (source.length <= fuzzyMaxChars) {
                 val shape = shapeOf(key)
-                if (shape.isNotEmpty()) fuzzy.put(shape, arabic)
+                if (isFuzzySafeShape(shape)) fuzzy.put(shape, arabic)
             }
         }
     }
@@ -74,7 +78,10 @@ class TranslationMemo(
         val key = key(source)
         synchronized(lock) {
             exact.remove(key)
-            if (source.length <= fuzzyMaxChars) fuzzy.remove(shapeOf(key))
+            if (source.length <= fuzzyMaxChars) {
+                val shape = shapeOf(key)
+                if (isFuzzySafeShape(shape)) fuzzy.remove(shape)
+            }
         }
     }
 
@@ -104,7 +111,12 @@ class TranslationMemo(
         return sb.toString()
     }
 
+    private fun isFuzzySafeShape(shape: String): Boolean =
+        shape.length >= MIN_FUZZY_SHAPE_LENGTH && shape.toSet().size >= MIN_FUZZY_DISTINCT_LETTERS
+
     companion object {
+        private const val MIN_FUZZY_SHAPE_LENGTH = 3
+        private const val MIN_FUZZY_DISTINCT_LETTERS = 2
         private const val VOWELS = "aeiouy\u0627\u0648\u064A\u0649\u0629"
 
         /** Normalized exact key: trimmed, single-spaced, case-folded. */
