@@ -11,6 +11,8 @@ enum class GarbageReason {
     OWN_WINDOW,
     /** Block matches one of our own UI strings (caption / status / hint, EN + AR). */
     OWN_STRING,
+    /** Recognizable Android status / notification / ManhwaLens notification text. */
+    SYSTEM_UI,
     /** Block looks like OCR garbage (consonant-heavy all-caps Latin noise). */
     OCR_GARBAGE,
     /** Block sits in the browser chrome / status / nav ignore band. */
@@ -76,7 +78,13 @@ class OcrGarbageClassifier(
             return GarbageVerdict(false, GarbageReason.OWN_STRING)
         }
 
-        // 4) Consonant-heavy all-caps Latin noise (OCR misread of burned Arabic).
+        // 4) High-confidence Android status/notification text that can leak into full-screen
+        // captures. Keep these signatures narrow; generic words like "today" are not enough.
+        if (isSystemUi(flat)) {
+            return GarbageVerdict(false, GarbageReason.SYSTEM_UI)
+        }
+
+        // 5) Consonant-heavy all-caps Latin noise (OCR misread of burned Arabic).
         if (isConsonantHeavyGarbage(flat)) {
             return GarbageVerdict(false, GarbageReason.OCR_GARBAGE)
         }
@@ -86,6 +94,32 @@ class OcrGarbageClassifier(
 
     private fun overlaps(a: Rect2D, b: Rect2D): Boolean =
         a.horizontalOverlap(b) > 0f && a.bottom > b.top && a.top < b.bottom
+
+    /**
+     * Narrow fingerprints for Android status/notification UI observed in full-screen
+     * captures. Never drop a block on "today" or "ManhwaLens" alone: require a known
+     * data-usage format, carrier + clock, or a recognizable app-notification phrase.
+     */
+    private fun isSystemUi(text: String): Boolean {
+        val flat = text.replace(Regex("\\s+"), " ").trim()
+        val lower = flat.lowercase()
+        val hasClock = Regex("\\b\\d{1,2}:\\d{2}\\b").containsMatchIn(flat)
+        val hasCarrier = Regex("\\b(?:djezzy|mobilis|ooredoo)\\b", RegexOption.IGNORE_CASE)
+            .containsMatchIn(flat)
+        if (hasClock && hasCarrier) return true
+
+        if (Regex(
+                "^(?:today|this month)\\s*:\\s*\\d+(?:[.,]\\d+)?\\s*(?:kb|mb|gb|tb)$",
+                RegexOption.IGNORE_CASE
+            ).matches(flat)
+        ) return true
+
+        if (lower.startsWith("manhwalens") &&
+            (lower.contains("capture ready") || lower.contains("display") || lower.contains("tap the lens"))
+        ) return true
+
+        return false
+    }
 
     /**
      * True when [text] is all-caps Latin, long enough to matter, and dominated by
