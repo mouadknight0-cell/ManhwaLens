@@ -596,3 +596,15 @@ one from cache, and progressive painting is still visibly progressive (first bub
 7. Copy **Settings → Diagnostics → Last report** after the test. Confirm `[OVERLAY PATCHES]` contains `patch=`, `cover=`, and `members=` values. Keep the original and translated screenshots together with the report. Turn Debug mode OFF afterward.
 
 **Scope:** this test verifies rendering and patch aggregation only. It does not establish semantic translation quality, glossary coverage, or OCR accuracy. Those are evaluated separately.
+
+ 
+# v0.12.4 — Bergamot performance/lifecycle follow-up
+
+1. With the Bergamot model installed, open Settings and wait for model-card prewarming. Translate the same 20-bubble page three times; record cold and warm timings.
+2. Open Diagnostics → Pipeline trace. PASS: report includes Bergamot prepare, native batch and page total timings, plus input/unique/duplicate counts. An ordinary page should remain one native batch.
+3. Test a long page with many bubbles and long narration. PASS: it is processed in sequential bounded batches without a native crash, missing IDs or reordered bubbles.
+4. Test OCR text containing a word split by a hyphen across lines and text containing zero-width characters. PASS: wrapped words are healed, zero-width artifacts do not create visible spaces, and original OCR text remains available in translation-pair diagnostics.
+5. While Bergamot is selected, trigger Android memory pressure or stop the overlay service, then start it again and translate. PASS: native allocations are released safely and the engine reloads on demand.
+6. Repeat the same source page with ML Kit and Bergamot, clearing saved translation caches and translation-pair logs between runs. Compare semantic quality, rejected bubbles, median/P95 latency and memory use. Do not judge Bergamot by OK status alone.
+
+Context limitation: the current Bergamot JNI bridge accepts independent text segments and exposes no document/context input. Do not concatenate neighboring bubbles to simulate context because that can corrupt bubble-to-translation mapping. Existing per-series name consistency and shared Arabic quality/post-processing remain active.
