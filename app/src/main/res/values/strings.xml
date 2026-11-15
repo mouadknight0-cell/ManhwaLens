@@ -106,15 +106,6 @@
     <string name="engine_mlkit_caption">Free and fully offline after a one-time model download (~30 MB). Nothing leaves your phone.</string>
     <string name="engine_gemini">Gemini · cloud API</string>
     <string name="engine_gemini_caption">Much better colloquial Arabic and context across bubbles. Requires your own API key.</string>
-    <string name="engine_libre_translate">LibreTranslate / Argos · self-hosted</string>
-    <string name="engine_libre_translate_caption">Open-source engine you control. One batched request runs beside the on-device draft; configure a trusted HTTPS server.</string>
-    <string name="libre_translate_url_label">LibreTranslate HTTPS URL</string>
-    <string name="libre_translate_url_placeholder">https://translate.example.com</string>
-    <string name="libre_translate_key_label">Server API key (optional)</string>
-    <string name="libre_translate_note">Only OCR text is sent (never screenshots). URL and optional key are stored on this device; use a server you trust. HTTPS is required.</string>
-    <string name="libre_translate_save">Save server</string>
-    <string name="libre_translate_clear">Clear server</string>
-    <string name="libre_translate_saved">Saved ✓</string>
     <string name="gemini_key_label">Gemini API key</string>
     <string name="gemini_key_placeholder">AIza…</string>
     <string name="gemini_key_note">The key is stored only on this device (app-private storage) and sent to Google solely as an HTTP header. It never appears in logs or in the app source.</string>
