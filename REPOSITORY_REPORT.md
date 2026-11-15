@@ -1,11 +1,11 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.3  
-**تاريخ التحديث:** 2026-11-14  
+**الإصدار:** 5.4  
+**تاريخ التحديث:** 2026-11-15  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
-**الفرع:** `arena/8a718184-manhwalens`  
-**طلب الدمج:** [PR #2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — مفتوح، غير مدمج  
-**آخر commit للكود على فرع التجربة:** `c9ae6ffcdefbec9ce58a0717c7c7ba218846eb98` (P5-A composite patches + تشخيص هندسة الرقع؛ تجهيز v0.11.5).  
-**آخر CI ناجح مكتمل:** [43627790075](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43627790075) على `7622589f3cdf343ba752f94a3e39c8e7aedc5eec` — نجح Unit tests وBuild debug APK ونشر v0.11.4. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
+**الفرع:** `feature/v0.12.4-bergamot-experiment`  
+**طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
+**آخر تغييرات خط التطوير الحالي:** v0.12.7 قيد التحقق؛ آخر commits التنفيذ e906fd4 و3dbfa11، وتجهيز الإصدار a7b314b.  
+**آخر CI ناجح مكتمل للخط الحالي قبل v0.12.7:** [43716970386](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43716970386) على `94febc3d25247e1cb696927051e99e276486396d` — نجحت Unit tests وتنزيل/فحص أصول PaddleOCR وBergamot وبناء Debug APK ورفع artifacts. CI لنسخة v0.12.7 ما زال بانتظار التحقق. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
 > هذا الملف هو التقرير الهندسي الرسمي الوحيد للمشروع. يستبدل النسخة السابقة من `REPOSITORY_REPORT.md` بالكامل. لا تُنشئ تقارير منفصلة لكل مرحلة أو إصلاح؛ أضف جميع الأعمال المستقبلية إلى هذا الملف مع الاحتفاظ بالتواريخ والأدلة والقرارات وسجل التغييرات.
@@ -1000,3 +1000,41 @@ Tap / Live scan
 4. إذا كان cover نفسه لا يشمل الأسطر الظاهرة، نراجع تجميع OCR بحذر. وإذا كان cover صحيحاً لكن النص المعروض ناقصاً، نراجع تركيب النص والـ StaticLayout. وإذا كان النص الخام من ML Kit خاطئاً، ننتقل إلى P5-C وجودة المحرك والقاموس المرتبط بالسلسلة.
 
 لا دمج إلى main ولا حذف أو استبدال للإصدارات السابقة في هذه المرحلة.
+
+---
+
+## 18. v0.12.7 — عزل قياس ML Kit عن اختبار batching الخلفي (2026-11-15)
+
+### 18.1 الحالة السابقة والدليل
+- كان PR #4 يتضمن بالفعل EngineComparisonBenchmark لمقارنة ML Kit وBergamot على نفس corpus من 20 حالة، مع أربعة تمريرات لكل محرك (الأولى منفصلة وثلاث دافئة)، ونتائج لكل حالة، وفحص الجودة، واسترداد فشل الدفعة إلى محاولات فردية.
+- كانت واجهة Settings تستدعي MlKitTranslator.warmUp() قبل المقارنة. هذا المسار يستدعي maybeStartSelfTest()، الذي يطلق اختبار فواصل batching في الخلفية مستخدماً translateRaw نفسه والعميل المشترك نفسه. لذلك كان من الممكن أن تتنافس طلبات self-test مع قياسات المقارنة وتشوّه زمن ML Kit.
+
+### 18.2 الإصلاح
+- إضافة warmUpForBenchmark() لتنزيل/التحقق من نموذج ML Kit وتهيئة العميل دون جدولة اختبار batching جديد.
+- إضافة قفل تشخيصي process-wide مشترك بين BatchAutoSelect واختبار المقارنة؛ لا تتداخل طلبات self-test وقياسات ML Kit/Bergamot.
+- تشغيل مقارنة المحركين داخل القفل واستخدام مسار التهيئة الخاص بالقياس.
+- لا يغير المقارن محرك الترجمة المختار أو سياسة batching المحفوظة. يبقى ML Kit الافتراضي وBergamot تجريبياً.
+
+### 18.3 الملفات والـ commits
+| الملف | التغيير |
+|---|---|
+| app/src/main/java/com/manhwalens/app/translate/mlkit/MlKitTranslator.kt | مسار warm-up مستقل للقياس وقفل مشترك مع self-test |
+| app/src/main/java/com/manhwalens/app/ui/settings/SettingsScreen.kt | عزل مقارنة المحركين عن اختبار batching الخلفي |
+| app/build.gradle.kts | v0.12.7 / versionCode 47 |
+| CHANGELOG.md | سجل التغيير |
+| MANUAL_TESTS.md | خطوات اختبار المقارنة على الهاتف |
+| PROJECT_STATE.md | تحديث سجل التسليم والحالة |
+
+Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24.
+
+### 18.4 التحقق والإصدار
+- CI baseline: run [43716970386](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43716970386) على 94febc3 نجح في Unit tests وDebug APK، لكنه يسبق تعديلات v0.12.7 ولا يُعد تحققاً لها.
+- تغييرات v0.12.7 مرفوعة إلى فرع التطوير. CI النهائي ونشر Release الحقيقي ما زالا Pending عند كتابة هذا القسم؛ لا يُعلن نجاحهما قبل فحص run وRelease assets.
+- لم يُجرَ اختبار هاتف فعلي. لا يُستنتج من CI نجاح JNI أو دقة PaddleOCR أو جودة المعنى أو RAM/latency.
+
+### 18.5 الخطوة التالية
+1. فحص أحدث push وPR workflows على رأس v0.12.7؛ Unit tests وBuild debug APK يجب أن ينجحا، وPR workflow يجب أن يتخطى خطوات نشر Release.
+2. التأكد من نشر GitHub Release v0.12.7 وإرفاق APK، ثم التحقق من package/version/ABI والتوقيع قبل ادعاء التحديث فوق التثبيت الحالي.
+3. طلب اختبار الهاتف وفق v0.12.7 في MANUAL_TESTS.md، بما في ذلك مقارنة المحركين دون اتصال ونسخ التقرير ومراجعة المعنى لكل حالة.
+
+حالة الجهاز: Not verified. حالة CI لـ v0.12.7: Pending. حالة Release لـ v0.12.7: Pending.
