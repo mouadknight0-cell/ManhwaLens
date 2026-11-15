@@ -707,3 +707,31 @@ Never use one label as evidence for another.
 - Earlier runs on superseded heads `6797b64e...` and `2282f559...` were cancelled or are not final-head evidence. Run #43755297786 on `6797b64e...` completed successfully, but it predates the no-promotion hardening; do not use it to claim the latest source passed.
 - Documentation commit at the time of this check: `1deff5155c22b1f664c2e2ad2047f5ea800ff8b9`. The three active runs target the source/test head `e82fcf...`, not this docs-only commit.
 - CI has not yet supplied a final success/failure result for the fuzzy-cache fix. No new release APK is built or published.
+
+
+## Engineering continuation — fuzzy cache canonicalization narrowed after deeper collision audit (2026-11-15)
+
+### CI result for the previous fuzzy-cache fix
+- Verified branch head at that stage: `78ade224440db02dff777941fe98658165cd8d4d`.
+- Push Android build #43755384744: success; build job, Unit tests, Debug APK build, pinned experimental debug-certificate check and APK artifact upload all succeeded. The release publish step was skipped as expected for this branch.
+- PR validation #43755388781: success; Unit tests and Debug APK build succeeded.
+- Dynamic dependency validation #43755384401: success.
+- This validates the short-shape guard and no-fuzzy-promotion tests present at that HEAD, not the later canonicalization refinements below.
+
+### Deeper collision finding and production changes
+- The earlier fix rejected 1- and 2-character consonant skeletons, but the shape function still removed all vowels and word boundaries. This could make unrelated terms such as `first` and `forest` share a consonant skeleton; the restriction on minimum shape length did not prevent this class of collision.
+- Commits `841b6450167b56f066644f47a8154f208226a328` and `b1dc72f00b6c4013da61b4c7cf96fed96dc8128d` change fuzzy canonicalization to preserve vowel identity and whitespace boundaries, while still ignoring punctuation/case and collapsing adjacent repeated letters. Expected safe pair: `KRAK!!` / `Kraak` → `krak`. Expected non-collisions: `first` / `forest`, `a man` / `aman`, `AH` / `YEAH`.
+- Commit `b31c50791eac4321c3da03723ca402d299b13ca9` fixes memo-hit classification in `CachingTranslator`: it now consumes `TranslationMemo.Hit.exact` instead of treating every memo hit as fuzzy. Exact memo hits can be promoted to the exact in-memory cache; fuzzy near-matches cannot.
+- Commits `bafb2a28db089b940909246bac4ef732d1616864`, `ebf95459405218c8ef8e5b895241b4e3bbe0f50a`, and `302c1234b1197a7555b0380d91e0ac0158dba090` add/adjust regressions for vowel and word-boundary preservation, ambiguous short phrases, fuzzy-hit non-promotion, and exact memo-hit promotion.
+
+### Current verification boundary
+- The above canonicalization and exact/fuzzy classification commits were made after the successful CI head `78ade224...`; they are NOT covered by that earlier success.
+- CI must be checked against the final source/test head after these changes and the subsequent report commit. No APK or release is claimed from these refinements.
+- No real-device retest has been performed. The user's 725 ms Joined bullet benchmark remains device-supplied evidence; this source work does not change the batching policy.
+
+### Next engineering actions
+1. Verify current-head Android push + PR workflows; fix any unit-test or compilation regressions.
+2. Review the memo's fuzzy key ownership/collision behavior and test it with a mixed set of common English dialogue and short SFX.
+3. Retain fuzzy matching only when canonical forms are equal under the conservative rules; do not reintroduce vowel deletion or token-boundary deletion for recall.
+4. Reassess the short dialogue overrides and Arabic quality guard using the supplied No/Run/OK/AH examples. Rule-based Arabic presence is not semantic validation.
+5. Build a post-processed output benchmark from real chapter snippets while keeping OCR recognition errors separately labeled.
