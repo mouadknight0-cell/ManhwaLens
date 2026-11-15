@@ -50,7 +50,6 @@ import com.manhwalens.app.R
 import com.manhwalens.app.data.SettingsPrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.manhwalens.app.data.CharacterMemory
 import com.manhwalens.app.util.ErrorLog
 import com.manhwalens.app.util.TranslationPairLog
 import com.manhwalens.app.ui.theme.LensVioletSoft
@@ -59,7 +58,7 @@ import com.manhwalens.app.ui.theme.PanelAmber
 /**
  * Settings screen — single scrolling page:
  *  Appearance (Arabic font size) · Translation (engine + key) · Automation
- *  (auto-capture on scroll) · About (version, privacy policy).
+ *  Live mode controls · Diagnostics · About (version, privacy policy).
  */
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -67,26 +66,6 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showPrivacy by remember { mutableStateOf(false) }
     var showLastCapture by remember { mutableStateOf(false) }
     var showLiveSelfCheck by remember { mutableStateOf(false) }
-    var showCharacters by remember { mutableStateOf(false) }
-
-    // P1: the series currently receiving character names. Shown on the card so the scope is
-    // never a mystery: names are filed under exactly this series, and under nothing when unset.
-    var activeSeriesTitle by remember { mutableStateOf<String?>(null) }
-    var seriesRefresh by remember { mutableStateOf(0) }
-    LaunchedEffect(seriesRefresh) {
-        activeSeriesTitle = withContext(Dispatchers.IO) {
-            runCatching { CharacterMemory.activeSeries(context)?.title }.getOrNull()
-        }
-    }
-
-    // P1: character name memory (series selection + corrections).
-    if (showCharacters) {
-        CharacterNamesScreen(onBack = {
-            showCharacters = false
-            seriesRefresh++ // the reader may have selected another series
-        })
-        return
-    }
 
     if (showPrivacy) {
         PrivacyPolicyScreen(onBack = { showPrivacy = false })
@@ -105,7 +84,6 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     val prefs = remember { SettingsPrefs(context) }
     var fontScale by remember { mutableStateOf(prefs.fontScale) }
-    var autoCapture by remember { mutableStateOf(prefs.autoCaptureOnScroll) }
     var debugMode by remember { mutableStateOf(prefs.debugMode) }
     var pairLogCount by remember { mutableStateOf(TranslationPairLog.count(context)) }
     var liveMode by remember { mutableStateOf(prefs.liveMode) }
@@ -115,10 +93,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var liveStableMs by remember { mutableStateOf(prefs.liveStableWindowMs) }
     var liveSensitivity by remember { mutableStateOf(prefs.liveSensitivity) }
     var lensTapMode by remember { mutableStateOf(prefs.lensTapMode) }
-    var ignorePhrases by remember { mutableStateOf(prefs.ignorePhrases) }
     val translationPrefs = remember { com.manhwalens.app.data.TranslationPrefs(context) }
-    var glossaryText by remember { mutableStateOf(translationPrefs.glossary) }
-    var mergeLines by remember { mutableStateOf(translationPrefs.mergeBubbleLines) }
     var benchmarkRunning by remember { mutableStateOf(false) }
     var benchmarkResult by remember { mutableStateOf<String?>(null) }
     val benchmarkReport = benchmarkResult
@@ -188,81 +163,6 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         // Prepare the EN→AR model before going offline.
         OfflineTranslationModelCard()
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Names & terms (v0.9.14) ----------
-        Section(stringResource(R.string.glossary_title)) {
-            Text(
-                text = stringResource(R.string.glossary_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.size(8.dp))
-            androidx.compose.material3.OutlinedTextField(
-                value = glossaryText,
-                onValueChange = { value ->
-                    glossaryText = value
-                    translationPrefs.glossary = value
-                    translationPrefs.refreshGlossary()
-                },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 110.dp),
-                minLines = 5,
-                placeholder = { Text("Wei Wuxian = وي ووشيان") }
-            )
-            Spacer(Modifier.size(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = stringResource(R.string.merge_lines_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.merge_lines_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                Switch(
-                    checked = mergeLines,
-                    onCheckedChange = { checked ->
-                        mergeLines = checked
-                        translationPrefs.mergeBubbleLines = checked
-                        translationPrefs.refreshGlossary()
-                    }
-                )
-            }
-        }
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Character names (P1) ----------
-        Section(stringResource(R.string.settings_characters_button)) {
-            Text(
-                text = activeSeriesTitle?.let { stringResource(R.string.character_names_active, it) }
-                    ?: stringResource(R.string.character_names_no_series_card),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (activeSeriesTitle == null) MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.size(4.dp))
-            Text(
-                text = stringResource(R.string.character_names_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.size(8.dp))
-            androidx.compose.material3.OutlinedButton(
-                onClick = { showCharacters = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.settings_characters_button))
-            }
-        }
         Spacer(Modifier.size(12.dp))
 
         // ---------- Live mode (Part C) ----------
@@ -388,6 +288,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
         Spacer(Modifier.size(12.dp))
 
+
         // ---------- Tap on the lens (v0.9.4 Part C) ----------
         Section(stringResource(R.string.lens_tap_title)) {
             Text(
@@ -444,104 +345,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                 valueRange = 0f..30f,
                 steps = 29
             )
-        }
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Ignore list (Part C) ----------
-        Section(stringResource(R.string.ignore_list_title)) {
-            Text(
-                text = stringResource(R.string.ignore_list_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.size(8.dp))
-            androidx.compose.material3.OutlinedTextField(
-                value = ignorePhrases,
-                onValueChange = { value ->
-                    ignorePhrases = value
-                    prefs.ignorePhrases = value
-                },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 110.dp),
-                minLines = 5
-            )
-        }
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Automation (optional extra trigger; Live mode needs nothing here) ----------
-        Section(stringResource(R.string.automation_title)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = stringResource(R.string.auto_capture_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.auto_capture_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                Switch(
-                    checked = autoCapture,
-                    onCheckedChange = { checked ->
-                        autoCapture = checked
-                        prefs.autoCaptureOnScroll = checked
-                    }
-                )
-            }
-            Spacer(Modifier.size(10.dp))
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1B26)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Text(
-                        text = stringResource(R.string.faster_scroll_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = PanelAmber
-                    )
-                    Text(
-                        text = stringResource(R.string.faster_scroll_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        text = stringResource(R.string.faster_scroll_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LensVioletSoft
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = android.net.Uri.fromParts("package", context.packageName, null)
-                                    }
-                                )
-                            }.onFailure {
-                                Toast.makeText(context, R.string.toast_capture_failed, Toast.LENGTH_SHORT).show()
-                            }
-                        }) {
-                            Text(stringResource(R.string.faster_scroll_appinfo))
-                        }
-                        OutlinedButton(onClick = {
-                            runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                                .onFailure { Toast.makeText(context, R.string.toast_capture_failed, Toast.LENGTH_SHORT).show() }
-                        }) {
-                            Text(stringResource(R.string.auto_capture_open))
-                        }
-                    }
-                }
-            }
         }
         Spacer(Modifier.size(12.dp))
 
