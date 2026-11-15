@@ -71,6 +71,7 @@ class TranslationQualityBenchmarkTest {
                 when (case.source) {
                     "No." -> "رقم"
                     "Run!" -> "تشغيل!"
+                    "Stay behind me and don't say a word." -> "البقاء ورائي ولا تقل كلمة."
                     "KRAK" -> "krak"
                     else -> case.referenceArabic
                 }
@@ -95,6 +96,14 @@ class TranslationQualityBenchmarkTest {
         assertFalse(run.cleanedExactMatch)
         assertTrue(run.visibleExactMatch)
         assertEquals("اهرب!", run.visibleOutput)
+
+        val stayBehindMe = report.cases.first { it.source == "Stay behind me and don't say a word." }
+        assertTrue(stayBehindMe.accepted) // Arabic-script validation does not catch awkward literal wording.
+        assertFalse(stayBehindMe.exactMatch)
+        assertEquals("البقاء ورائي ولا تقل كلمة.", stayBehindMe.output)
+        assertTrue(stayBehindMe.visibleAccepted)
+        assertTrue(stayBehindMe.visibleExactMatch)
+        assertEquals("ابقَ خلفي ولا تنطق بكلمة.", stayBehindMe.visibleOutput)
 
         val krak = report.cases.first { it.source == "KRAK" }
         assertFalse(krak.accepted)

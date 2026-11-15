@@ -16,6 +16,16 @@ class ShortDialogueOverridesTest {
     @Test fun donePhraseIsNotTranslatedAsVerbToSeize() {
         assertEquals("يبدو أن الأمر انتهى!", ShortDialogueOverrides.apply("Looks like it's done!", "يبدو أنه انتهز!"))
     }
+    @Test fun stayBehindMeIsTranslatedAsNaturalArabicDialogue() {
+        assertEquals(
+            "ابقَ خلفي ولا تنطق بكلمة.",
+            ShortDialogueOverrides.apply(
+                "Stay behind me and don't say a word.",
+                "البقاء ورائي ولا تقل كلمة."
+            )
+        )
+    }
+
     @Test fun pieceOfCakeIdiomIsTranslatedByMeaning() {
         assertEquals("ها، هذا سهل للغاية.", ShortDialogueOverrides.apply("Ha, this is a piece of cake.", "ها، هذه قطعة من الكعكة."))
     }
