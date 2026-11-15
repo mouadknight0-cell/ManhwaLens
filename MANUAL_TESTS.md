@@ -6,7 +6,7 @@
 4. Confirm exact normalized matches, mean token F1 and elapsed time are included. **PASS:** the report explicitly states that token F1 is lexical overlap only and is NOT semantic accuracy.
 5. Force an engine failure or test with an unavailable model. **PASS:** failed/blank cases count as rejected and the benchmark does not crash the Settings screen.
 6. Run the benchmark twice. **PASS:** the fixed corpus IDs and ordering stay identical; benchmark scores do not change engine selection, saved preferences or runtime batching policy.
-7. Repeat with Bergamot selected in the app. **PASS:** this diagnostics corpus remains explicitly ML Kit-only for now; do not interpret it as a Bergamot comparison. Compare engines only after a dedicated same-corpus multi-engine runner is added.
+7. Run **Compare ML Kit vs Bergamot** after both offline models are installed. **PASS:** the dedicated runner sends the same prepared 20-case corpus to both engines, bypasses app translation caches, reports each case and first/warm timings, and does not change the selected engine or batching policy.
 
 # v0.12.5 — Bergamot offline quality fallback
 
@@ -631,3 +631,15 @@ Context limitation: the current Bergamot JNI bridge accepts independent text seg
 
 7. Run `BergamotTextPreparationTest`. PASS: OCR line joining, hyphenated line-break repair, zero-width cleanup and adaptive batching tests pass on the JVM.
 8. Inspect the `translation quality` trace. PASS: accepted/rejected/empty/missing counts are present and the percentage is labelled rule-based, not a semantic translation score.
+
+
+# v0.12.7 — isolated ML Kit vs Bergamot comparison
+
+1. Install the ML Kit EN→AR model and the Bergamot EN→AR model before starting. Keep Wi-Fi/mobile data off after both models are ready.
+2. Open Settings → Diagnostics → **Compare ML Kit vs Bergamot**. **PASS:** the comparison completes offline and shows all 20 stable case IDs for both engines.
+3. Confirm both engines receive identical glossary-prepared, single-line source text. **PASS:** the report shows the same categories and preserves each source/reference/output pair.
+4. Confirm each engine reports one first pass separately and three warm passes, with warm median/worst timings. The ML Kit model is pre-warmed; Bergamot's first pass may include native model loading.
+5. Confirm accepted/rejected, blank, English echo/fragment, exact-match and lexical token-F1 metrics are reported separately. **PASS:** the report explicitly says token F1 is not semantic accuracy; manually review the Arabic meaning case by case.
+6. Confirm a failed or malformed batch is retried per case and counted as a batch recovery; one bad case must not erase other outputs.
+7. Run the comparison while the app's ML Kit batching self-test would otherwise be eligible. **PASS:** the benchmark-only warm-up does not start a new self-test, and the shared diagnostic lock prevents an existing self-test from competing with measured calls.
+8. Record phone model, Android version, first/warm timings, screenshots of the report and any native errors. Do not promote Bergamot or change the default from this report alone; semantic review, OCR checks, memory observation and update-install validation remain required.
