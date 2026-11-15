@@ -27,7 +27,7 @@ class CachingTranslator(
     private val cache: TranslationCache,
     private val persistent: PersistentTranslationCache? = null,
     private val style: String = "default",
-    /** Progressive display hook — fired for every CACHE HIT (misses flow through the engine). */
+    /** Progressive display hook — fired for exact/fuzzy memo hits (engine misses emit separately). */
     private val onBlockReady: ((TranslatedBlock) -> Unit)? = null,
     /**
      * Optional fuzzy tier (short strings only). OFF by default so a decorator instance is
