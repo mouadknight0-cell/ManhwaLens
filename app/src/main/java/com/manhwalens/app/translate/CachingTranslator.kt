@@ -200,6 +200,14 @@ class CachingTranslator(
                         }
                     }
                     val returnedIds = polished.map { it.id }.toHashSet()
+                    val emptyCount = polished.count { it.arabic.isBlank() }
+                    val missingCount = misses.size - returnedIds.size
+                    val acceptancePercent = if (misses.isEmpty()) 100 else (usable * 100 / misses.size)
+                    com.manhwalens.app.util.PipelineTracer.span(
+                        "translation quality",
+                        0,
+                        "accepted=$usable rejected=${rejectedIds.size} empty=$emptyCount missing=$missingCount acceptance=${acceptancePercent}% (rule-based; not semantic score)"
+                    )
                     misses.filterNot { it.id in returnedIds }.forEach { block ->
                         runCatching {
                             onTranslationPair?.invoke(TranslationPairTrace(
