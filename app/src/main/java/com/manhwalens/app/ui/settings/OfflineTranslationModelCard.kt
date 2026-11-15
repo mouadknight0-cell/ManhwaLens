@@ -108,15 +108,15 @@ fun OfflineTranslationModelCard() {
                     onClick = {
                         scope.launch {
                             busy = true
-                            message = "جارٍ تنزيل نموذج الترجمة عبر Wi‑Fi…"
+                            message = "جارٍ تنزيل نموذج الترجمة عبر اتصال الإنترنت…"
                             val result = withContext(Dispatchers.IO) {
                                 runCatching {
                                     Tasks.await(
                                         manager.download(
                                             model,
-                                            DownloadConditions.Builder().requireWifi().build()
+                                            DownloadConditions.Builder().build()
                                         ),
-                                        10,
+                                        20,
                                         TimeUnit.MINUTES
                                     )
                                     Tasks.await(manager.isModelDownloaded(model), 30, TimeUnit.SECONDS)
@@ -126,7 +126,7 @@ fun OfflineTranslationModelCard() {
                             message = when {
                                 result.isFailure -> "فشل التنزيل أو لم يكتمل: ${result.exceptionOrNull()?.message ?: "خطأ غير معروف"}"
                                 ready == true -> "اكتمل تنزيل النموذج. الترجمة الإنجليزية ← العربية جاهزة دون إنترنت."
-                                else -> "لم يؤكد ML Kit اكتمال تنزيل النموذج. أعد المحاولة مع اتصال Wi‑Fi."
+                                else -> "لم يؤكد ML Kit اكتمال تنزيل النموذج. تحقق من اتصال الإنترنت والمساحة المتاحة ثم أعد المحاولة."
                             }
                             busy = false
                         }
