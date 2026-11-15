@@ -272,3 +272,29 @@ Never use one label as evidence for another.
 - Release-published: v0.12.8 GitHub prerelease with discoverable APK asset.
 - Not device-verified: Bergamot JNI inference/output quality and latency, new diagnostics on the user's phone, model download/offline behavior, OCR accuracy/grouping, RAM use, and update-over-existing-app installation.
 - Next device evidence: install v0.12.8 over the existing app without uninstalling; run Bergamot-only with network disabled and send its copied report. Paired comparison can follow once both offline models are installed. Do not promote Bergamot to default from speed or lexical F1 alone.
+
+
+## Session continuation — 2026-11-15 (APK update-signing guard)
+
+### User-reported issue
+- User reports Android repeatedly asks to uninstall the existing ManhwaLens app before installing each new APK. This is an update-compatibility blocker; do not tell the user to uninstall as a routine workaround.
+- Android in-place update requires the same applicationId, a signing certificate accepted as the same signing identity, and a strictly higher versionCode.
+
+### Findings
+- Current development branch keeps applicationId `com.manhwalens.app`; v0.12.8 uses versionCode 48.
+- CI restores `ci/experimental-debug.keystore.base64` as the Android debug keystore before building. The tracked key file has the same Git blob SHA (`68bd7f5388218224353f11b456ff3c29fb44c64c`) at tags v0.12.6, v0.12.7 and v0.12.8. This proves the CI input is stable across those tags, but does not yet prove the installed phone APK was signed by it.
+- Therefore the exact cause for the user's installed APK is not yet Device-verified. Likely causes include an older APK signed with a different local/CI debug key, or a package/version mismatch. Do not claim the issue is solved until the APK certificates are compared or an in-place install succeeds on the phone.
+
+### Implemented
+- Commit `c2b26c15208469d42be8dcca0c40cca19fa14ef6`: added a CI gate in `.github/workflows/android.yml` before artifact/release publication. It inspects current APK package name, versionCode and signer SHA-256; downloads the most recently published release APK; verifies package identity and strictly increasing versionCode; and fails the workflow if the signer certificate differs. PR builds remain excluded from this publishing compatibility gate.
+
+### Verification status
+- Implemented: CI signing-continuity gate.
+- Not yet CI-verified: the newly added gate has not yet completed a push workflow run.
+- Not verified: comparison against the APK currently installed on the user's phone; actual in-place update test.
+- If the gate fails against the previous published release, stop publication and investigate/restore the correct signing key. Never silently publish an APK that requires uninstalling the previous release.
+
+### Next actions
+1. Inspect the push workflow triggered by commit `c2b26c15208469d42be8dcca0c40cca19fa14ef6`; fix any workflow-script issue and confirm certificate continuity against the latest release.
+2. If CI confirms v0.12.8 and the prior release use the same certificate, ask the user to try installing the APK directly over the existing app. If Android still requests uninstall, obtain the exact installer error and identify the currently installed version/signature before changing release signing.
+3. Do not increment app version or publish another APK until the update gate passes.
