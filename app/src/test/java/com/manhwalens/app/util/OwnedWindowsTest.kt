@@ -64,6 +64,7 @@ class OwnedWindowsTest {
         assertTrue(w.isOwnString(" SCANNING "))
         assertTrue(w.isOwnString("مشاهدة"))
         assertTrue(w.isOwnString("Tap to start"))
+        assertTrue(w.isOwnString("Live mode OFF"))
         assertFalse(w.isOwnString("Hello world"))
         assertFalse(w.isOwnString("a real bubble line"))
     }
