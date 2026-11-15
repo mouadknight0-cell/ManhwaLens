@@ -53,6 +53,7 @@ internal class CaptureOcrProcessor(
             val grouped = BubbleGrouper.group(lines)
             val edgePrefs = SettingsPrefs(appContext)
             val density = appContext.resources.displayMetrics.density
+            val filterStartedAt = SystemClock.elapsedRealtime()
             val filterResult = BlockFilter.apply(
                 grouped,
                 bitmap.height,
@@ -70,9 +71,13 @@ internal class CaptureOcrProcessor(
                     filterResult.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240)
                 )
             }
-            filterResult.removed.forEach { recordDrop(it.reason) }
+            filterResult.removed.forEach {
+                recordDrop(it.reason)
+                PipelineTracer.span("ocr drop", 0, "#${it.id}=${it.reason}")
+            }
 
             val owned = ownedRectsOverride ?: ownedRects()
+            var garbageDropped = 0
             val filtered = if (filterResult.kept.isEmpty()) {
                 emptyList()
             } else {
@@ -87,10 +92,21 @@ internal class CaptureOcrProcessor(
                         patchRects = noPatchRects,
                         ownedRects = owned
                     )
-                    if (!verdict.keep) recordDrop(verdict.reason.name)
+                    if (!verdict.keep) {
+                        garbageDropped++
+                        recordDrop(verdict.reason.name)
+                        PipelineTracer.span("ocr drop", 0, "#${block.id}=${verdict.reason}")
+                    }
                     !verdict.keep
                 }
             }
+            PipelineTracer.record(
+                PipelineTracer.Stage.FILTER,
+                com.manhwalens.app.util.StageTrace.Status.OK,
+                SystemClock.elapsedRealtime() - filterStartedAt,
+                "kept=${filtered.size}/${grouped.size} blockFilter=${filterResult.removed.size} " +
+                    "garbage/window=$garbageDropped"
+            )
             diagnostics?.recordOcr(lines, grouped, filtered, recognized.elapsedMs)
             filtered
         } finally {
