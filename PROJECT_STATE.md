@@ -735,3 +735,20 @@ Never use one label as evidence for another.
 3. Retain fuzzy matching only when canonical forms are equal under the conservative rules; do not reintroduce vowel deletion or token-boundary deletion for recall.
 4. Reassess the short dialogue overrides and Arabic quality guard using the supplied No/Run/OK/AH examples. Rule-based Arabic presence is not semantic validation.
 5. Build a post-processed output benchmark from real chapter snippets while keeping OCR recognition errors separately labeled.
+
+
+### Additional fuzzy-cache hardening and diagnostic visibility (2026-11-15)
+- Commit `c6dc625561fe679dab13f4762e775578fcb28721` adds distinct per-pair diagnostic status `FUZZY_HIT` with detail `served from fuzzy memo`; true in-memory/disk/exact-memo results remain `CACHE_HIT`. This makes future user reports distinguish approximate reuse from exact cache retrieval.
+- Commit `deb47cfa90607f813e73a78428eb3ca45b288b0d` tests the separate `OK` / `FUZZY_HIT` trace statuses and asserts that each trace retains its actual source text.
+- Commit `1374f906e11ab08c789de913570ce20c1271ad5f` measures minimum fuzzy-key length and distinct characters after removing spaces, so whitespace cannot artificially make an ambiguous key eligible.
+- Commit `f8edcd8f777a079fcda98e2dea57ae46e02ef259` adds a regression for weak shapes containing whitespace.
+- Source/test changes for exact-source chapter-3 repairs:
+  - Commit `e4d4ee8f450cf391b79ad1f836274683f4ce2962` adds narrow exact-source repairs for observed malformed/awkward strings: ALL CLEAR / LET'S GO, WHAT'RE YOL THINKING ABOUT, ABOUT 40 MINLTES, B055 15 / BOSS IS, HOW LONG DID WE WALK, ABOUT WHAT, I'M FINE..., TO BE HONEST..., IF YOU'RE THAT SORRY..., and WHAT EVEN MADE YOU SAY YES...
+  - Commit `34682fc80b0486e786faa5c0ee456d1c2d79bc6e` adds regression assertions for these exact normalized-source variants. These overrides are source-specific; no global OCR word substitution or general translation claim is made.
+- Latest source/test head verified: `34682fc80b0486e786faa5c0ee456d1c2d79bc6e`.
+- CI on this exact source/test head was still running at the last check:
+  - Push #43756727552 — in progress.
+  - PR #43756732195 — in progress.
+  - Dynamic #43756727237 — in progress.
+- Earlier dynamic run #43756611369 succeeded on head `f8edcd8...`, but Android build workflows on that superseded head were cancelled. No completed Android-build success is claimed for the new trace/override changes yet.
+- The report update itself creates a new documentation-only head and new CI; final validation must be checked against that newest head.
