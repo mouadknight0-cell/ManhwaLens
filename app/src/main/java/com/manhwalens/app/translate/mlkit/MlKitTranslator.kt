@@ -550,8 +550,17 @@ class MlKitTranslator(
         /** Raw engine call on the shared client (benchmark, self-test, warm-up). Throws on failure. */
         @JvmStatic
         fun translateRaw(text: String): String = withTranslationReadLock {
-            Tasks.await(SHARED_CLIENT.translate(text), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            translateRawDuringExclusiveDiagnostic(text)
         }
+
+        /**
+         * Used only by BatchAutoSelect while its caller owns the exclusive diagnostic gate.
+         * Its parallel timing trial invokes this callback from worker threads; those workers
+         * are part of the exclusive diagnostic and must not try to acquire the read lock held
+         * out by the parent thread.
+         */
+        private fun translateRawDuringExclusiveDiagnostic(text: String): String =
+            Tasks.await(SHARED_CLIENT.translate(text), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
 
         /**
          * Dummy "hello" call that keeps the engine loaded. Called at service start and on
@@ -600,7 +609,7 @@ class MlKitTranslator(
                     val t0 = System.currentTimeMillis()
                     withDiagnosticLock {
                         val choice = BatchAutoSelect.run(
-                            ::translateRaw,
+                            ::translateRawDuringExclusiveDiagnostic,
                             strategies = policy.allowedStrategies(),
                             parallelLimit = policy.parallelLevel()
                         )
