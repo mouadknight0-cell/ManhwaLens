@@ -883,3 +883,45 @@ Never use one label as evidence for another.
 - PR #4 remains open Draft and stacked on feature/v0.12.3-paddle-default-settings; preserve the stack.
 - No physical-device validation is claimed. No installation request is made for this source-only correction.
 - Next action: verify the Android push and PR workflows on the latest branch head, then use a new capture diagnostic containing OCR confidence/coordinates and translation candidate/final pairs before tuning PaddleOCR or grouping behavior.
+
+## Engineering continuation — PaddleOCR capture telemetry (2026-11-15)
+
+### Implemented
+- Main telemetry commit: 8f5b1e2c4847e5dafb1dbdacb5f8daddd66cbd38 — adds PaddleOCR per-run telemetry to the opt-in capture diagnostic report.
+- Follow-up test import commit: 5384e34475af7fb57d79406da955d3e6c412177e.
+- Final effective-config commit: 9fc562b7a0cd48e704298761f01472011cdf6ec8 — pins the existing detector defaults explicitly and records them.
+- Capture report now includes:
+  - detector, recognizer and end-to-end engine timings, plus wrapper elapsed time and cold model-load time;
+  - preprocess, inference and postprocess timings for detection and recognition;
+  - detector and recognizer input tensor shapes;
+  - recognized candidate count and candidates rejected by the recognition-confidence threshold;
+  - actual recognition/detection thresholds, unclip ratio, detector resize type/limits, and inference thread count.
+- Current values were made explicit to match the existing library defaults/configuration: detection threshold 0.30, box threshold 0.60, unclip ratio 1.50, recognition threshold 0.50, resize policy min/1280 capped at 1920, four threads. No confidence threshold, OCR acceptance rule, grouping geometry or model was changed by this telemetry work.
+- The OCR stats are observational and are only added to the existing opt-in local capture report. The report remains bounded; raw OCR line text, per-line confidence, bounding boxes, grouped/kept blocks, and translation candidate/final diagnostics remain available.
+- Files changed for telemetry:
+  - app/src/main/java/com/manhwalens/app/ocr/OcrRunStats.kt (new)
+  - app/src/main/java/com/manhwalens/app/ocr/TextRecognizerClient.kt
+  - app/src/main/java/com/manhwalens/app/ocr/CaptureOcrProcessor.kt
+  - app/src/main/java/com/manhwalens/app/util/CaptureDiagnostics.kt
+  - app/src/test/java/com/manhwalens/app/util/CaptureDiagnosticsTest.kt
+
+### Verification on final telemetry commit 9fc562b7
+- Push workflow #43763634465 completed **success**:
+  - Unit tests passed.
+  - Debug APK build passed.
+  - Experimental signing-certificate verification passed.
+  - Update compatibility with the latest published release passed.
+  - APK and test-report artifacts uploaded.
+  - Release publish step was skipped by workflow policy; no public release was created.
+- PR workflow #43763638905 completed **success**:
+  - Unit tests, Debug APK build, signing-certificate verification and artifact uploads passed.
+  - Update-compatibility check was skipped on the PR event by workflow design.
+- Automatic Dependency Submission #43763634405 completed **success**.
+- CI APK artifact: ManhwaLens-v0.12.10-debug-apk, 70,070,074 bytes, SHA-256 8d879c3198c41ae56e3cfcfcb9a87257ffe0f8c1e96e3f43a358beb4f516b108. This is an expiring Actions artifact, **not** a GitHub Release and not a recommended user installation.
+- The preceding exact-source dialogue fix commit 31d467b5 also passed Push and PR CI, including update compatibility on Push.
+
+### Release and device status
+- Latest public release remains prerelease v0.12.10 with its existing APK; no newer release was created.
+- PR #4 remains open Draft, targeting feature/v0.12.3-paddle-default-settings; preserve this stacked PR structure.
+- No physical-device test is claimed. Current changes are verified by CI only.
+- Next evidence needed for OCR tuning is one opt-in device capture report from a future test build: OCR lines with confidence/coordinates, grouped and kept blocks, PaddleOCR stage stats/config, and translation raw/final pairs. This allows the failure stage to be identified before changing OCR thresholds or grouping geometry.
