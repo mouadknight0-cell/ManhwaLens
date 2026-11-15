@@ -3,6 +3,7 @@ package com.manhwalens.app.translate.bergamot
 import android.content.Context
 import android.os.SystemClock
 import com.manhwalens.app.translate.FailureReason
+import com.manhwalens.app.translate.Glossary
 import com.manhwalens.app.translate.PageTranslation
 import com.manhwalens.app.translate.TranslatedBlock
 import com.manhwalens.app.translate.TranslationBlock
@@ -34,10 +35,15 @@ internal class BergamotPageTranslator(context: Context) : Translator {
 
         val startedNs = SystemClock.elapsedRealtimeNanos()
         try {
-            // OCR line wrapping is visual layout, not sentence structure. Normalize each
-            // bubble to one line while preserving the untouched OCR source for diagnostics.
+            // Apply the same glossary/name preparation used by ML Kit before inference.
+            // This is important for character names and series terms: previously Bergamot
+            // only used the glossary for cache keys, not for the actual native input.
+            // OCR line wrapping is visual layout, not sentence structure; collapse it
+            // after glossary replacement while retaining original text in diagnostics.
             val prepStartedNs = SystemClock.elapsedRealtimeNanos()
-            val engineInput = blocks.map { block -> BergamotTextPreparation.asSingleLine(block.english) }
+            val engineInput = blocks.map { block ->
+                BergamotTextPreparation.asSingleLine(Glossary.prepare(block.english))
+            }
 
             // De-duplicate exact normalized bubbles within this page. Blank bubbles are
             // mapped directly to blank output and never consume native inference time.
