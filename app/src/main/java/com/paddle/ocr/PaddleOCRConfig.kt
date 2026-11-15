@@ -22,7 +22,8 @@ data class PaddleOCRConfig(
     val detThresh: Float = 0.3f,
     val detBoxThresh: Float = 0.6f,
     val detUnclipRatio: Float = 1.5f,
-    val detMaxCandidates: Int = 3000,
+    // Match PP-OCRv5 mobile detector's official max_candidates setting.
+    val detMaxCandidates: Int = 1000,
     val detUseDilation: Boolean = false,
     val detScoreMode: String = "fast",
     val detBoxType: String = "quad",
