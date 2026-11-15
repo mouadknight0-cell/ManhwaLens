@@ -62,6 +62,8 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showPrivacy by remember { mutableStateOf(false) }
     var showLastCapture by remember { mutableStateOf(false) }
     var showLiveSelfCheck by remember { mutableStateOf(false) }
+    var showClearTranslationCache by remember { mutableStateOf(false) }
+    var cacheEntryCount by remember { mutableStateOf(com.manhwalens.app.translate.TranslatorFactory.cacheSize()) }
 
     if (showPrivacy) {
         PrivacyPolicyScreen(onBack = { showPrivacy = false })
