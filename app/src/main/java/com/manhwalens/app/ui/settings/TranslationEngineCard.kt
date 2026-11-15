@@ -189,6 +189,12 @@ fun TranslationEngineCard() {
             )
 
             EngineOption(
+                title = "Bergamot (experimental)",
+                caption = "Firefox offline engine · download the optional EN→AR model below · Android 9+ / 64-bit",
+                selected = engine == TranslationEngine.BERGAMOT,
+                onSelect = { select(TranslationEngine.BERGAMOT) }
+            )
+            EngineOption(
                 title = stringResource(R.string.engine_mlkit),
                 caption = stringResource(R.string.engine_mlkit_caption),
                 selected = engine == TranslationEngine.ML_KIT,
