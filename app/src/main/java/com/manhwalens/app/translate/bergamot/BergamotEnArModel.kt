@@ -51,7 +51,7 @@ internal object BergamotEnArModel {
     suspend fun download(context: Context, onProgress: (Long, Long) -> Unit = { _, _ -> }) =
         withContext(Dispatchers.IO) {
             val dir = directory(context)
-            check(BergamotNative.supported) { "Bergamot requires Android 9+ and 64-bit ARM" }
+            check(BergamotNative.supported && BergamotNative.available) { "Bergamot runtime requires Android 9+ and a supported 64-bit ARM device" }
             dir.mkdirs()
             File(dir, COMPLETE).delete()
             val total = assets.sumOf { it.packedSize }
