@@ -8,10 +8,10 @@ import org.junit.Test
 class TranslationQualityBenchmarkTest {
     @Test
     fun referenceCorpus_hasStableIdsAndCategories() {
-        assertEquals(20, TranslationQualityBenchmark.CASES.size)
-        assertEquals((1..20).toList(), TranslationQualityBenchmark.CASES.map { it.id })
+        assertEquals(23, TranslationQualityBenchmark.CASES.size)
+        assertEquals((1..23).toList(), TranslationQualityBenchmark.CASES.map { it.id })
         assertTrue(TranslationQualityBenchmark.CASES.map { it.category }.toSet().containsAll(
-            setOf("dialogue", "narration", "short", "names", "sfx")
+            setOf("dialogue", "narration", "short", "names", "sfx", "idiom", "terminology")
         ))
     }
 
