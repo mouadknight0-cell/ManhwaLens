@@ -30,7 +30,7 @@ object EngineComparisonBenchmark {
         }
         val exactMatches: Int get() = cases.count { it.exactMatch }
         val meanTokenF1: Double get() = if (cases.isEmpty()) 0.0 else cases.map { it.tokenF1 }.average()
-        val failureDetails: List<String> = emptyList()
+
     }
 
     data class Report(
