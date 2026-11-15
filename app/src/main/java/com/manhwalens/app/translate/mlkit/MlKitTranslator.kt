@@ -512,17 +512,26 @@ class MlKitTranslator(
          * Returns true when ready. Bounded to 30 s; safe to call from a background thread.
          */
         @JvmStatic
-        fun warmUp(): Boolean = try {
+        fun warmUp(): Boolean = warmUpInternal(runBatchSelfTest = true)
+
+        /**
+         * Prepares the shared ML Kit model for a controlled engine comparison without
+         * launching the background batching self-test that would compete for the same
+         * translator and contaminate measured latency.
+         */
+        @JvmStatic
+        fun warmUpForBenchmark(): Boolean = warmUpInternal(runBatchSelfTest = false)
+
+        private fun warmUpInternal(runBatchSelfTest: Boolean): Boolean = try {
             Tasks.await(
                 SHARED_CLIENT.downloadModelIfNeeded(DownloadConditions.Builder().requireWifi().build()),
                 30L,
                 TimeUnit.SECONDS
             )
             sharedModelReady = true
-            // v0.9.9: the model FILE being present is not "warm" — the first translate call
-            // still loads it into memory. Pay that here, not on the user's first page.
-            keepWarm("service start")
-            maybeStartSelfTest()
+            // Load the model into memory before measuring the warm ML Kit passes.
+            keepWarm(if (runBatchSelfTest) "service start" else "engine comparison")
+            if (runBatchSelfTest) maybeStartSelfTest()
             true
         } catch (e: Exception) {
             Log.w(TAG, "warmUp: EN→AR model not ready (${e.javaClass.simpleName})")
@@ -556,6 +565,13 @@ class MlKitTranslator(
             }
         }
 
+        // Prevent background batching self-tests from competing with an explicit
+        // ML Kit vs Bergamot timing run on the same process-wide translator.
+        private val diagnosticLock = Any()
+
+        @JvmStatic
+        fun <T> withDiagnosticLock(block: () -> T): T = synchronized(diagnosticLock) { block() }
+
         private val selfTestRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
         /**
@@ -571,16 +587,18 @@ class MlKitTranslator(
             Thread({
                 try {
                     val t0 = System.currentTimeMillis()
-                    val choice = BatchAutoSelect.run(
-                        ::translateRaw,
-                        strategies = policy.allowedStrategies(),
-                        parallelLimit = policy.parallelLevel()
-                    )
-                    policy.recordChoice(choice.strategy, choice.why)
-                    lastSelfTestSummary = choice.trials.joinToString(" · ") {
-                        "${it.strategy.label}=${if (it.ok) "${it.elapsedMs}ms" else "FAIL(${it.mismatched})"}"
-                    } + " · parallel=${choice.parallelMs}ms"
-                    Log.i(TAG, "batch self-test in ${System.currentTimeMillis() - t0} ms → ${policy.describe()} [$lastSelfTestSummary]")
+                    withDiagnosticLock {
+                        val choice = BatchAutoSelect.run(
+                            ::translateRaw,
+                            strategies = policy.allowedStrategies(),
+                            parallelLimit = policy.parallelLevel()
+                        )
+                        policy.recordChoice(choice.strategy, choice.why)
+                        lastSelfTestSummary = choice.trials.joinToString(" · ") {
+                            "${it.strategy.label}=${if (it.ok) "${it.elapsedMs}ms" else "FAIL(${it.mismatched})"}"
+                        } + " · parallel=${choice.parallelMs}ms"
+                        Log.i(TAG, "batch self-test in ${System.currentTimeMillis() - t0} ms → ${policy.describe()} [$lastSelfTestSummary]")
+                    }
                 } catch (t: Throwable) {
                     Log.w(TAG, "batch self-test failed — staying parallel (${t.javaClass.simpleName})")
                 } finally {
