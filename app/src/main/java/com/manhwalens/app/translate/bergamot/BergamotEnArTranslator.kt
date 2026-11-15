@@ -1,6 +1,7 @@
 package com.manhwalens.app.translate.bergamot
 
 import android.content.Context
+import com.wasimaster.wmkeyboard.core.translate.BergamotNative
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
