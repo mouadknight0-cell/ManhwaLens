@@ -5,13 +5,14 @@ Purpose: durable handoff record between ChatGPT conversations. GitHub source cod
 
 ## Repository
 - Repository: https://github.com/mouadknight0-cell/ManhwaLens
-- Main branch HEAD observed: 23904fb0b11caf55e0f0297585e3e47b80fba766
-- Active development PR: #4 — https://github.com/mouadknight0-cell/ManhwaLens/pull/4
-- PR #4 head ref: refs/pull/4/head
-- PR #4 is 125 commits ahead of main and 0 behind at the time of this snapshot.
-- Development branch observed: feature/v0.12.4-bergamot-experiment
-- PR #4 describes the v0.12.6 development line; app/build.gradle.kts on PR head reports versionName 0.12.6 and versionCode 46.
-- Main CHANGELOG currently reports v0.12.2. Do not confuse main's version with the PR head's version.
+- Main branch last observed: 23904fb0b11caf55e0f0297585e3e47b80fba766; this work did not modify main.
+- Active development PR: #4 — https://github.com/mouadknight0-cell/ManhwaLens/pull/4 — remains open Draft and stacked on PR #3. Do not merge it directly into main.
+- Development branch: feature/v0.12.4-bergamot-experiment.
+- v0.12.8 release target commit: 614250692d384beaa3bb9a818aebf89d23dbbce1.
+- App metadata at the v0.12.8 release: applicationId com.manhwalens.app, versionName 0.12.8, versionCode 48.
+- Published GitHub prerelease: https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.8.
+- APK asset: ManhwaLens-v0.12.8-debug.apk (71,359,650 bytes; SHA-256 e28bcfc464ec39398d31ed04401dd34dd0c1d7c4b3fb31c280814737dc9530b5).
+- Do not confuse the development branch/release version with main's older version.
 
 ## Product requirements (must preserve)
 - Offline-first English-to-Arabic manhwa translation.
@@ -242,3 +243,32 @@ Never use one label as evidence for another.
 - Not device-verified: PaddleOCR accuracy/grouping, JNI inference, offline model availability on the phone, translation semantics, latency/RAM, and actual update installation.
 - Next required human/device check: install v0.12.7 over the existing v0.12.6 app without uninstalling; then test Offline mode, run Settings → Diagnostics → Compare ML Kit vs Bergamot with both models preinstalled, and collect the report plus latency/RAM observations. Do not switch the default engine based on CI or lexical scores alone.
 - PR #4 remains open Draft, targeting `feature/v0.12.3-paddle-default-settings`; preserve the stacked PR order and do not merge it directly to main.
+
+
+## Session continuation — 2026-11-15 (diagnostic isolation and v0.12.8)
+
+### Root cause of the benchmark misunderstanding
+- The ordinary Diagnostics batching benchmark and 20-case quality check call raw ML Kit directly, even when Bergamot is selected in Offline translation settings.
+- The ordinary batching benchmark also updates the saved ML Kit batching policy (parallel level / validated joined separator); this does not change the selected translation engine or tune Bergamot.
+- The shared ML Kit warm-up reason previously used the same generic comparison label for both diagnostic paths. That label was ambiguous and did not prove that the paired comparison had run.
+
+### Implemented on the development branch
+- Renamed the action to ML Kit batching benchmark. English and Arabic descriptions state which engine it calls and that it updates only ML Kit batching policy.
+- Split the diagnostic warm-up reason so the batching benchmark and paired comparison are distinguishable.
+- Added a separate Bergamot-only benchmark over the fixed 20-case EN→AR corpus. It calls the native Bergamot adapter only, without ML Kit invocation, ML Kit fallback, translation cache or preference mutation. It reports the first startup pass separately from three warm passes and includes per-case quality output.
+- Added explicit localized labels/descriptions for three separate actions: ML Kit batching benchmark, Bergamot-only benchmark, and ML Kit-vs-Bergamot comparison.
+- Corrected paired comparison's ML Kit dispatch: it snapshots the device's saved BatchPolicy and uses a validated joined request only when safe, otherwise the saved parallel level. Missing ML Kit outputs are retried individually once.
+- The paired report records the actual ML Kit dispatch and raw-engine/no-cross-engine-fallback semantics, and clarifies that timings are page-batch wall times. The comparator does not mutate selected engine or saved batching policy.
+- Added JVM tests for Bergamot-only invocation isolation, stable corpus ordering, single-engine batch failure recovery, joined/parallel dispatch, concurrency bounds and targeted ML Kit retries.
+
+### Exact verification
+- PR validation run 43724428631 on the v0.12.8 release-target commit: SUCCESS. Unit tests, pinned PaddleOCR model/checksum validation, Bergamot ARM64 runtime validation, debug APK assembly and artifact upload succeeded. Release steps were correctly skipped for a pull_request event.
+- An earlier CI attempt failed at Android resource compilation due an apostrophe in an English string; that resource was corrected. A later CI attempt failed Kotlin compilation because the RunResult constructor used the wrong named argument; corrected in commit c60f207a70b2bd47e23697d80058a7188f1f3807. These failed attempts are not the final result.
+- GitHub Release API verified v0.12.8 exists as a published prerelease, not a draft. Release ID 446118801, target commit 614250692d384beaa3bb9a818aebf89d23dbbce1, with APK asset ManhwaLens-v0.12.8-debug.apk and SHA-256 listed above.
+- CI restores the stable experimental debug keystore. The applicationId is unchanged and versionCode increased from 47 to 48. This supports, but does not prove, in-place update compatibility; actual certificate extraction/comparison and phone installation are still outstanding.
+
+### Verification boundaries and next action
+- Implemented + Unit-tested + CI-verified: diagnostic labeling/isolation, Bergamot-only benchmark runner, paired ML Kit dispatch and selective retry.
+- Release-published: v0.12.8 GitHub prerelease with discoverable APK asset.
+- Not device-verified: Bergamot JNI inference/output quality and latency, new diagnostics on the user's phone, model download/offline behavior, OCR accuracy/grouping, RAM use, and update-over-existing-app installation.
+- Next device evidence: install v0.12.8 over the existing app without uninstalling; run Bergamot-only with network disabled and send its copied report. Paired comparison can follow once both offline models are installed. Do not promote Bergamot to default from speed or lexical F1 alone.
