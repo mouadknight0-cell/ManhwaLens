@@ -195,4 +195,46 @@ class BatchSplitterTest {
         assertNull(SplitStrategy.fromId("parallel"))
         assertNull(SplitStrategy.fromId(null))
     }
+
+
+    // ---------- PIPE strategy: adversarial mapping cases observed in device benchmark ----------
+
+    @Test
+    fun pipeStrategy_refusesSourcesThatAlreadyContainPipe() {
+        assertFalse(BatchSplitter.sourcesSafe(SplitStrategy.PIPE, listOf("Wait | what?", "Stay here.")))
+        assertTrue(BatchSplitter.sourcesSafe(SplitStrategy.PIPE, listOf("Wait, what?", "Stay here.")))
+    }
+
+    @Test
+    fun pipeStrategy_rejectsAnExtraPipeInsideTranslatedSegment() {
+        val result = BatchSplitter.validate(
+            SplitStrategy.PIPE,
+            listOf("Wait", "Stay here"),
+            "انتظر | ماذا | ابق هنا"
+        )
+        assertFalse(result.ok)
+        assertTrue(result.reason.contains("count"))
+    }
+
+    @Test
+    fun pipeStrategy_rejectsMissingSeparator() {
+        val result = BatchSplitter.validate(
+            SplitStrategy.PIPE,
+            listOf("Wait here", "Stay there"),
+            "انتظر هنا ثم ابق هناك"
+        )
+        assertFalse(result.ok)
+        assertTrue(result.reason.contains("count"))
+    }
+
+    @Test
+    fun pipeStrategy_acceptsWhitespaceAroundTheSeparator() {
+        val result = BatchSplitter.validate(
+            SplitStrategy.PIPE,
+            listOf("Hello there", "Stay behind me"),
+            "  مرحباً بك   |   ابق خلفي  "
+        )
+        assertTrue(result.reason, result.ok)
+        assertEquals(listOf("مرحباً بك", "ابق خلفي"), result.segments)
+    }
 }
