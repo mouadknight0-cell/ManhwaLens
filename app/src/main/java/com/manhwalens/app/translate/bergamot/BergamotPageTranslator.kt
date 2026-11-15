@@ -154,14 +154,37 @@ internal class BergamotPageTranslator(context: Context) : Translator {
     private fun String.asSingleLine(): String {
         val out = StringBuilder(length)
         var pendingSpace = false
-        for (char in this) {
-            if (char.isWhitespace() || char == '\u00A0' || char == '\u200B') {
+        var index = 0
+        while (index < length) {
+            val char = this[index]
+            // OCR sometimes inserts a zero-width character inside a word; remove it,
+            // rather than turning it into a visible space.
+            if (char == '\u200B' || char == '\uFEFF') {
+                index++
+                continue
+            }
+            // Heal a word broken at the visual line edge: "con-\\ntinue" → "continue".
+            if ((char == '-' || char == '‐' || char == '–') && out.isNotEmpty() && out.last().isLetter()) {
+                var lookahead = index + 1
+                var crossedLine = false
+                while (lookahead < length && this[lookahead].isWhitespace()) {
+                    if (this[lookahead] == '\\n' || this[lookahead] == '\\r') crossedLine = true
+                    lookahead++
+                }
+                if (crossedLine && lookahead < length && this[lookahead].isLowerCase()) {
+                    index = lookahead
+                    pendingSpace = false
+                    continue
+                }
+            }
+            if (char.isWhitespace() || char == '\u00A0') {
                 if (out.isNotEmpty()) pendingSpace = true
             } else {
                 if (pendingSpace) out.append(' ')
                 out.append(char)
                 pendingSpace = false
             }
+            index++
         }
         return out.toString()
     }
