@@ -10,9 +10,10 @@ package com.manhwalens.app.translate
  *
  * The memo matches in two steps:
  *  1. **exact key** — the normalized, glossary-prepared source (same string → same Arabic);
- *  2. **shape key** — the source with vowels, doubled letters, punctuation and case removed.
- *     Only consulted for SHORT strings (≤ [fuzzyMaxChars]), and only when the candidate is
- *     itself short, so two different long sentences can never collide.
+ *  2. **shape key** — the source with punctuation/case normalized and adjacent repeated
+ *     letters collapsed. Vowels and word boundaries are preserved: deleting vowels made
+ *     unrelated words such as "first" and "forest" share a shape.
+ *     Only consulted for SHORT strings (≤ [fuzzyMaxChars]) with a distinctive canonical form.
  *
  * Both tiers keep their own LRU bound, so a page full of new dialogue cannot evict the hot
  * short strings (SFX, "......", honorifics) that Live mode re-reads every frame.
@@ -52,10 +53,9 @@ class TranslationMemo(
             exact.get(key)?.let { return Hit(it, true) }
             if (source.length > fuzzyMaxChars) return null
             val shape = shapeOf(key)
-            // A one- or two-consonant skeleton is far too ambiguous for dialogue:
-            // "AH..." and "YEAH" both collapse to "h", while "NO", "RUN" and
-            // "SORRY" also produce tiny shapes. Keep fuzzy reuse for distinctive
-            // short SFX (e.g. KRAK!! / Kraak -> "krk") only.
+            // Tiny or weak shapes are too ambiguous for dialogue. Keep fuzzy reuse
+            // conservative: punctuation/case and repeated-letter variation are ignored,
+            // but vowel identity and word boundaries remain significant.
             if (!isFuzzySafeShape(shape)) return null
             val hit = fuzzy.get(shape) ?: return null
             return Hit(hit, false)
@@ -94,19 +94,25 @@ class TranslationMemo(
     }
 
     /**
-     * Shape of a short string: lower-cased, letters and digits only, vowels and repeated
-     * letters collapsed. "KRAK!!", "Kraak" and "krak" share one shape; "You're going." and
-     * "youre going" share one.
+     * Conservative short-string canonicalization: lowercase, ignore punctuation,
+     * collapse adjacent repeated letters, but preserve vowels and whitespace boundaries.
+     * "KRAK!!", "Kraak" and "krak" share "krak"; "first" and "forest" do not collide.
      */
     fun shapeOf(key: String): String {
         val sb = StringBuilder(key.length)
         var last = ' '
+        var pendingSpace = false
         for (c in key.lowercase()) {
-            if (!c.isLetterOrDigit()) continue
-            if (c in VOWELS) continue
-            if (c == last) continue
-            sb.append(c)
-            last = c
+            if (c.isLetterOrDigit()) {
+                if (pendingSpace && sb.isNotEmpty()) sb.append(' ')
+                pendingSpace = false
+                if (c == last) continue
+                sb.append(c)
+                last = c
+            } else {
+                // Punctuation is ignored, while real whitespace remains a token boundary.
+                if (c.isWhitespace()) pendingSpace = true
+            }
         }
         return sb.toString()
     }
@@ -117,7 +123,6 @@ class TranslationMemo(
     companion object {
         private const val MIN_FUZZY_SHAPE_LENGTH = 3
         private const val MIN_FUZZY_DISTINCT_LETTERS = 2
-        private const val VOWELS = "aeiouy\u0627\u0648\u064A\u0649\u0629"
 
         /** Normalized exact key: trimmed, single-spaced, case-folded. */
         fun key(source: String): String =
