@@ -608,3 +608,7 @@ one from cache, and progressive painting is still visibly progressive (first bub
 6. Repeat the same source page with ML Kit and Bergamot, clearing saved translation caches and translation-pair logs between runs. Compare semantic quality, rejected bubbles, median/P95 latency and memory use. Do not judge Bergamot by OK status alone.
 
 Context limitation: the current Bergamot JNI bridge accepts independent text segments and exposes no document/context input. Do not concatenate neighboring bubbles to simulate context because that can corrupt bubble-to-translation mapping. Existing per-series name consistency and shared Arabic quality/post-processing remain active.
+
+
+7. Run `BergamotTextPreparationTest`. PASS: OCR line joining, hyphenated line-break repair, zero-width cleanup and adaptive batching tests pass on the JVM.
+8. Inspect the `translation quality` trace. PASS: accepted/rejected/empty/missing counts are present and the percentage is labelled rule-based, not a semantic translation score.
