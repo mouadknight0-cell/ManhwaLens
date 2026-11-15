@@ -24,8 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.manhwalens.app.translate.bergamot.BergamotEnArModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -52,7 +52,7 @@ fun BergamotModelCard() {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(Modifier.fillMaxWidth().size(1.dp).padding(0.dp)) {
+        Column(Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth().padding(18.dp)) {
                 Text("Bergamot · Firefox Translations", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.size(6.dp))
