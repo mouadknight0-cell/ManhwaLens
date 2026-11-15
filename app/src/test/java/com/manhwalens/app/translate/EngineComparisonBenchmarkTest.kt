@@ -50,6 +50,7 @@ class EngineComparisonBenchmarkTest {
         assertEquals(EngineComparisonBenchmark.MEASURED_PASSES * 3, calls)
         assertEquals(EngineComparisonBenchmark.MEASURED_PASSES, report.engine.batchRecoveryCount)
         assertEquals(2, report.engine.cases.size)
+        assertTrue(report.toText().contains("synthetic native batch failure"))
     }
 
     @Test
@@ -103,6 +104,17 @@ class EngineComparisonBenchmarkTest {
         )
         assertEquals(EngineComparisonBenchmark.MEASURED_PASSES, report.mlKit.batchRecoveryCount)
         assertEquals(listOf("نعم", "نعم"), report.mlKit.cases.map { it.output })
+    }
+
+    @Test
+    fun emptyPerCaseNativeResultsAreReportedAsFailures() {
+        val report = EngineComparisonBenchmark.runSingleEngine(
+            engineName = "Bergamot",
+            translateBatch = { List(it.size) { "" } },
+            cases = TranslationQualityBenchmark.CASES.take(2)
+        )
+        assertEquals(2, report.engine.blanks)
+        assertTrue(report.toText().contains("empty native output"))
     }
 
     @Test(expected = IllegalArgumentException::class)
