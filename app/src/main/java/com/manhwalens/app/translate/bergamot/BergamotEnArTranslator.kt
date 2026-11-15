@@ -70,6 +70,7 @@ internal class BergamotEnArTranslator(context: Context) {
         }
     }
 
+    /** Release native allocations when the service is stopped or Android reports memory pressure. */
     fun release() {
         synchronized(lock) {
             if (model != 0L) BergamotNative.nativeFreeModel(model)
