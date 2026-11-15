@@ -6,7 +6,7 @@
 - Add Mozilla Firefox Translations (Bergamot) as an optional English→Arabic on-device engine; ML Kit remains the default.
 - Download the model on demand (~23.8 MB compressed, ~35.6 MB installed) and verify SHA-256 for both compressed and unpacked files.
 - Fetch the ARM64 JNI runtime from a pinned upstream commit during CI; runtime use is limited to Android 9+ 64-bit devices.
-- Keep the native engine and model out of the default source tree/APK model assets; include MPL-2.0 and third-party notices.
+- Package the pinned native runtime for ARM64 only; keep the language model on-demand and out of the APK. Include MPL-2.0 and third-party notices.
 - Add a Settings model downloader/status card and an explicit engine selector. The Live/tap pipelines route explicit Bergamot selection through the non-progressive page translator while preserving ML Kit's progressive path for its default engine.
 - Keep one native service/model per process to avoid repeated model loading and native-memory leaks.
 
