@@ -7,9 +7,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Minimal, serialized JNI adapter for English→Arabic. It intentionally stays
- * separate from TranslatorFactory until device benchmarks validate quality,
- * latency, memory and native compatibility.
+ * Serialized JNI adapter for the optional English→Arabic engine. Device benchmarks
+ * are still required before Bergamot can replace ML Kit as the recommended default.
  */
 internal class BergamotEnArTranslator(context: Context) {
     private val app = context.applicationContext
@@ -22,7 +21,10 @@ internal class BergamotEnArTranslator(context: Context) {
         check(BergamotNative.supported && BergamotNative.available) { "Bergamot runtime is unavailable on this device" }
         check(BergamotEnArModel.isInstalled(app)) { "Download the English→Arabic offline model first" }
         synchronized(lock) {
-            if (service == 0L) service = BergamotNative.nativeNewService(256)
+            if (service == 0L) {
+                service = BergamotNative.nativeNewService(256)
+                check(service != 0L) { "Bergamot could not create its translation service" }
+            }
             if (model == 0L) {
                 val dir = BergamotEnArModel.directory(app)
                 model = BergamotNative.nativeLoadModel(
@@ -31,9 +33,14 @@ internal class BergamotEnArTranslator(context: Context) {
                     arrayOf(File(dir, "vocab.enar.spm").absolutePath),
                     false
                 )
+                check(model != 0L) { "Bergamot could not load the English→Arabic model" }
             }
             val input = texts.map { it.toByteArray(Charsets.UTF_8) }.toTypedArray()
-            BergamotNative.nativeTranslate(service, model, input).map { it.toString(Charsets.UTF_8) }
+            val output = BergamotNative.nativeTranslate(service, model, input)
+            check(output.size == texts.size) {
+                "Bergamot returned ${output.size} translations for ${texts.size} source blocks"
+            }
+            output.map { it.toString(Charsets.UTF_8) }
         }
     }
 
