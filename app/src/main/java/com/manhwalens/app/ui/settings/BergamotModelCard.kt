@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import com.manhwalens.app.translate.bergamot.BergamotEnArModel
+import com.manhwalens.app.translate.TranslatorFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,6 +49,15 @@ fun BergamotModelCard() {
     }
 
     LaunchedEffect(Unit) { ready = BergamotEnArModel.isInstalled(context) }
+
+    // Warm the native model while the reader is still in Settings, not on the first bubble.
+    LaunchedEffect(ready) {
+        if (ready) {
+            scope.launch(Dispatchers.Default) {
+                runCatching { TranslatorFactory.prewarmBergamot(context) }
+            }
+        }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
