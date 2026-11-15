@@ -1,12 +1,32 @@
-# v0.12.6 — offline translation quality benchmark
+# Diagnostics — offline engine benchmarks (v0.12.8 development)
 
-1. Download the ML Kit EN→AR model once, then turn off Wi-Fi and mobile data.
-2. Open Settings → Diagnostics → Benchmark. **PASS:** the existing batching/latency table still appears and the additional 20-case quality report completes offline.
-3. Check the report categories: dialogue, narration, short replies, names and sound effects. **PASS:** total/completed counts are 20; accepted/rejected counts reflect the shared Arabic quality guard.
-4. Confirm exact normalized matches, mean token F1 and elapsed time are included. **PASS:** the report explicitly states that token F1 is lexical overlap only and is NOT semantic accuracy.
-5. Force an engine failure or test with an unavailable model. **PASS:** failed/blank cases count as rejected and the benchmark does not crash the Settings screen.
-6. Run the benchmark twice. **PASS:** the fixed corpus IDs and ordering stay identical; benchmark scores do not change engine selection, saved preferences or runtime batching policy.
-7. Run **Compare ML Kit vs Bergamot** after both offline models are installed. **PASS:** the dedicated runner sends the same prepared 20-case corpus to both engines, bypasses app translation caches, reports each case and first/warm timings, and does not change the selected engine or batching policy.
+The three Diagnostics actions are deliberately different. Do not treat their timings or reports as interchangeable.
+
+## ML Kit batching benchmark
+
+1. Download the ML Kit EN→AR model once, then open Settings → Diagnostics → ML Kit batching benchmark.
+2. **PASS:** the report identifies ML Kit explicitly, measures sequential/parallel/joined request strategies, and includes the separate ML Kit-only quality check.
+3. **PASS:** selecting Bergamot in the engine settings does not redirect this action to Bergamot. It always calls raw ML Kit.
+4. **PASS:** the benchmark may update only ML Kit's saved batching policy (parallel level and validated joined separator). It must not change the selected offline translation engine or Bergamot settings.
+5. Confirm the report labels the saved policy as ML Kit batching state. “map OK” means output mapping or non-blank per-bubble responses, not semantic translation correctness.
+
+## Bergamot-only benchmark
+
+1. Confirm the Bergamot EN→AR model is downloaded and the device supports its ARM64 native runtime. ML Kit model installation is not required for this action.
+2. Open Settings → Diagnostics → Benchmark Bergamot only. Run with Wi-Fi and mobile data disabled.
+3. **PASS:** the report states Bergamot only, uses the fixed 20-case corpus, reports the first pass separately from the three warm passes, and includes accepted/rejected, blank, English-echo, exact-match, lexical F1 and per-case outputs.
+4. **PASS:** no ML Kit request or ML Kit fallback occurs; the action does not change the selected engine, ML Kit batching policy, or saved preferences.
+5. Repeat after returning to Diagnostics. The same 20 prepared inputs and ordering must be used. The first pass may include fresh native service/model initialization; warm median/worst are the warmed native measurements.
+
+## Compare ML Kit vs Bergamot
+
+1. Download both offline models and confirm Bergamot native runtime is available.
+2. Run Compare ML Kit vs Bergamot on the same device.
+3. **PASS:** both engines receive the same prepared 20-case corpus, without app translation cache.
+4. **PASS:** ML Kit uses a snapshot of the device's saved page batching strategy (validated joined strategy when safe, otherwise saved parallel level). Bergamot uses one native multi-input request for this fixed corpus; a failed/malformed batch is isolated through per-case retries.
+5. **PASS:** the report identifies actual dispatch strategies, alternates engine order across paired passes, and does not change selected engine or saved batching policy.
+6. Treat first-pass startup time separately. Warm median/worst are page-batch wall times for the two dispatch paths, not isolated single-sentence model latency. Token F1 is lexical overlap only, not semantic accuracy; review the per-case Arabic outputs manually.
+
 
 # v0.12.5 — Bergamot offline quality fallback
 
