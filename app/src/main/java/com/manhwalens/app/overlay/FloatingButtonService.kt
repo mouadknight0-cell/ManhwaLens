@@ -562,7 +562,7 @@ class FloatingButtonService : Service() {
         captureThread.quitSafely()
         captureExecutor.shutdownNow()
         // Drop the native model only after stopping producers that could submit more work.
-        runCatching { com.manhwalens.app.translate.TranslatorFactory.releaseBergamot() }
+        releaseBergamotAsync()
         super.onDestroy()
     }
 
