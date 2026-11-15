@@ -168,6 +168,18 @@ object TranslatorFactory {
     }
 
 
+    /**
+     * Preload the process-wide Bergamot model and warm its native translation path.
+     * Settings invokes this on Dispatchers.Default after confirming the model exists.
+     */
+    fun prewarmBergamot(context: Context) {
+        if (!BergamotEnArModel.isInstalled(context)) return
+        val delegate = bergamotDelegate ?: synchronized(this) {
+            bergamotDelegate ?: BergamotPageTranslator(context).also { bergamotDelegate = it }
+        }
+        delegate.warmUp()
+    }
+
     /** Experimental Mozilla Bergamot EN→AR; never falls back silently when explicitly selected. */
     private fun createBergamot(context: Context): Translator {
         val style = styleOf(context)
