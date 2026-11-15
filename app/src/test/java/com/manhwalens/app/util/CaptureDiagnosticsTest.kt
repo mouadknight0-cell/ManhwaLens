@@ -2,6 +2,7 @@ package com.manhwalens.app.util
 
 import com.manhwalens.app.ocr.BubbleBlock
 import com.manhwalens.app.ocr.DetectedLine
+import com.manhwalens.app.ocr.OcrRunStats
 import com.manhwalens.app.ocr.geometry.Rect2D
 import com.manhwalens.app.translate.mlkit.MlKitTranslationTrace
 import org.junit.Assert.assertFalse
