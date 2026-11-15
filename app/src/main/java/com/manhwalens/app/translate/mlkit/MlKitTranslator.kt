@@ -570,32 +570,13 @@ class MlKitTranslator(
             }
         }
 
-        // A fair read/write gate keeps normal page requests concurrent with each other,
-        // while an explicit benchmark or batching self-test gets exclusive access to the
-        // process-wide ML Kit client. This prevents real reader traffic from contaminating
-        // benchmark timings without serializing ordinary per-bubble translation.
-        private val diagnosticLock = java.util.concurrent.locks.ReentrantReadWriteLock(true)
-
+        // Diagnostics run exclusively; normal page requests share the client concurrently.
         @JvmStatic
-        fun <T> withDiagnosticLock(block: () -> T): T {
-            val lock = diagnosticLock.writeLock()
-            lock.lock()
-            try {
-                return block()
-            } finally {
-                lock.unlock()
-            }
-        }
+        fun <T> withDiagnosticLock(block: () -> T): T =
+            DiagnosticExecutionGate.exclusive(block)
 
-        private fun <T> withTranslationReadLock(block: () -> T): T {
-            val lock = diagnosticLock.readLock()
-            lock.lock()
-            try {
-                return block()
-            } finally {
-                lock.unlock()
-            }
-        }
+        private fun <T> withTranslationReadLock(block: () -> T): T =
+            DiagnosticExecutionGate.shared(block)
 
         private val selfTestRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
