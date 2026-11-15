@@ -1,3 +1,12 @@
+# v0.12.4 — Settings cleanup regression
+
+1. Open Settings. **PASS:** the page contains Appearance, Translation engines/models, Saved translations, Tap on the lens, Diagnostics, Last error, Pipeline trace and About. There is no Automation, Ignore list, Character names, Names & terms or Live mode settings section.
+2. Return to a manhwa page and tap the floating lens. **PASS:** the lens menu contains the Live ON/OFF control; toggling it updates the lens status and notification action. Long-press behavior remains unchanged.
+3. Settings → Saved translations → Reset saved translations. Confirm the dialog. **PASS:** cached translations are cleared and the count becomes zero; translation glossary/name-processing data and diagnostic pairs are not erased by this action.
+4. Settings → Diagnostics → translation pairs. Copy a report, then use **Reset log**. **PASS:** the pair count becomes zero and the next capture starts a fresh batch, so English/Arabic pairs from different engine runs do not mix.
+
+---
+
 # v0.12.4 — Bergamot offline translation experiment
 
 Run this section before judging Bergamot as an ML Kit replacement. Keep the same source page set for both engines.
