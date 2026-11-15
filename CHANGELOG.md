@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.2 — 2026-11-15 (experimental)
+
+### PaddleOCR on-device comparison build
+- Include PP-OCRv5 mobile detection and Arabic/English recognition ONNX models in the APK; model assets are checksum-pinned and packaged by CI, with no runtime model download.
+- Keep ML Kit as the default OCR engine and allow selecting PaddleOCR from Settings → OCR engine.
+- Keep OCR comparison isolated from translation and Live scheduling so both OCR engines can be measured against identical captures.
+- Restrict the phone-focused experimental APK to ARM64 and ARMv7 native libraries, excluding x86 emulator libraries to reduce download size.
+
+### Verification
+- GitHub Actions must pass unit tests, model download/checksum validation, and debug APK assembly before this build is considered ready.
+- Real-device comparison of line accuracy, bubble grouping, latency, memory and RTL/mixed-script reading order remains required.
+
 ## 0.11.5 — 2026-11-14 (experimental)
 
 ### P5-A — composite overlay patches
@@ -76,7 +88,7 @@ overlapping Arabic at patch edges, mangled Korean/Chinese names, and meaningless
 
 - Restored the Android project source from the Dropbox v0.9.14 archive into the GitHub working tree (without the archive's embedded `.git`, APK, or signing material).
 - Added an opt-in LibreTranslate/Argos engine for user-hosted HTTPS servers. A page is sent as one batch; the on-device ML Kit draft continues to paint progressively and remains the fallback.
-- Added an Arabic output guard for cloud/self-hosted replies to reject empty, malformed, and ordinary English-echo translations before they are cached or replace a local draft; older remote memory/disk cache entries are rechecked and purged if invalid.
+- Added an Arabic output guard for cloud/self-hosted replies to reject empty, malformed, and ordinary English-echo translations before they are sent.
 - Added endpoint validation, API-key redaction, endpoint-specific cache namespaces, and a bounded response size.
 - Declared Android's `INTERNET` permission, which the existing Gemini HTTP engine also requires.
 - Updated English/Arabic settings labels, privacy disclosures, build version, and the manual test checklist.
@@ -84,4 +96,4 @@ overlapping Arabic at patch edges, mangled Korean/Chinese names, and meaningless
 
 ### Verification status
 
-Unit tests were added for request batching, response parsing, endpoint validation, output validation, and fallbacks. This sandbox has no Java/JDK or Android SDK installed, so Gradle tests and APK builds could not be run here. Physical-device timing and real-server tests remain outstanding.
+Unit tests were added for request batching, response parsing, endpoint validation, output validation, and fallbacks. This sandbox has no Java/JDK or Android SDK installed here, so Gradle tests and APK builds could not be run in that older session. Physical-device timing and real-server tests remain outstanding.
