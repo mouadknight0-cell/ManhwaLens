@@ -196,13 +196,15 @@
     <string name="ignore_list_summary">عبارة في كل سطر (أو مفصولة بفواصل)، بلا تمييز لحالة الأحرف. تُتخطى البلوكات الحاوية لأي عبارة قبل الترجمة. مملوءة مسبقًا بـ Subscribe وGet the app وContinue Reading وTOP وEpisode وviews وcoins. امسح الحقل للتعطيل.</string>
 
     <!-- Benchmark (Part C) -->
-    <string name="benchmark_button">قياس أداء الترجمة</string>
-    <string name="benchmark_summary">يترجم نفس الجمل العشرين عبر محرك ML Kit على الجهاز (بدون إنترنت): واحدة تلو الأخرى، وبالتوازي (2/3/4/6 معًا)، وكطلب واحد مدمج بثمانية فواصل مختلفة. خمس جولات لكل طريقة مع إهمال الأولى؛ يعرض الزمن الوسيط والأسوأ وهل عادت كل فقاعة لموضعها الصحيح. يستغرق نحو دقيقة. تُضاف النتيجة أيضًا إلى «نسخ التقرير» في الفحص الذاتي.</string>
-    <string name="benchmark_title">قياس أداء الترجمة</string>
+    <string name="benchmark_button">اختبار تجميع طلبات ML Kit</string>
+    <string name="benchmark_summary">هذا اختبار خاص بـ ML Kit فقط، ويتجاهل محرك الترجمة غير المتصل المحدد في الإعدادات. يقيس ترجمة 20 جملة بالتتابع والتوازي وبطلبات مدمجة، ويشغّل فحص جودة خاصًا بـ ML Kit. لا يختبر Bergamot. للمقارنة الفعلية بين المحركين استخدم زر «مقارنة ML Kit مع Bergamot» أدناه.</string>
+    <string name="benchmark_title">اختبار تجميع طلبات ML Kit</string>
     <string name="benchmark_running">جارٍ القياس…</string>
     <string name="benchmark_close">إغلاق</string>
     <string name="benchmark_copy">نسخ النتائج</string>
     <string name="benchmark_copied">نُسخت النتائج</string>
+    <string name="engine_comparison_button">مقارنة ML Kit مع Bergamot</string>
+    <string name="engine_comparison_summary">يشغّل الفقاعات العشرين نفسها عبر محركي الترجمة دون اتصال ويعرض نتائج كل محرك. يجب تثبيت نموذجي ML Kit وBergamot أولًا. هذه المقارنة لا تغيّر المحرك المحدد ولا إعدادات تجميع طلبات ML Kit.</string>
 
     <string name="safe_mode_title">الوضع الآمن</string>
     <string name="safe_mode_body">تعطّل التطبيق مرتين عند الإقلاع، فتم تشغيله بدون الزر العائم والترجمة ووضع Live. إعداداتك لم تتغيّر. اضغط للمحاولة بشكل طبيعي.</string>
