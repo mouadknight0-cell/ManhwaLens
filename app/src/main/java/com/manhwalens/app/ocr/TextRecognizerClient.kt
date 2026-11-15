@@ -45,7 +45,9 @@ class TextRecognizerClient(context: Context) {
         Log.i(
             TAG,
             "OCR engine=PaddleOCR: ${lines.size} lines in ${elapsed} ms " +
-                "(det=${result.detectionTimeMs}ms rec=${result.recognitionTimeMs}ms load=${result.coldLoadTimeMs}ms)"
+                "(det=${result.detectionTimeMs}ms rec=${result.recognitionTimeMs}ms load=${result.coldLoadTimeMs}ms " +
+                "candidates=${result.recognizedCandidateCount} rejectedLowConfidence=${result.lowConfidenceDroppedCount} " +
+                "threshold=${PADDLE_MIN_REC_CONFIDENCE})"
         )
         return OcrResult(lines, elapsed)
     }
