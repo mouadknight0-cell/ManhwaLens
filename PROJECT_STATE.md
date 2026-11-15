@@ -187,7 +187,7 @@ Never use one label as evidence for another.
 - Found that the comparison called `MlKitTranslator.warmUp()`, which can start the background ML Kit separator self-test. That self-test uses the same process-wide `translateRaw` client and could run concurrently with the comparison, contaminating latency and resource observations.
 - Added `warmUpForBenchmark()` to prepare the shared ML Kit model without scheduling a new batching self-test.
 - Added a process-wide diagnostic lock. The background separator self-test and the explicit ML Kit/Bergamot comparison both use it, preventing their measured requests from overlapping.
-- Settings now runs the comparison under this lock. Runtime engine selection and saved batching policy are not changed by the comparison itself.
+- Settings now runs the benchmark-only ML Kit warm-up and all comparison passes under this lock. Runtime engine selection and saved batching policy are not changed by the comparison itself.
 
 ### Changes pushed to the development branch
 - `e906fd4d40bb4efd4a1988360e445e22997ea6cb` — isolate ML Kit warm-up and self-test behind a diagnostic lock.
