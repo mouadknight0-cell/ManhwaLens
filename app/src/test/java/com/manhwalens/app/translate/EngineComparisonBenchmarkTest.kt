@@ -28,9 +28,9 @@ class EngineComparisonBenchmarkTest {
         assertEquals(EngineComparisonBenchmark.MEASURED_PASSES, seen.size)
         assertTrue(seen.all { it == seen.first() })
         assertEquals("Bergamot", report.engine.engine)
-        assertEquals(20, report.totalCases)
-        assertEquals(20, report.engine.accepted)
-        assertEquals(20, report.engine.exactMatches)
+        assertEquals(23, report.totalCases)
+        assertEquals(23, report.engine.accepted)
+        assertEquals(23, report.engine.exactMatches)
         assertTrue(report.toText().contains("No ML Kit invocation"))
     }
 
@@ -59,7 +59,9 @@ class EngineComparisonBenchmarkTest {
         val seenBergamot = mutableListOf<List<String>>()
         val exact = { inputs: List<String> ->
             inputs.map { input ->
-                TranslationQualityBenchmark.CASES.first { Glossary.prepare(it.source) == input }.referenceArabic
+                TranslationQualityBenchmark.CASES.first {
+                BergamotTextPreparation.asSingleLine(Glossary.prepare(it.source)) == input
+            }.referenceArabic
             }
         }
         val report = EngineComparisonBenchmark.run(
@@ -67,16 +69,16 @@ class EngineComparisonBenchmarkTest {
             translateBergamotBatch = { seenBergamot += it; exact(it) }
         )
 
-        assertEquals(20, report.totalCases)
+        assertEquals(23, report.totalCases)
         assertEquals(EngineComparisonBenchmark.MEASURED_PASSES, seenMl.size)
         assertEquals(EngineComparisonBenchmark.MEASURED_PASSES, seenBergamot.size)
         assertEquals(seenMl, seenBergamot)
-        assertEquals((1..20).toList(), report.mlKit.cases.map { it.id })
-        assertEquals((1..20).toList(), report.bergamot.cases.map { it.id })
-        assertEquals(20, report.mlKit.accepted)
-        assertEquals(20, report.bergamot.accepted)
-        assertEquals(20, report.mlKit.exactMatches)
-        assertEquals(20, report.bergamot.exactMatches)
+        assertEquals((1..23).toList(), report.mlKit.cases.map { it.id })
+        assertEquals((1..23).toList(), report.bergamot.cases.map { it.id })
+        assertEquals(23, report.mlKit.accepted)
+        assertEquals(23, report.bergamot.accepted)
+        assertEquals(23, report.mlKit.exactMatches)
+        assertEquals(23, report.bergamot.exactMatches)
     }
 
     @Test

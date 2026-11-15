@@ -22,10 +22,10 @@ class TranslationQualityBenchmarkTest {
                 TranslationQualityBenchmark.CASES.first { Glossary.prepare(it.source) == source }.referenceArabic
             }
         )
-        assertEquals(20, report.total)
-        assertEquals(20, report.completed)
-        assertEquals(20, report.accepted)
-        assertEquals(20, report.exactMatches)
+        assertEquals(23, report.total)
+        assertEquals(23, report.completed)
+        assertEquals(23, report.accepted)
+        assertEquals(23, report.exactMatches)
         assertEquals(1.0, report.meanTokenF1, 0.000001)
     }
 
@@ -38,7 +38,7 @@ class TranslationQualityBenchmarkTest {
             }
         )
         assertEquals(0, report.accepted)
-        assertEquals(20, report.rejected)
+        assertEquals(23, report.rejected)
         assertEquals(0.0, report.meanTokenF1, 0.0)
     }
 
@@ -58,7 +58,7 @@ class TranslationQualityBenchmarkTest {
     @Test
     fun missingTranslationIsNotTreatedAsSuccessful() {
         val report = TranslationQualityBenchmark.run(translateOne = { throw IllegalStateException("offline") })
-        assertEquals(20, report.rejected)
+        assertEquals(23, report.rejected)
         assertEquals(0, report.accepted)
     }
 }

@@ -19,8 +19,10 @@ class ShortDialogueOverridesTest {
     @Test fun pieceOfCakeIdiomIsTranslatedByMeaning() {
         assertEquals("ها، هذا سهل للغاية.", ShortDialogueOverrides.apply("Ha, this is a piece of cake.", "ها، هذه قطعة من الكعكة."))
     }
-    @Test fun magicalCoreUsesFantasyTerminology() {
-        assertEquals("النواة السحرية.", ShortDialogueOverrides.apply("The magical core", "الجوهرة السحرية."))
+    @Test fun magicalCoreUsesFantasyTerminologyBeforeGlossaryCanRewriteTheSource() {
+        // "core" is a glossary term (الجوهرة), but this exact phrase needs its own
+        // fantasy-specific rendering and must be matched against the untouched OCR source.
+        assertEquals("النواة السحرية.", ShortDialogueOverrides.apply("The magical core", "The magical الجوهرة"))
     }
     @Test fun longerSentencesAreNeverOverridden() {
         val output = "شغّل البرنامج ثم انتظر"

@@ -59,7 +59,7 @@ object TranslationQualityBenchmark {
         }.trim()
     }
 
-    /** 20 curated baseline bubbles covering dialogue, narration, names, short replies and SFX. */
+    /** Curated baseline bubbles covering dialogue, narration, names, short replies, idioms and SFX. */
     val CASES: List<Case> = listOf(
         Case(1, "dialogue", "ALRIGHT, I'LL HAVE A GLASS.", "حسنًا، سأشرب كأسًا."),
         Case(2, "dialogue", "Wait… you made it! I wasn't sure you'd come.", "انتظر... لقد أتيت! لم أكن متأكدًا من أنك ستأتي."),

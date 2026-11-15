@@ -22,7 +22,7 @@ object ShortDialogueOverrides {
     fun apply(source: String, translated: String): String {
         if (translated.isBlank()) return translated
         val key = Normalizer.normalize(
-            BubbleTextRules.oneLine(BubbleTextRules.normalize(Glossary.prepare(source))),
+            BubbleTextRules.oneLine(BubbleTextRules.normalize(source)),
             Normalizer.Form.NFKC
         ).uppercase(Locale.ROOT)
             .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
