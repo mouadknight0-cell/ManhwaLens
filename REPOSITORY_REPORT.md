@@ -1249,3 +1249,24 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 1. Resume the unresolved diagnostic provenance investigation from the earlier device logs, especially `AH` / `YEAH` output mismatches. Trace stable bubble IDs and source text through in-memory/persistent cache, memo/fuzzy matching, and final overlay paths before altering cache keys or translation rules.
 2. Continue OCR evaluation separately using paired screenshots and labeled text/box ground truth; do not infer OCR accuracy from translation-pair text alone.
 3. Request user phone verification only after the source changes are CI-green and a specific behavior requires device evidence.
+
+
+## Engineering continuation — translation memo provenance instrumentation (2026-11-16)
+
+### Analysis
+- Audited `TranslationMemo`, `CachingTranslator`, exact memory/persistent caches, `PagePlan`, `BubbleGrouper`, `CaptureDiagnostics`, and tap/Live ID handling.
+- Repeated block numbers across captures are expected because OCR block IDs restart at 1 per capture; the translation-pair log is append-only with timestamps and does not overwrite by block ID. Live region-reuse boxes use negative IDs, separate from new positive OCR block IDs.
+- Existing JVM tests already reject the direct `AH...` → `YEAH` fuzzy collision and `NO.` → `RUN`; however, a fuzzy `Hit` previously did not expose the source that populated its canonical shape slot, preventing forensic attribution for any other collision.
+
+### Implemented (CI pending)
+- Memo LRU values now retain `{source, arabic}`; `TranslationMemo.Hit` exposes `matchedSource`.
+- `CachingTranslator` writes the matched source into exact/fuzzy memo-hit diagnostic details (truncated/compacted to 52 characters). This does not change matching, cache keys, output, or status codes.
+- Added assertions for matched source on exact/fuzzy hits.
+- Commits: `cf8f320546cb6e7ed6cdfda89af0cbc66c4caa21`, `057a4f334c041e81d0cb69a84e99390e56b28e7a`, `4b2c0e6d4a4e5035c14d88532f45eb70bd4e7da6`.
+- Current head at this note: `4b2c0e6d4a4e5035c14d88532f45eb70bd4e7da6`; push #803 / PR #804 are running or queued. Not CI-verified yet.
+
+### Verification boundary / next steps
+- This is diagnostic instrumentation only, not a proven fix for stale `AH` / `YEAH` outputs. No production matching policy, OCR thresholds, bubble IDs, or batching defaults were changed.
+- After CI passes, a fresh report can attribute a fuzzy result to the exact matched source rather than infer cache behavior from repeated numeric IDs.
+- Joined HASH remains a device-specific speed result; mapping 20/20 checks structural output count, not necessarily semantic one-to-one order if the model reorders the joined list.
+- Device verification remains Not verified. Do not request installation until CI is green and an actual behavior needs physical-device evidence.
