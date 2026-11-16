@@ -925,3 +925,28 @@ Never use one label as evidence for another.
 - PR #4 remains open Draft, targeting feature/v0.12.3-paddle-default-settings; preserve this stacked PR structure.
 - No physical-device test is claimed. Current changes are verified by CI only.
 - Next evidence needed for OCR tuning is one opt-in device capture report from a future test build: OCR lines with confidence/coordinates, grouped and kept blocks, PaddleOCR stage stats/config, and translation raw/final pairs. This allows the failure stage to be identified before changing OCR thresholds or grouping geometry.
+
+
+## Engineering continuation — protocol reaffirmed and repository revalidation (2026-11-16 05:51 UTC)
+
+### User directive
+- User restated the autonomous engineering protocol: treat each ManhwaLens message as continuation, verify live GitHub state, and update this handoff report after every project interaction. This section records the protocol reaffirmation; no user approval is needed for ordinary technical decisions.
+
+### Live repository state checked in this interaction
+- Development branch: `feature/v0.12.4-bergamot-experiment`.
+- Verified branch HEAD: `200c06d0b30a73c706dd04aa2df7ae43ddcf8cc2` (commit message: docs: record PaddleOCR telemetry and verified CI results).
+- PR #4 remains open Draft, head `200c06d0b30a73c706dd04aa2df7ae43ddcf8cc2`, base `feature/v0.12.3-paddle-default-settings`; preserve the stacked PR relationship.
+- GitHub Actions on this exact HEAD: push run #43763927080 SUCCESS; PR run #43763932247 SUCCESS; automatic dependency submission #43763926671 SUCCESS. The PR run confirms validation on pull_request; these CI results do not constitute physical-device validation.
+- Latest published Release verified through Releases API: v0.12.10 prerelease, APK asset `ManhwaLens-v0.12.10-debug.apk` (71,369,014 bytes), URL https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.10/ManhwaLens-v0.12.10-debug.apk. This is a published Release, not merely an Actions artifact.
+
+### Source review in this interaction
+- Re-read `TranslationMemo.kt`, the cache lookup path in `CachingTranslator.kt`, and `TranslationMemoTest.kt` at the verified HEAD.
+- Confirmed the fuzzy memo keeps vowels and word boundaries, requires at least three alphanumeric characters and two distinct letters for fuzzy reuse, and retains exact lookup separately.
+- Confirmed the cache-hit path distinguishes fuzzy from source-exact hits; fuzzy results are not promoted into the exact cache, while source-exact memo/disk hits may be promoted after validation. Fresh engine output records the raw candidate separately from the corrected final Arabic value.
+- No deterministic new defect was established by this read-only audit, so no speculative production-code edit was made in this interaction. No local test suite was run in this interaction; CI outcomes above belong to the exact existing HEAD.
+
+### Status and next engineering action
+- Implemented/CI-verified: current branch state and prior cache-provenance protections, as recorded in earlier entries; latest HEAD's push and PR workflows both pass.
+- Not device-verified: actual OCR accuracy, bubble grouping, semantic Arabic translation, Bergamot offline inference, latency/RAM and real-device update installation.
+- Next: inspect the cache persistence and diagnostic trace implementations together with the fresh-vs-cached post-processing tests; add a regression test only for a demonstrated stale-persistent-cache or provenance defect. Then continue with OCR screenshot ground-truth evaluation; do not alter PaddleOCR thresholds or grouping without labeled screenshot evidence.
+- No phone installation requested in this interaction.
