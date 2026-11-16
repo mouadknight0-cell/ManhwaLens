@@ -1,11 +1,11 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.11  
-**تاريخ التحديث:** 2026-11-16 16:24 UTC  
+**الإصدار:** 5.12  
+**تاريخ التحديث:** 2026-11-16 16:38 UTC  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر حالة مؤكدة (2026-11-16 16:24 UTC):** آخر إصدار منشور هو v0.12.24 / code 64. المرشح v0.12.25 / code 65 يرفع دفعة PaddleOCR التجريبية إلى 8 ويضيف تقسيم زمن أول ظهور؛ لم يُبنَ أو يُنشر بعد. HEAD قبل التنفيذ هو `60ef11406031f03b7f92fe9866fa44355fa3a285` على `feature/v0.12.4-bergamot-experiment`. PR #4 مفتوح كمسودة فوق PR #3؛ PR #3 مفتوح باتجاه `main`.
-**CI الأحدث المتحقق قبل هذا التغيير:** Android build push #982 [43906710027](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43906710027) وPR validation #983 [43906722730](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43906722730) نجحا على `60ef11406031f03b7f92fe9866fa44355fa3a285`. اجتازت Unit tests وبناء Debug APK والتحقق من شهادة التوقيع ورفع artifacts. لم يُشغّل CI على المرشح v0.12.25 بعد.
+**آخر حالة مؤكدة (2026-11-16 16:38 UTC):** صدر prerelease v0.12.25 / code 65 مع APK مرفق. يتضمن تجربة PaddleOCR recognition batch size 8 وتقسيم زمن أول overlay؛ سرعة OCR على الهاتف لم تُقَس بعد على هذا الإصدار. commit الكود `3f29487e84310422c085d72072ed897806381adb` على `feature/v0.12.4-bergamot-experiment`. PR #4 مفتوح كمسودة فوق PR #3؛ PR #3 مفتوح باتجاه `main`.
+**CI الأحدث المتحقق:** Android build push #984 [43909033097](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43909033097) وPR validation #985 [43909048323](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43909048323) نجحا على commit الكود أعلاه. اجتازت Unit tests وبناء APK والتحقق من شهادة التوقيع وتوافق التحديث ورفع artifacts؛ نجح نشر prerelease مع APK `ManhwaLens-v0.12.25-debug.apk` (71,399,110 bytes، SHA-256 `82b547772b4f7443f03d1f8d9d1d9d9a433d7a5db2a39d6ae209b2ff43ac2b84`).
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
 > هذا الملف هو التقرير الهندسي الرسمي الوحيد للمشروع. يستبدل النسخة السابقة من `REPOSITORY_REPORT.md` بالكامل. لا تُنشئ تقارير منفصلة لكل مرحلة أو إصلاح؛ أضف جميع الأعمال المستقبلية إلى هذا الملف مع الاحتفاظ بالتواريخ والأدلة والقرارات وسجل التغييرات.
@@ -1666,3 +1666,11 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - **الملفات المعدلة في هذا التغيير:** `TextRecognizerClient.kt` (دفعة 8)، `LiveSessionBenchmark.kt` و`FloatingButtonService.kt` (مراحل التوقيت)، اختبار JVM جديد لحساب الفواصل، `app/build.gradle.kts` (v0.12.25/code65)، `CHANGELOG.md`، `MANUAL_TESTS.md`، `DECISIONS.md`، وهذا التقرير.
 - **حالة التحقق عند إعداد هذا commit:** لا يوجد تشغيل CI للمرشح بعد. سيُبنى ويُختبر عبر GitHub Actions، ثم ينشر workflow إصدار prerelease APK تلقائيًا بعد اجتياز فحوص الاختبار والتوقيع والتوافق. لا يوجد تشغيل محلي مدعى.
 - **الخطوة التالية:** مقارنة تقرير واحد على الهاتف نفسه والصفحة نفسها بعد تثبيت v0.12.25 فوق v0.12.24. راقب زمن recognizer وعدد الدفعات ورفض الثقة وتغطية النص، وكذلك مكونات زمن أول overlay. أعد حجم الدفعة إلى 4 إذا زاد الزمن أو تراجعت التغطية.
+
+
+## تحقق ونشر v0.12.25 — 2026-11-16
+
+- نجح Android build push #984 وPR validation #985 على commit `3f29487e84310422c085d72072ed897806381adb`. نجحت Unit tests، بناء Debug APK، استعادة وفحص شهادة التوقيع الثابتة، فحص package/versionCode/signature للتحديث فوق أحدث release، ورفع APK وتقارير الاختبار.
+- أُنشئ prerelease [v0.12.25](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.25) وتحقق ظهوره في Releases مع `ManhwaLens-v0.12.25-debug.apk` (71,399,110 bytes، SHA-256 `82b547772b4f7443f03d1f8d9d1d9d9a433d7a5db2a39d6ae209b2ff43ac2b84`). رابط التنزيل المباشر: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.25/ManhwaLens-v0.12.25-debug.apk.
+- اختبار `LiveOverlayStageTimesTest` اجتاز حالتي تقسيم الفواصل الصحيحة ومعالجة الطوابع غير الصالحة دون قيم سالبة. لا توجد مطالبة بتسريع فعلي حتى تعاد جلسة الهاتف نفسها؛ زيادة batch size ما زالت تجربة تحتاج تحقق latency والذاكرة وتغطية OCR.
+- العمل المطلوب من الهاتف: تثبيت v0.12.25 فوق v0.12.24، واستخدام الجهاز والصفحة نفسيهما، ثم إرسال تقرير Live benchmark الجديد للتحقق من سرعة recognizer/عدد دفعاته ومراحل أول overlay ورفض الثقة وتغطية النص.
