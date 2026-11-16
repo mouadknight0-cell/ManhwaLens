@@ -59,4 +59,44 @@ class CachingTranslatorPersistentCacheTest {
             file.delete()
         }
     }
+
+    @Test
+    fun legacyDiskHitUsesFreshOutputSanitizerAndWritesCleanValueBack() {
+        val file = File.createTempFile("legacy-translation-cache", ".json").apply { delete() }
+        try {
+            val source = "Are you okay?"
+            val cache = TranslationCache()
+            val key = cache.key("ml_kit_en_ar", source)
+            val disk = PersistentTranslationCache(file)
+            // Simulates a pre-sanitizer value retained across an application update.
+            disk.put(key, "الترجمة: هل أنت بخير ?")
+
+            var engineCalls = 0
+            val engine = object : Translator {
+                override val engineId = "ml_kit_en_ar"
+
+                override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
+                    engineCalls++
+                    return PageTranslation.Failure(FailureReason.UNKNOWN, "Unexpected cache miss", engineId)
+                }
+            }
+            val traces = ArrayList<TranslationPairTrace>()
+            val result = CachingTranslator(
+                delegate = engine,
+                cache = TranslationCache(),
+                persistent = disk,
+                onTranslationPair = { traces += it }
+            ).translatePage(listOf(TranslationBlock(2, source)))
+
+            assertTrue(result is PageTranslation.Success)
+            assertEquals("هل أنت بخير؟", (result as PageTranslation.Success).blocks.single().arabic)
+            assertEquals(0, engineCalls)
+            assertEquals("هل أنت بخير؟", disk.get(key))
+            assertEquals("الترجمة: هل أنت بخير ?", traces.single().candidateArabic)
+            assertEquals("هل أنت بخير؟", traces.single().finalArabic)
+        } finally {
+            file.delete()
+        }
+    }
+
 }
