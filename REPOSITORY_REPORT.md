@@ -1,10 +1,10 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.12  
-**تاريخ التحديث:** 2026-11-16 16:38 UTC  
+**الإصدار:** 5.14  
+**تاريخ التحديث:** 2026-11-16 17:50 UTC  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر حالة مؤكدة (2026-11-16 16:38 UTC):** صدر prerelease v0.12.25 / code 65 مع APK مرفق. يتضمن تجربة PaddleOCR recognition batch size 8 وتقسيم زمن أول overlay؛ سرعة OCR على الهاتف لم تُقَس بعد على هذا الإصدار. commit الكود `3f29487e84310422c085d72072ed897806381adb` على `feature/v0.12.4-bergamot-experiment`. PR #4 مفتوح كمسودة فوق PR #3؛ PR #3 مفتوح باتجاه `main`.
+**آخر حالة مؤكدة (2026-11-16 17:44 UTC):** وصل قياس v0.12.25 / code 65 من جهاز Xiaomi. أبطأ OCR وصار بناء الرقع على الواجهة 2,002 ms. التغيير التالي v0.12.26 يعيد دفعة OCR إلى 4 وينقل بناء الرقع إلى عامل الخلفية. PR #4 مفتوح كمسودة فوق PR #3؛ PR #3 مفتوح باتجاه `main`.
 **CI الأحدث المتحقق:** Android build push #984 [43909033097](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43909033097) وPR validation #985 [43909048323](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43909048323) نجحا على commit الكود أعلاه. اجتازت Unit tests وبناء APK والتحقق من شهادة التوقيع وتوافق التحديث ورفع artifacts؛ نجح نشر prerelease مع APK `ManhwaLens-v0.12.25-debug.apk` (71,399,110 bytes، SHA-256 `82b547772b4f7443f03d1f8d9d1d9d9a433d7a5db2a39d6ae209b2ff43ac2b84`).
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
@@ -1681,3 +1681,12 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - وصل تقرير Live session مطابق لقياس Xiaomi السابق: التطبيق المبلغ عنه هو v0.12.24 (code 64)، ووقت الجلسة 17:01:48–17:03:30، والقياسات نفسها (16 إطارًا، OCR متوسط 2,686 ms، recognition متوسط 1,784 ms، وأول إخراج بعد 11,919 ms).
 - هذا ليس اختبارًا لـ v0.12.25؛ لذلك لا يقيّم دفعة recognition الجديدة بحجم 8 ولا يحتوي تفصيل First overlay stages الذي أضيف في ذلك الإصدار. لا تغيير برمجي أو استنتاج أداء جديد من هذه الإعادة.
 - المقارنة المطلوبة ما تزال: تشغيل v0.12.25 / code 65 على الهاتف نفسه والصفحة نفسها، ثم إرسال تقرير Live session benchmark الذي يعرض إصدار التطبيق وFirst overlay stages وعداد recBatches.
+
+
+## تحليل قياس v0.12.25 وخطوة تقليل التعطّل — 2026-11-16
+
+- جلسة Xiaomi 23106RN0DA على v0.12.25 (code65) سجلت OCR متوسط 2,953 ms (recognizer 1,909 ms، detector 1,013 ms) وإطارًا متوسطه 3,262 ms؛ مقابل v0.12.24: OCR 2,686 ms وإطار 2,959 ms. هذا فرق وصفي من جلستين، وليس اختبارًا مضبوطًا بالكامل، لكنه لا يدعم استمرار batch size 8؛ تُعاد إلى 4.
+- إجمالي المرشحين 134 مقابل 152 في الجلسة السابقة، ورفض الثقة 5 مقابل 12؛ لا نستنتج تحسن أو تراجع OCR من عدديْن دون مطابقة الصفحة والمرشحين. كل الرقع في هذه الجلسة رُسمت (29/29) بلا إخفاق.
+- أول overlay ظهر بعد 10,500 ms. تقسيم المراحل كشف main queue 1 ms، callback prep 2 ms، patch build 2,002 ms، handoff 1 ms، overlay apply 39 ms. بناء الرقع وحده هو عنق زجاجة العرض الظاهر في القياس.
+- تغيير v0.12.26: إعادة حجم batch إلى 4، ونقل buildPatches من callback الواجهة إلى عامل Live الخلفي القائم. هذا يزيل نحو ثانيتين من حجب main thread في هذه العينة، لكنه لا يضمن تقليل إجمالي زمن أول overlay لأن rasterization ما زال مطلوبًا قبل عرض الرقع.
+- تحقق المرشح v0.12.26: الكود والتقرير والاختبارات سيسجلون في commit واحد؛ ينتظر GitHub Actions اختبارات JVM والبناء والتوقيع والتوافق والنشر. الاختبار التالي على الهاتف نفسه سيقارن استجابة الواجهة وزمن patch build وfirst visible output.

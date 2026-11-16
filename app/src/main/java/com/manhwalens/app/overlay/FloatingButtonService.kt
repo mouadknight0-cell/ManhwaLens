@@ -3555,21 +3555,26 @@ class FloatingButtonService : Service() {
                         true
                     }
                 }
+            val frameWidth = frameToShow.width
+            val frameHeight = frameToShow.height
+            val patchBuildStartedAtElapsedMs = SystemClock.elapsedRealtime()
+            val patches = if (finalBoxes.isNotEmpty()) buildPatches(frameToShow, finalBoxes) else emptyList()
+            val patchBuildFinishedAtElapsedMs = SystemClock.elapsedRealtime()
+            // PatchSurface is worker-thread safe; rasterize before posting to the UI thread.
+            if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
             val overlayQueuedAtElapsedMs = SystemClock.elapsedRealtime()
             mainHandler.post {
                 val overlayCallbackStartedAtElapsedMs = SystemClock.elapsedRealtime()
                 statusPill?.hide()
                 if (finalBoxes.isEmpty()) {
-                    com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("empty")
-                    // Nothing to translate on this page — drop stale patches, keep the raw reader visible.
+                    com.manหwalens.app.util.LiveSessionBenchmark.recordPassOutcome("empty")
                     patchOverlay?.clearPatches("page change")
-                    if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
-                    setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
+                    setLiveStatus(com.manหwalens.app.live.LiveStatus.WAITING)
                     return@post
                 }
                 val meta = CaptureMeta(
-                    width = frameToShow.width,
-                    height = frameToShow.height,
+                    width = frameWidth,
+                    height = frameHeight,
                     totalMs = ms,
                     firstFrameWaitMs = -1L,
                     savedPath = null,
@@ -3588,13 +3593,6 @@ class FloatingButtonService : Service() {
                     tapToOverlayMs = -1L,
                     liveMode = true
                 )
-                val patchBuildStartedAtElapsedMs = SystemClock.elapsedRealtime()
-                val patches = buildPatches(frameToShow, finalBoxes)
-                val patchBuildFinishedAtElapsedMs = SystemClock.elapsedRealtime()
-                // The overlay shows patches ONLY — the captured frame is never displayed,
-                // never retained by Live. Recycle it now that the patches own their pixels
-                // (unless a pending remote upgrade took it over — it recycles it itself).
-                if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
                 recordPaintResult(patches.size, finalBoxes.size)
                 com.manhwalens.app.util.LiveSessionBenchmark.recordOverlay(patches.size, finalBoxes.size, patches.isEmpty())
                 if (patches.isNotEmpty()) {

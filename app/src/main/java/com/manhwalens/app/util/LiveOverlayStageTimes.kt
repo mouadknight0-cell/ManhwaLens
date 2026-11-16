@@ -1,33 +1,33 @@
 package com.manhwalens.app.util
 
-/** Monotonic first-overlay timing; values are durations only and contain no page data. */
+/** Monotonic first-overlay timing; durations only, no page data. */
 internal data class LiveOverlayStageTimes(
+    val patchBuildMs: Long?,
+    val workerHandoffMs: Long?,
     val mainThreadQueueMs: Long?,
     val callbackPreparationMs: Long?,
-    val patchBuildMs: Long?,
-    val overlayHandoffMs: Long?,
     val overlayApplyMs: Long?
 ) {
     fun toReportLine(): String {
-        fun format(value: Long?): String = value?.let { "$it ms" } ?: "n/a"
-        return "main queue=${format(mainThreadQueueMs)} · callback prep=${format(callbackPreparationMs)} " +
-            "· patch build=${format(patchBuildMs)} · handoff=${format(overlayHandoffMs)} " +
-            "· overlay apply=${format(overlayApplyMs)}"
+        fun f(v: Long?) = v?.let { "$it ms" } ?: "n/a"
+        return "patch build=${f(patchBuildMs)} · worker handoff=${f(workerHandoffMs)} " +
+            "· main queue=${f(mainThreadQueueMs)} · callback prep=${f(callbackPreparationMs)} " +
+            "· overlay apply=${f(overlayApplyMs)}"
     }
 
     companion object {
         fun measure(
-            queuedAtElapsedMs: Long,
-            callbackStartedAtElapsedMs: Long,
             patchBuildStartedAtElapsedMs: Long,
             patchBuildFinishedAtElapsedMs: Long,
+            queuedAtElapsedMs: Long,
+            callbackStartedAtElapsedMs: Long,
             overlayApplyStartedAtElapsedMs: Long,
             outputAppliedAtElapsedMs: Long
         ) = LiveOverlayStageTimes(
-            mainThreadQueueMs = duration(queuedAtElapsedMs, callbackStartedAtElapsedMs),
-            callbackPreparationMs = duration(callbackStartedAtElapsedMs, patchBuildStartedAtElapsedMs),
             patchBuildMs = duration(patchBuildStartedAtElapsedMs, patchBuildFinishedAtElapsedMs),
-            overlayHandoffMs = duration(patchBuildFinishedAtElapsedMs, overlayApplyStartedAtElapsedMs),
+            workerHandoffMs = duration(patchBuildFinishedAtElapsedMs, queuedAtElapsedMs),
+            mainThreadQueueMs = duration(queuedAtElapsedMs, callbackStartedAtElapsedMs),
+            callbackPreparationMs = duration(callbackStartedAtElapsedMs, overlayApplyStartedAtElapsedMs),
             overlayApplyMs = duration(overlayApplyStartedAtElapsedMs, outputAppliedAtElapsedMs)
         )
 

@@ -302,10 +302,10 @@ object LiveSessionBenchmark {
                 val outputAtElapsedMs = SystemClock.elapsedRealtime()
                 firstOutputAtMs = (outputAtElapsedMs - startedElapsedMs).coerceAtLeast(0L)
                 firstOverlayStageTimes = LiveOverlayStageTimes.measure(
-                    queuedAtElapsedMs = queuedAtElapsedMs,
-                    callbackStartedAtElapsedMs = callbackStartedAtElapsedMs,
                     patchBuildStartedAtElapsedMs = patchBuildStartedAtElapsedMs,
                     patchBuildFinishedAtElapsedMs = patchBuildFinishedAtElapsedMs,
+                    queuedAtElapsedMs = queuedAtElapsedMs,
+                    callbackStartedAtElapsedMs = callbackStartedAtElapsedMs,
                     overlayApplyStartedAtElapsedMs = overlayApplyStartedAtElapsedMs,
                     outputAppliedAtElapsedMs = outputAtElapsedMs
                 )

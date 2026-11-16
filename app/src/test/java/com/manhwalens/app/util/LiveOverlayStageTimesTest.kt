@@ -6,38 +6,22 @@ import org.junit.Test
 
 class LiveOverlayStageTimesTest {
     @Test
-    fun splitsFirstOutputIntoMonotonicStageDurations() {
-        val times = LiveOverlayStageTimes.measure(
-            queuedAtElapsedMs = 1_000L,
-            callbackStartedAtElapsedMs = 1_200L,
-            patchBuildStartedAtElapsedMs = 1_215L,
-            patchBuildFinishedAtElapsedMs = 1_680L,
-            overlayApplyStartedAtElapsedMs = 1_710L,
-            outputAppliedAtElapsedMs = 1_770L
-        )
-
-        assertEquals(200L, times.mainThreadQueueMs)
-        assertEquals(15L, times.callbackPreparationMs)
-        assertEquals(465L, times.patchBuildMs)
-        assertEquals(30L, times.overlayHandoffMs)
-        assertEquals(60L, times.overlayApplyMs)
+    fun splitsWorkerAndMainThreadIntervals() {
+        val t = LiveOverlayStageTimes.measure(1_000L, 3_000L, 3_050L, 3_051L, 3_070L, 3_110L)
+        assertEquals(2_000L, t.patchBuildMs)
+        assertEquals(50L, t.workerHandoffMs)
+        assertEquals(1L, t.mainThreadQueueMs)
+        assertEquals(19L, t.callbackPreparationMs)
+        assertEquals(40L, t.overlayApplyMs)
     }
 
     @Test
-    fun invalidClockOrderIsReportedAsUnavailableInsteadOfNegativeTime() {
-        val times = LiveOverlayStageTimes.measure(
-            queuedAtElapsedMs = 1_200L,
-            callbackStartedAtElapsedMs = 1_100L,
-            patchBuildStartedAtElapsedMs = 1_150L,
-            patchBuildFinishedAtElapsedMs = 1_140L,
-            overlayApplyStartedAtElapsedMs = 1_160L,
-            outputAppliedAtElapsedMs = 1_170L
-        )
-
-        assertNull(times.mainThreadQueueMs)
-        assertEquals(50L, times.callbackPreparationMs)
-        assertNull(times.patchBuildMs)
-        assertEquals(20L, times.overlayHandoffMs)
-        assertEquals(10L, times.overlayApplyMs)
+    fun invalidClockOrderIsUnavailableRatherThanNegative() {
+        val t = LiveOverlayStageTimes.measure(1_000L, 1_200L, 1_190L, 1_180L, 1_170L, 1_160L)
+        assertNull(t.patchBuildMs)
+        assertNull(t.workerHandoffMs)
+        assertNull(t.mainThreadQueueMs)
+        assertNull(t.callbackPreparationMs)
+        assertNull(t.overlayApplyMs)
     }
 }

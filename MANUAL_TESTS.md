@@ -1,3 +1,12 @@
+# v0.12.26 — restore OCR batch size and move Live patch building off UI
+
+1. Install v0.12.26 over v0.12.25 without clearing app data.
+2. Use the same Xiaomi device and manga page. Arm Live session benchmark while Live is OFF, run one session, and copy the report.
+3. Confirm the report names v0.12.26, recognition batch size is 4, and First overlay stages includes patch build/queue/apply timings.
+4. Check that the app remains responsive while the first patch is being rasterized, that overlay expected and painted counts match, and that OCR line coverage/low-confidence drops are not worse.
+
+**Gate:** one device session. Moving rasterization to the worker improves UI responsiveness by design; do not claim lower time-to-first-overlay unless the report confirms it.
+
 # v0.12.25 — first-overlay breakdown and Paddle batch-size trial
 
 1. Install the CI-built v0.12.25 APK over v0.12.24 without clearing app data.
