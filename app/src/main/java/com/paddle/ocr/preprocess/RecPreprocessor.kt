@@ -42,7 +42,6 @@ object RecPreprocessor {
         // These Mats are created here; input crops remain owned by OCREngine.
         // Keep one cleanup list so failures at any later stage cannot leak native memory.
         val ownedMats = ArrayList<Mat>(crops.size * 3)
-        val channelMats = ArrayList<Mat>(crops.size * 3)
         try {
             val resizedMats = crops.map { crop ->
                 val newW = RecResizePolicy.contentWidth(
@@ -107,18 +106,21 @@ object RecPreprocessor {
             for (batchIndex in 0 until batchSize) {
                 val mat = paddedMats[batchIndex]
                 val channels = mutableListOf<Mat>()
-                Core.split(mat, channels)
-                channelMats.addAll(channels)
-                for (channelIndex in 0..2) {
-                    val buffer = FloatArray(channelSize)
-                    channels[channelIndex].get(0, 0, buffer)
-                    System.arraycopy(
-                        buffer,
-                        0,
-                        tensorData,
-                        (batchIndex * 3 + channelIndex) * channelSize,
-                        channelSize
-                    )
+                try {
+                    Core.split(mat, channels)
+                    for (channelIndex in 0..2) {
+                        val buffer = FloatArray(channelSize)
+                        channels[channelIndex].get(0, 0, buffer)
+                        System.arraycopy(
+                            buffer,
+                            0,
+                            tensorData,
+                            (batchIndex * 3 + channelIndex) * channelSize,
+                            channelSize
+                        )
+                    }
+                } finally {
+                    channels.forEach { runCatching { it.release() } }
                 }
             }
 
@@ -127,8 +129,6 @@ object RecPreprocessor {
                 shape = longArrayOf(batchSize.toLong(), 3, FIXED_HEIGHT.toLong(), maxW.toLong()),
             )
         } finally {
-            // Release in reverse dependency order: split channels first, then their parent Mats.
-            channelMats.forEach { runCatching { it.release() } }
             ownedMats.asReversed().forEach { runCatching { it.release() } }
         }
     }
