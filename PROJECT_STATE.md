@@ -1,6 +1,6 @@
 # ManhwaLens — Project State
 
-Last updated: 2026-11-15 (UTC)
+Last updated: 2026-11-16 (UTC)
 Purpose: durable handoff record between ChatGPT conversations. GitHub source code and CI are authoritative; this file is a navigation aid, not proof that a build or device test passed.
 
 ## Repository
@@ -1101,3 +1101,32 @@ Never use one label as evidence for another.
 1. Resume the unresolved diagnostic provenance investigation from the earlier device logs, especially `AH` / `YEAH` output mismatches. Trace stable bubble IDs and source text through in-memory/persistent cache, memo/fuzzy matching, and final overlay paths before altering cache keys or translation rules.
 2. Continue OCR evaluation separately using paired screenshots and labeled text/box ground truth; do not infer OCR accuracy from translation-pair text alone.
 3. Request user phone verification only after the source changes are CI-green and a specific behavior requires device evidence.
+
+
+## Engineering continuation — translation memo provenance instrumentation (2026-11-16)
+
+### Analysis
+- Re-reviewed the cache-aside path, `TranslationMemo`, `CachingTranslator`, `PagePlan`, `BubbleGrouper`, `CaptureDiagnostics`, and the tap/Live call sites.
+- The earlier device note's repeated `AH` / `YEAH` block numbers alone do not establish a cache collision: `BubbleGrouper` generates 1-based IDs independently per capture, while `TranslationPairLog` appends records with timestamps and does not key/overwrite by block ID. Live region-reuse boxes receive negative IDs; new OCR blocks keep positive IDs.
+- Existing memo tests already assert that `AH...` does not fuzzy-hit `YEAH`, and that `NO.` does not fuzzy-hit `RUN`. Those tests do not reveal which original source populated an arbitrary fuzzy shape slot, because `TranslationMemo.Hit` exposed only Arabic and an exact/fuzzy flag.
+
+### Implemented (pending CI)
+- `TranslationMemo` entries now retain their source string and `Hit` exposes `matchedSource` alongside Arabic and exact/fuzzy status.
+- `CachingTranslator` includes the matched source in cache-pair `detail` for exact/fuzzy memo hits. Existing status codes and translation selection are unchanged. The source text is compacted and limited to 52 characters so it fits the bounded diagnostic field.
+- Added assertions for exact and fuzzy matched-source provenance in `TranslationMemoTest`.
+- Commits:
+  - `cf8f320546cb6e7ed6cdfda89af0cbc66c4caa21` — expose memo hit source.
+  - `057a4f334c041e81d0cb69a84e99390e56b28e7a` — log memo matched source.
+  - `4b2c0e6d4a4e5035c14d88532f45eb70bd4e7da6` — test memo source provenance.
+- Current PR #4 head at documentation time: `4b2c0e6d4a4e5035c14d88532f45eb70bd4e7da6`; push workflow #803 and PR workflow #804 were queued/running. CI is not yet verified for these changes.
+
+### Engineering interpretation
+- This is instrumentation, not evidence that an `AH` / `YEAH` collision has been reproduced or fixed. No fuzzy matching threshold, cache key, persistent-cache behavior, OCR ID scheme, batching policy, or visible translation output was changed.
+- If a future capture shows an incorrect `FUZZY_HIT`, compare `EN` against `detail=...matched=...`: a different matched source is direct evidence of which memo entry supplied the candidate. Exact disk/memory cache hits remain distinguishable by their existing detail strings.
+- Keep ML Kit as the default offline translator and Bergamot experimental. Keep Joined HASH device-local; 20/20 mapping validates segment count/guards, not semantic alignment if a model reorders joined responses.
+
+### Verification boundary and next actions
+1. Require CI green for the matched-source instrumentation and new assertions.
+2. Inspect the next real-device pair report only if an actual mismatch remains; use the new matched-source field to isolate fuzzy memo reuse from exact-cache hits and bubble-ID reuse.
+3. Continue OCR accuracy work only with paired screenshots and labeled ground-truth text/boxes; translation-pair text alone cannot justify changing OCR thresholds.
+4. No phone intervention requested yet. Real-device validation remains necessary later for OCR, semantic translation, native Bergamot behavior, latency/RAM, and update installation.
