@@ -1319,3 +1319,11 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - Current head is two documentation-only commits after tag target `18f90a108e69044fa1298f1970a218454f7617cf`; compare confirms no app-source or build-file changes after the released binary.
 - Physical-device test is now the remaining gate. Use v0.12.12 guide: install over v0.12.11, keep translation cache, clear only pair log, reproduce the short dialogue, share pair log with `request` + `matched` and include Last capture if OCR source is wrong. No device test claimed.
 - PR #3 is open to main; PR #4 is open Draft targeting PR #3's branch. Preserve the stack.
+
+## v0.12.13 — native OCR memory lifecycle hardening (implemented; CI pending)
+- Fixed OpenCV `Mat` ownership in `QuadTextCrop`, the OCREngine batch-crop scope, `RecPreprocessor`, `DetPreprocessor` and `ImageUtils.resizeToMultipleOf32` so temporary native allocations are released if a later crop/resize/split/normalize/warp step throws.
+- Added explicit preconditions for empty recognition crops and non-3-channel input to prevent malformed tensors from reaching the model. Production Paddle OCR crops are already expected to be 3-channel BGR.
+- Preserved image preprocessing math, BGR order, recognizer height/base width/max width, tensor shape/layout, thresholds, crop geometry and reading order.
+- Prepared `0.12.13` / versionCode `53`, appended a repeated-page OCR memory-stability device checklist to `MANUAL_TESTS.md`.
+- Commits: `006020511bc525218dd6cb5ffecf231ff0fd8bc4`, `c07bfead64e6f950a86083c7e10d6247a719c168`, `fef0c81415b05fe10470ddd7b698b71571b359ea`, `e8932f619a0d6c80e533d88cdf9243c6f8e9626a`, `557c1c2a16d8442a9498ec5aa19a11b0d59b5955`, `6d9e6fff831b8c0f2dc36a3c1b104265760d9cd5`, with metadata/docs changes after them.
+- CI and APK release are not yet verified. Real-device multi-page stability also remains unverified.
