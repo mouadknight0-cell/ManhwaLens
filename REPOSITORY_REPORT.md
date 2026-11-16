@@ -1338,3 +1338,11 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - Update check passed against v0.12.12: `com.manhwalens.app`, versionCode 52 → 53, signing certificate SHA-256 unchanged `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
 - Resource lifecycle fixes cover perspective crops, crop batch failure paths, recognition/detection preprocess Mats and channel splits, detector resize failure, DB probability/mask/dilation/contour/score ROI Mats. No image math/threshold/geometry/output behavior was intentionally changed.
 - Device test remains required to validate repeated-page OCR memory stability; detailed checklist is in `MANUAL_TESTS.md` under v0.12.13.
+
+
+## Session re-audit — 2026-11-16 11:40 UTC+1
+
+- Re-read `PROJECT_STATE.md` and `REPOSITORY_REPORT.md` from `feature/v0.12.4-bergamot-experiment`. These handoff files are not present on `main`; `main` remains a separate older baseline. No attempt was made to copy/merge the development stack into main.
+- Reconfirmed current recorded development head `78155310cb167ff5629b8a7403e0671e2594c579`; latest commit is documentation-only. Exact-head PR workflow #872 completed successfully. The recorded push workflow #871 passed and its HTML report showed 812 tests, 0 failures, 0 ignored. The combined status endpoint returned an empty status list, so no additional status conclusion is drawn from it.
+- v0.12.13 / versionCode 53 remains the latest recorded Release-published build; APK SHA-256 `daaf7c9776afbe0522568ef2de551a8106e9c373a20bbde091011b6eb9582c90`; package `com.manhwalens.app`; signer continuity verified by CI against v0.12.12. These facts are inherited from the release evidence already recorded above, not a new APK download in this interaction.
+- Current status: CI-verified + Release-published; physical-device verification remains outstanding. Next action is the repeated-page OCR memory-stability protocol in `MANUAL_TESTS.md`. No app source or runtime behavior changed in this interaction; ML Kit default and experimental Bergamot decision remain unchanged.
