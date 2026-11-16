@@ -1,3 +1,8 @@
+## 0.12.24 — unified Live experience benchmark
+- Remove the ML Kit batching, Bergamot-only, and engine-comparison benchmark controls from Settings; keep one opt-in Live ON→OFF session benchmark and the separate Live self-check.
+- Expand the report with first visible output and frame timing, OCR stage times/configuration and counts, translation attempts/results/cache/block counts, overlay outcomes, Live-state transitions, failure/empty/cancellation counts, frame dimensions, and device/app version.
+- Keep the report local and privacy-safe: aggregate timing and counts only, with no OCR or translation text. No performance improvement is claimed by instrumentation alone.
+
 ## 0.12.21 — Live cancellation handling
 - Treat InterruptedException/CancellationException during Live OCR/translation as a cancelled frame, not an OCR crash.
 - Recycle the unowned frame, release the live pass, and return the status to Waiting so the next stable frame can be processed. Suppress shutdown-time error logging while the service is stopping.

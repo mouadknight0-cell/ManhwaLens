@@ -199,22 +199,12 @@
     <string name="live_benchmark_arm">تسليح قياس جلسة Live</string>
     <string name="live_benchmark_cancel">إلغاء قياس Live</string>
     <string name="live_benchmark_copy">نسخ تقرير Live</string>
-    <string name="live_benchmark_summary">يقيس من تشغيل Live حتى إيقافه: مدة الجلسة، ووقت أول ترجمة ظاهرة، وأزمنة الإطارات وOCR والمحرك. سلّح القياس وLive متوقف، ثم شغّله واستخدم الصفحة وأوقفه مرة واحدة. يحتوي التقرير على أزمنة وأعداد فقط، من دون نص الصفحة.</string>
+    <string name="live_benchmark_summary">تقرير واحد اختياري لجلسة Live كاملة من التشغيل إلى الإيقاف. يسجل تأخر أول إطار وأول طبقة ترجمة، أزمنة الالتقاط والمعالجة، مراحل كاشف OCR والمتعرّف وإعداداتهما وأعداد المرشحين والأسطر، طلبات الترجمة والكتل والذاكرة المؤقتة والمحرك والإخفاقات، الطبقات المعروضة وتغيرات حالة Live ومعلومات الجهاز والتطبيق. أزمنة وأعداد فقط؛ لا يُحفظ نص الصفحة.</string>
     <string name="live_benchmark_armed">تم تسليح القياس. شغّل Live، استخدم الصفحة، ثم أوقف Live.</string>
     <string name="live_benchmark_cancelled">أُلغي قياس Live</string>
     <string name="live_benchmark_turn_off_first">أوقف Live قبل تسليح قياس الجلسة.</string>
     <string name="live_benchmark_no_report">لا يوجد تقرير لجلسة Live مكتملة بعد.</string>
-    <string name="benchmark_button">اختبار تجميع طلبات ML Kit</string>
-    <string name="benchmark_summary">هذا اختبار خاص بـ ML Kit فقط، ويتجاهل محرك الترجمة غير المتصل المحدد في الإعدادات. يقيس ترجمة 20 جملة بالتتابع والتوازي وبطلبات مدمجة، ثم يحفظ أفضل سياسة لتجميع طلبات ML Kit وحده. لا يختبر Bergamot ولا يغيّر المحرك المحدد. للمقارنة الفعلية بين المحركين استخدم زر «مقارنة ML Kit مع Bergamot» أدناه.</string>
-    <string name="benchmark_title">تقرير التشخيص</string>
-    <string name="benchmark_running">جارٍ القياس…</string>
-    <string name="benchmark_close">إغلاق</string>
-    <string name="benchmark_copy">نسخ النتائج</string>
     <string name="benchmark_copied">نُسخت النتائج</string>
-    <string name="bergamot_benchmark_button">اختبار Bergamot وحده</string>
-    <string name="bergamot_benchmark_summary">يشغّل مجموعة الاختبار ذات 20 حالة عبر نموذج Bergamot الأصلي EN→AR فقط. لا يستدعي ML Kit ولا يستخدم الرجوع إليه، ولا يغيّر المحرك المحدد أو إعدادات التجميع. يتطلب تنزيل نموذج Bergamot مسبقًا.</string>
-    <string name="engine_comparison_button">مقارنة ML Kit مع Bergamot</string>
-    <string name="engine_comparison_summary">يشغّل الفقاعات العشرين نفسها عبر محركي الترجمة دون اتصال ويعرض نتائج كل محرك. يجب تثبيت نموذجي ML Kit وBergamot أولًا. هذه المقارنة لا تغيّر المحرك المحدد ولا إعدادات تجميع طلبات ML Kit.</string>
 
     <string name="safe_mode_title">الوضع الآمن</string>
     <string name="safe_mode_body">تعطّل التطبيق مرتين عند الإقلاع، فتم تشغيله بدون الزر العائم والترجمة ووضع Live. إعداداتك لم تتغيّر. اضغط للمحاولة بشكل طبيعي.</string>

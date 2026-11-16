@@ -839,3 +839,12 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 4. Confirm that small text remains detected. Do not rerun the ML Kit batching or translation-quality corpora.
 
 **Gate:** detector input is capped at 1280 px on the long side, expected to reduce detector pixels by about 36% versus the previous 1600 px cap for a 720×1600 frame. This estimates detector workload only; it is not a claimed end-to-end speedup. Check small-text recall in the same Live session.
+
+
+## v0.12.24 — unified Live benchmark
+1. Install the CI-built v0.12.24 APK. On the Diagnostics page, confirm the ML Kit batching, Bergamot-only and ML Kit-vs-Bergamot benchmark controls are gone; the Live self-check remains.
+2. With Live OFF, arm the single Live session benchmark. Turn Live ON, view a page and scroll through a few changes, then turn Live OFF.
+3. Copy the report. Confirm it contains session/first-output/frame timings, OCR detector and recognizer timings plus counts/configuration, translation and cache counts, overlay counts, state transitions and device/app details.
+4. Confirm no page text appears in the report. Use the report to identify the dominant measured stage; this is measurement only and does not claim a speedup.
+
+**Expected:** one completed Live report with counts and timings only. Do not rerun the translation corpus benchmarks.

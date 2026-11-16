@@ -2281,6 +2281,7 @@ class FloatingButtonService : Service() {
         statusCoalescer.submit(status) { s ->
             if (liveStatus == s) return@submit
             liveStatus = s
+            com.manhwalens.app.util.LiveSessionBenchmark.recordLiveStatus(s.wire)
             // Coalesced delivery lands on the main thread; the view call is doubly safe.
             button?.setLiveState(
                 s.dot,
@@ -3224,6 +3225,7 @@ class FloatingButtonService : Service() {
         if (isNearlyBlack(frame)) {
             Log.w(TAG, "live: black frame — OCR skipped, overlay untouched")
             com.manhwalens.app.util.PipelineTracer.span("live black frame", 0, "black=true — skipped OCR")
+            com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("black")
             com.manhwalens.app.util.LiveSessionBenchmark.recordFrame(SystemClock.elapsedRealtime() - t0, -1L, -1L)
             runCatching { if (!frame.isRecycled) frame.recycle() }
             setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
@@ -3236,6 +3238,7 @@ class FloatingButtonService : Service() {
             // code called acquireLiveBitmap() immediately after hiding the overlay, i.e. before
             // any new frame existed, and then OCR'd a frame with our own Arabic burned in.
             noteFrameSize(frame)
+            com.manhwalens.app.util.LiveSessionBenchmark.recordFrameSize(frame.width, frame.height)
 
             // ---------- 1) vertical shift estimate + region reuse ----------
             val prevGray = liveLastTranslatedThumb
@@ -3298,7 +3301,7 @@ class FloatingButtonService : Service() {
                 try {
                     val recognized = ocrClient.recognize(ocrBitmap)
                     ocrMs = recognized.elapsedMs
-                    com.manhwalens.app.util.LiveSessionBenchmark.recordOcrStats(recognized.engineStats)
+                    com.manhwalens.app.util.LiveSessionBenchmark.recordOcrStats(recognized.engineStats, recognized.lines.size)
                     recordOcrResult(recognized.lines.size, ocrMs)
                     val lines = if (ocrBitmap !== frame) {
                         recognized.lines.map {
@@ -3451,6 +3454,7 @@ class FloatingButtonService : Service() {
                                 misses = tr.cacheMisses
                                 translatedExpanded = com.manhwalens.app.translate.PagePlan.expand(pagePlan, tr.blocks, newBlocks.associate { it.id to it.english })
                                 recordTranslateResult(tr.engineId, tr.elapsedMs, null)
+                                com.manhwalens.app.util.LiveSessionBenchmark.recordTranslation(true, tr.engineId, unique.size, tr.cacheHits, tr.cacheMisses)
                             }
                             is com.manhwalens.app.translate.PageTranslation.Failure -> {
                                 if (tr.engineId == "gemini") {
@@ -3462,6 +3466,7 @@ class FloatingButtonService : Service() {
                                     engineMs,
                                     "${tr.reason}: ${tr.message}"
                                 )
+                                com.manhwalens.app.util.LiveSessionBenchmark.recordTranslation(false, tr.engineId, unique.size, 0, 0)
                                 com.manhwalens.app.util.LiveLog.e(
                                     TAG, "live translation failed (${tr.reason}): ${tr.message}"
                                 )
@@ -3480,6 +3485,7 @@ class FloatingButtonService : Service() {
                                         misses = fb.cacheMisses
                                         translatedExpanded = com.manhwalens.app.translate.PagePlan.expand(pagePlan, fb.blocks, newBlocks.associate { it.id to it.english })
                                         recordTranslateResult(engineLabel, fb.elapsedMs, null)
+                                        com.manhwalens.app.util.LiveSessionBenchmark.recordTranslation(true, engineLabel, unique.size, fb.cacheHits, fb.cacheMisses)
                                         recovered = true
                                     }
                                 }
@@ -3552,6 +3558,7 @@ class FloatingButtonService : Service() {
             mainHandler.post {
                 statusPill?.hide()
                 if (finalBoxes.isEmpty()) {
+                    com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("empty")
                     // Nothing to translate on this page — drop stale patches, keep the raw reader visible.
                     patchOverlay?.clearPatches("page change")
                     if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
@@ -3585,6 +3592,7 @@ class FloatingButtonService : Service() {
                 // (unless a pending remote upgrade took it over — it recycles it itself).
                 if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
                 recordPaintResult(patches.size, finalBoxes.size)
+                com.manhwalens.app.util.LiveSessionBenchmark.recordOverlay(patches.size, finalBoxes.size, patches.isEmpty())
                 if (patches.isNotEmpty()) {
                     val po = patchOverlayEnsure()
                     po.replaceAll(patches, meta.width, meta.height)
@@ -3602,12 +3610,14 @@ class FloatingButtonService : Service() {
         } catch (e: Throwable) {
             val cancelled = isLiveCancellation(e)
             if (cancelled) {
+                com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("cancelled")
                 PipelineTracer.span(
                     "live pass cancelled", 0,
                     if (serviceDestroying) "service stopping" else "interrupted/cancelled worker"
                 )
                 com.manhwalens.app.util.LiveLog.i(TAG, "live pass cancelled during OCR/translation")
             } else {
+                com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("failed")
                 Log.e(TAG, "live translate failed — ${e.javaClass.name}: ${e.message}", e)
                 ErrorLog.write(this, "live", e)
             }

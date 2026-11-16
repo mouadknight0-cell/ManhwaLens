@@ -35,11 +35,16 @@ object LiveSessionBenchmark {
     private var detectorMaxMs = 0L
     private var detectorInferenceTotalMs = 0L
     private var detectorInferenceMaxMs = 0L
+    private var detectorPreprocessTotalMs = 0L
+    private var detectorPostprocessTotalMs = 0L
     private var recognizerSamples = 0L
     private var recognizerTotalMs = 0L
     private var recognizerMaxMs = 0L
     private var recognizerInferenceTotalMs = 0L
     private var recognizerInferenceMaxMs = 0L
+    private var recognizerPreprocessTotalMs = 0L
+    private var recognizerPostprocessTotalMs = 0L
+    private var pipelineOverheadTotalMs = 0L
     private var coldLoadMaxMs = 0L
     private var ocrSamples = 0L
     private var ocrTotalMs = 0L
@@ -49,6 +54,28 @@ object LiveSessionBenchmark {
     private var engineMaxMs = 0L
     private var outputs = 0L
     private var firstOutputAtMs = -1L
+    private var blackFrames = 0L
+    private var emptyOutputFrames = 0L
+    private var failedPasses = 0L
+    private var cancelledPasses = 0L
+    private var ocrLines = 0L
+    private var ocrCandidates = 0L
+    private var lowConfidenceDrops = 0L
+    private var translationCalls = 0L
+    private var translationSuccesses = 0L
+    private var translationFailures = 0L
+    private var translationBlocks = 0L
+    private var cacheHits = 0L
+    private var cacheMisses = 0L
+    private var overlayExpected = 0L
+    private var overlayPainted = 0L
+    private var overlayFailures = 0L
+    private var lastOcrEngine = "n/a"
+    private var lastEngine = "n/a"
+    private var lastOcrConfig = "n/a"
+    private var frameWidth = 0
+    private var frameHeight = 0
+    private val liveStatuses = linkedMapOf<String, Long>()
 
     fun arm(context: Context): Boolean {
         val app = context.applicationContext
@@ -96,15 +123,27 @@ object LiveSessionBenchmark {
             val avgDetectorInference = if (detectorSamples > 0) detectorInferenceTotalMs / detectorSamples else 0L
             val avgRecognizer = if (recognizerSamples > 0) recognizerTotalMs / recognizerSamples else 0L
             val avgRecognizerInference = if (recognizerSamples > 0) recognizerInferenceTotalMs / recognizerSamples else 0L
+            val avgDetectorPreprocess = if (detectorSamples > 0) detectorPreprocessTotalMs / detectorSamples else 0L
+            val avgDetectorPostprocess = if (detectorSamples > 0) detectorPostprocessTotalMs / detectorSamples else 0L
+            val avgRecognizerPreprocess = if (recognizerSamples > 0) recognizerPreprocessTotalMs / recognizerSamples else 0L
+            val avgRecognizerPostprocess = if (recognizerSamples > 0) recognizerPostprocessTotalMs / recognizerSamples else 0L
+            val avgPipelineOverhead = if (recognizerSamples > 0) pipelineOverheadTotalMs / recognizerSamples else 0L
             val avgPass = if (frames > 0) passTotalMs / frames else 0L
             val avgOcr = if (ocrSamples > 0) ocrTotalMs / ocrSamples else 0L
             val avgEngine = if (engineSamples > 0) engineTotalMs / engineSamples else 0L
+            val device = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}".trim()
+            val appVersion = runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName ?: "unknown" }.getOrDefault("unknown")
             val text = buildString {
                 appendLine("ManhwaLens Live session benchmark")
                 appendLine("Started: $stamp")
                 appendLine("Ended: " + SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
                 appendLine("Stop reason: ${reason.take(80)}")
                 appendLine("Live ON → OFF: $duration ms")
+                appendLine("Device/app: $device · Android ${android.os.Build.VERSION.SDK_INT} · ManhwaLens $appVersion")
+                appendLine("Captured frame size: ${frameWidth}x${frameHeight}")
+                appendLine("Frame outcomes: black=$blackFrames · empty/no patches=$emptyOutputFrames · failed=$failedPasses · cancelled=$cancelledPasses")
+                appendLine("OCR output: lines=$ocrLines · detector candidates=$ocrCandidates · low-confidence drops=$lowConfidenceDrops · last engine=$lastOcrEngine")
+                appendLine("OCR config (last): $lastOcrConfig")
                 appendLine("First Live frame entered: $firstFrameStart")
                 appendLine("First frame work: total=$firstFrameDuration · OCR=$firstFrameOcr · engine=$firstFrameEngine")
                 appendLine("First visible translation: $firstOutput")
@@ -112,10 +151,14 @@ object LiveSessionBenchmark {
                 appendLine("Live frames processed: $frames")
                 appendLine("Frame processing: avg ${avgPass} ms · max ${passMaxMs} ms")
                 appendLine("OCR total: avg ${avgOcr} ms · max ${ocrMaxMs} ms · measured frames=$ocrSamples")
-                appendLine("Detector: avg ${avgDetector} ms · inference avg/max ${avgDetectorInference}/${detectorInferenceMaxMs} ms · max ${detectorMaxMs} ms · measured=$detectorSamples")
-                appendLine("Recognizer: avg ${avgRecognizer} ms · inference avg/max ${avgRecognizerInference}/${recognizerInferenceMaxMs} ms · max ${recognizerMaxMs} ms · measured=$recognizerSamples")
+                appendLine("Detector: avg ${avgDetector} ms · preprocess/inference/postprocess avg ${avgDetectorPreprocess}/${avgDetectorInference}/${avgDetectorPostprocess} ms · inference max ${detectorInferenceMaxMs} ms · max ${detectorMaxMs} ms · measured=${detectorSamples}")
+                appendLine("Recognizer: avg ${avgRecognizer} ms · preprocess/inference/postprocess avg ${avgRecognizerPreprocess}/${avgRecognizerInference}/${avgRecognizerPostprocess} ms · inference max ${recognizerInferenceMaxMs} ms · max ${recognizerMaxMs} ms · measured=${recognizerSamples}")
+                appendLine("OCR pipeline overhead: avg ${avgPipelineOverhead} ms")
                 appendLine("OCR cold model load max: ${coldLoadMaxMs} ms")
                 appendLine("Translation engine: avg ${avgEngine} ms · max ${engineMaxMs} ms · measured frames=$engineSamples")
+                appendLine("Translation: calls=$translationCalls · success=$translationSuccesses · failed=$translationFailures · blocks=$translationBlocks · cache hits/misses=$cacheHits/$cacheMisses · last engine=$lastEngine")
+                appendLine("Overlay: expected=$overlayExpected · painted=$overlayPainted · failed=$overlayFailures")
+                appendLine("Live status transitions: " + (liveStatuses.entries.joinToString { "${it.key}=${it.value}" }.ifBlank { "none" }))
                 appendLine("Visible overlay outputs: $outputs")
                 appendLine("Privacy: timing and counts only; no page text")
             }.trim()
@@ -133,8 +176,61 @@ object LiveSessionBenchmark {
         }
     }
 
-    fun recordOcrStats(stats: com.manhwalens.app.ocr.OcrRunStats?) {
-        if (stats == null) return
+    fun recordLiveStatus(status: String) {
+        synchronized(lock) {
+            if (!active) return
+            liveStatuses[status] = (liveStatuses[status] ?: 0L) + 1L
+        }
+    }
+
+    fun recordFrameSize(width: Int, height: Int) {
+        synchronized(lock) {
+            if (!active) return
+            frameWidth = width
+            frameHeight = height
+        }
+    }
+
+    fun recordPassOutcome(outcome: String) {
+        synchronized(lock) {
+            if (!active) return
+            when (outcome) {
+                "black" -> blackFrames++
+                "empty" -> emptyOutputFrames++
+                "failed" -> failedPasses++
+                "cancelled" -> cancelledPasses++
+            }
+        }
+    }
+
+    fun recordTranslation(success: Boolean, engine: String?, blocks: Int, hits: Int, misses: Int) {
+        synchronized(lock) {
+            if (!active) return
+            translationCalls++
+            if (success) translationSuccesses++ else translationFailures++
+            translationBlocks += blocks.coerceAtLeast(0)
+            cacheHits += hits.coerceAtLeast(0)
+            cacheMisses += misses.coerceAtLeast(0)
+            if (!engine.isNullOrBlank()) lastEngine = engine.take(80)
+        }
+    }
+
+    fun recordOverlay(painted: Int, expected: Int, failed: Boolean = false) {
+        synchronized(lock) {
+            if (!active) return
+            overlayPainted += painted.coerceAtLeast(0)
+            overlayExpected += expected.coerceAtLeast(0)
+            if (failed) overlayFailures++
+        }
+    }
+
+    fun recordOcrStats(stats: com.manhwalens.app.ocr.OcrRunStats?, lineCount: Int) {
+        if (stats == null) {
+            synchronized(lock) {
+                if (active) ocrLines += lineCount.coerceAtLeast(0)
+            }
+            return
+        }
         synchronized(lock) {
             if (!active) return
             detectorSamples++
@@ -142,12 +238,22 @@ object LiveSessionBenchmark {
             detectorInferenceTotalMs += stats.detectionInferenceMs.coerceAtLeast(0L)
             detectorMaxMs = maxOf(detectorMaxMs, stats.detectionTimeMs)
             detectorInferenceMaxMs = maxOf(detectorInferenceMaxMs, stats.detectionInferenceMs)
+            detectorPreprocessTotalMs += stats.detectionPreprocessMs.coerceAtLeast(0L)
+            detectorPostprocessTotalMs += stats.detectionPostprocessMs.coerceAtLeast(0L)
             recognizerSamples++
             recognizerTotalMs += stats.recognitionTimeMs.coerceAtLeast(0L)
             recognizerInferenceTotalMs += stats.recognitionInferenceMs.coerceAtLeast(0L)
             recognizerMaxMs = maxOf(recognizerMaxMs, stats.recognitionTimeMs)
             recognizerInferenceMaxMs = maxOf(recognizerInferenceMaxMs, stats.recognitionInferenceMs)
+            recognizerPreprocessTotalMs += stats.recognitionPreprocessMs.coerceAtLeast(0L)
+            recognizerPostprocessTotalMs += stats.recognitionPostprocessMs.coerceAtLeast(0L)
+            pipelineOverheadTotalMs += stats.pipelineOverheadMs.coerceAtLeast(0L)
             coldLoadMaxMs = maxOf(coldLoadMaxMs, stats.coldLoadTimeMs)
+            ocrLines += lineCount.coerceAtLeast(0)
+            ocrCandidates += stats.recognizedCandidateCount.coerceAtLeast(0)
+            lowConfidenceDrops += stats.lowConfidenceDroppedCount.coerceAtLeast(0)
+            lastOcrEngine = stats.engine.take(60)
+            lastOcrConfig = "detector=${stats.detectionInputShape.joinToString("x")} cap=${stats.detectorMaxSideLimit} threads=${stats.engineThreads} candidates=${stats.recognizedCandidateCount} lowConf=${stats.lowConfidenceDroppedCount} recBatches=${stats.recognitionInputShapes.size}"
         }
     }
 
@@ -210,11 +316,16 @@ object LiveSessionBenchmark {
         detectorMaxMs = 0L
         detectorInferenceTotalMs = 0L
         detectorInferenceMaxMs = 0L
+        detectorPreprocessTotalMs = 0L
+        detectorPostprocessTotalMs = 0L
         recognizerSamples = 0L
         recognizerTotalMs = 0L
         recognizerMaxMs = 0L
         recognizerInferenceTotalMs = 0L
         recognizerInferenceMaxMs = 0L
+        recognizerPreprocessTotalMs = 0L
+        recognizerPostprocessTotalMs = 0L
+        pipelineOverheadTotalMs = 0L
         coldLoadMaxMs = 0L
         ocrSamples = 0L
         ocrTotalMs = 0L
@@ -224,6 +335,28 @@ object LiveSessionBenchmark {
         engineMaxMs = 0L
         outputs = 0L
         firstOutputAtMs = -1L
+        blackFrames = 0L
+        emptyOutputFrames = 0L
+        failedPasses = 0L
+        cancelledPasses = 0L
+        ocrLines = 0L
+        ocrCandidates = 0L
+        lowConfidenceDrops = 0L
+        translationCalls = 0L
+        translationSuccesses = 0L
+        translationFailures = 0L
+        translationBlocks = 0L
+        cacheHits = 0L
+        cacheMisses = 0L
+        overlayExpected = 0L
+        overlayPainted = 0L
+        overlayFailures = 0L
+        lastOcrEngine = "n/a"
+        lastEngine = "n/a"
+        lastOcrConfig = "n/a"
+        frameWidth = 0
+        frameHeight = 0
+        liveStatuses.clear()
     }
 
     private fun prefs(context: Context) =
