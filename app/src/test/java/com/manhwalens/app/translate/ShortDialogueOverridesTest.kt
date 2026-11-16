@@ -130,6 +130,37 @@ class ShortDialogueOverridesTest {
         ))
     }
 
+    @Test fun soloLevelingChapterFiveObservedLinesGetSourceExactRepairs() {
+        val cases = listOf(
+            "THE TUNNEL THAT CONNECTS THE OTHER WORLD TO OURS." to "النفق الذي يربط العالم الآخر بعالمنا.",
+            "THE TUNNEL THAT OTHER CONNECTS THE WORLD TO OURS." to "النفق الذي يربط العالم الآخر بعالمنا.",
+            "AFTER GATE THE APPEARED, WORLD THE EXPERIENCED MANY BIZARRE EVENTS." to "بعد ظهور البوابة، شهد العالم أحداثًا غريبة كثيرة.",
+            "THE GATE AFTER APPEARED, WORLD THE EXPERIENCED MANY BIZARRE EVENTS." to "بعد ظهور البوابة، شهد العالم أحداثًا غريبة كثيرة.",
+            "ONE EXAMPLE IS THE HUNTERS." to "ومن أمثلة ذلك الصيادون.",
+            "THEIR STRENGTH STAYS THE SAME FROM WHEN THEY WERE AWAKENED - IT NEVER CHANGES." to "تظل قوتهم كما كانت منذ استيقاظهم؛ فهي لا تتغير أبدًا.",
+            "I TOO, BECAME A HUNTER, BUT MY STRENGTH WAS ONLY ENOUGH FOR AN E-RANK." to "وأنا أيضًا أصبحت صيادًا، لكن قوتي لم تؤهلني إلا للرتبة E.",
+            "INSANE MONSTER THAT SPRINGS OUT OF NOWHERE." to "وحش مرعب يظهر من العدم.",
+            "THERE'S NOTHING WE CAN DO NOW, IS THERE?" to "لا يسعنا فعل شيء الآن، أليس كذلك؟",
+            "I BROUGHT ONLY THREE HEALERS BECAUSE I THOUGHT THIS WOULD BE OVER QUICKLY.." to "أحضرت ثلاثة معالجين فقط لأنني ظننت أن الأمر سينتهي بسرعة.",
+            "ONE GOT ATTACKED SO BRUTALLY THAT NOT EVEN HIS CORPSE REMAINED," to "تعرض أحدهم لهجوم وحشي حتى لم يبقَ من جثته شيء.",
+            "WHEN THE SITUATION CLEARS A BIT, LET'S TRY RUNNING THEN." to "عندما تهدأ الأمور قليلًا، لنحاول الركض حينها.",
+            "HE PROBABLY NEVER INTENDED FOR US TO LEAVE!" to "ربما لم يكن ينوي السماح لنا بالمغادرة أبدًا.",
+            "SO WHY AREN'T THEY?" to "فلماذا لا يفعلون ذلك؟",
+            "DUNNO.." to "لا أدري.",
+            "IT'S DIFFERENT FROM THE MONSTERS WHO BLINDLY ATTACK HUNTERS ON SIGHT." to "إنه يختلف عن الوحوش التي تهاجم الصيادين فور رؤيتهم.",
+            "THEY ATTACK IN A PATTERN!" to "إنها تهاجم وفق نمط محدد!",
+            "IT CAN'T BE.." to "مستحيل...",
+            "MR. SONG CHI-YUL! WHAT WAS THE FIRST COMMANDMENT??" to "سيد سونغ تشي يول! ما الوصية الأولى؟",
+            "COMMAND-MENT?" to "الوصية؟",
+            "THE FIRST WOULD BE...." to "الأولى هي...",
+            "SIR, THERE'S A RULE IN THIS DUNGEON." to "سيدي، هناك قاعدة في هذا الدهليز.",
+            "IF I'M CORRECT...." to "إن لم أكن مخطئًا..."
+        )
+        cases.forEach { (source, expected) ->
+            assertEquals(expected, ShortDialogueOverrides.apply(source, "ترجمة آلية ضعيفة"))
+        }
+    }
+
     @Test fun longerSentencesAreNeverOverridden() {
         val output = "شغّل البرنامج ثم انتظر"
         assertEquals(output, ShortDialogueOverrides.apply("Run the program and wait.", output))
