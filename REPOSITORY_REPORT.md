@@ -1219,3 +1219,33 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 
 ### Next engineering action
 - Inspect the push and PR Actions runs for `b751a78e70ba4fcdb47543066d8968fde7cc1335`. If green, inspect APK metadata and signer continuity and re-check actual GitHub Release assets; otherwise inspect the new test artifact and repair the precise failure.
+
+## Verification continuation — 2026-11-16 (CI green and v0.12.11 release integrity)
+
+### Final-head CI results
+- Development branch / PR #4 head: `1b3b08a49bccb4c2e3f996a61eb1405e021f9c37`.
+- Push workflow #794 (`43822475270`) and PR workflow #795 (`43822478624`) both completed successfully on the same final head.
+- Inspected the uploaded Gradle test report from #795: **811 tests completed, 0 failed, 0 skipped**.
+- Both workflows completed the pinned PaddleOCR model checksum checks, Bergamot ARM64 runtime validation, `:app:assembleDebug`, and pinned experimental debug signing-certificate check.
+- The prior JUnit class-boundary defect is therefore repaired and CI-verified; no production `BatchSplitter` logic was changed for that repair.
+
+### APK / Release / update compatibility evidence
+- Build #794 successfully ran the non-PR update-compatibility gate and verified against v0.12.10:
+  - package ID: `com.manhwalens.app`
+  - versionCode: `50 -> 51`
+  - signing certificate SHA-256: `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152` (same signer on both releases per workflow comparison).
+- GitHub Release `v0.12.11` is published as a prerelease and contains `ManhwaLens-v0.12.11-debug.apk` (71,382,318 bytes; SHA-256 `1ff45531f4c537d816801cb57b1ee4c75981cf7851f241b14fed29adfd540637`).
+- Downloaded the #795 Actions APK artifact and hashed the contained APK; it exactly matches the published Release asset SHA-256 and file size. The binary built and checked in #795 is byte-identical to the published v0.12.11 APK.
+- PR #4 workflow #795 intentionally skips the Release compatibility/publication steps because it is a pull_request event; push workflow #794 executed the update gate and published the Release.
+- The `PROJECT_STATE.md` / `REPOSITORY_REPORT.md` append from the prior interaction stating that this head's CI was pending is superseded by this verified result.
+
+### Repository status and validation boundary
+- PR #3 remains open targeting `main`; PR #4 remains open Draft targeting PR #3. Keep the stack; do not merge PR #4 directly into `main`.
+- Release-published: v0.12.11. CI-verified: 811 JVM unit tests, model/runtime fetch verification, debug APK build, pinned signer check and update compatibility gate on the branch push.
+- Device-verified: **Not verified**. CI cannot prove PaddleOCR page recognition, bubble geometry, Arabic semantic quality, Bergamot on-device JNI/model inference, latency/RAM or actual install-over-existing-app behavior.
+- ML Kit remains the default offline translator; Bergamot remains optional/experimental.
+
+### Next engineering action
+1. Resume the unresolved diagnostic provenance investigation from the earlier device logs, especially `AH` / `YEAH` output mismatches. Trace stable bubble IDs and source text through in-memory/persistent cache, memo/fuzzy matching, and final overlay paths before altering cache keys or translation rules.
+2. Continue OCR evaluation separately using paired screenshots and labeled text/box ground truth; do not infer OCR accuracy from translation-pair text alone.
+3. Request user phone verification only after the source changes are CI-green and a specific behavior requires device evidence.
