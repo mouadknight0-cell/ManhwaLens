@@ -39,7 +39,7 @@ object ShortDialogueOverrides {
         "IF EVEN HE WAS BAD HE STILL WOULD VE BEEN STRONGER THAN AN E RANK LIKE ME" to "حتى لو كان ضعيفًا، لظل أقوى مني، فأنا من الرتبة E.",
         "WAIT WAIT A SECOND" to "مهلًا، انتظر لحظة!",
         "THIS DUNGEON IS A D RANK AT MOST" to "هذا الدهليز لا تتجاوز رتبته D.",
-        "I VE NEVER HEARD OF MON STERS AS STRONG AS THEM IN THE LIKES OF D RANK DUNGEONS" to "لم أسمع قط بوجود وحوش بهذه القوة في دهاليز من الرتبة D!",
+        "I VE NEVER HEARD OF MONSTERS AS STRONG AS THEM IN THE LIKES OF D RANK DUNGEONS" to "لم أسمع قط بوجود وحوش بهذه القوة في دهاليز من الرتبة D!",
         "THIS ISN T THE FIRST TIME I ENCOUNTERED A NEAR DEATH EXPERIENCE" to "هذه ليست المرة الأولى التي أواجه فيها تجربة كدت أموت خلالها.",
         "DURING MY FIRST RAID I ACCIDENTALLY BROKE AWAY FROM MY PARTY AND GOT LOST" to "في أول غارة لي، انفصلت عن فريقي بالخطأ وضللت الطريق.",
         "OTHERS TRADE THEIR MAGICAL CORES FOR BETTER WEAPONS" to "يستبدل الآخرون نوىهم السحرية بأسلحة أفضل.",
@@ -53,7 +53,7 @@ object ShortDialogueOverrides {
         "THEY HAVE TO WORK TWICE AS HARD" to "فهم مضطرون إلى بذل ضعف الجهد.",
         "THESE DAYS HE S CALLED THE WORLD S WEAKEST HUNTER" to "يُلقّب هذه الأيام بأضعف صياد في العالم.",
         "MEANING EVEN THOUGH HE S A HUNTER HE S USELESS" to "أي إنه، رغم كونه صيادًا، عديم الفائدة.",
-        "I BARELY DODGED IT IF SUNG DIDNT YELL OUT" to "كدت أعجز عن تفاديها. لولا أن سونغ صاح محذرًا،",
+        "I BARELY DODGED IT IF SUNG DIDN T YELL OUT" to "كدت أعجز عن تفاديها. لولا أن سونغ صاح محذرًا،",
         "WE COULD VE BEEN WIPED OUT" to "لكنا أُبيدنا جميعًا."
     )
 
