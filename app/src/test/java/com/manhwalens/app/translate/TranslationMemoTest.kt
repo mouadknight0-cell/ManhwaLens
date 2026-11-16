@@ -163,13 +163,15 @@ class TranslationMemoTest {
         val cache = TranslationCache()
         val fake = FakeTranslator()
         memo.put("Where are you?", "أين أنت؟")
-        val caching = CachingTranslator(fake, cache, memo = memo)
+        val traces = ArrayList<TranslationPairTrace>()
+        val caching = CachingTranslator(fake, cache, memo = memo, onTranslationPair = { traces += it })
 
         val result = caching.translatePage(listOf(TranslationBlock(1, "Where are you?"))) as PageTranslation.Success
 
         assertEquals("أين أنت؟", result.blocks.single().arabic)
         assertEquals(0, fake.calls)
         assertEquals("أين أنت؟", cache.get("fake_engine", "Where are you?"))
+        assertEquals("served from exact translation memo", traces.single().detail)
     }
 
     @Test
