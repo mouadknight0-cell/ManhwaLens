@@ -1310,3 +1310,12 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - Published prerelease: https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.12
 - APK: 71,384,898 bytes; SHA-256 `d9ce84716675f08e5bbf7ac29643afa04d936f16c0e56dcf141838935a5c06d0`. The downloaded APK from the Actions artifact was independently hashed and matches the release asset exactly.
 - Device validation is the next gate, not yet completed. Use the v0.12.12 instructions in MANUAL_TESTS.md, preserve translation cache and clear only pair history before reproducing the short-dialogue mismatch. ML Kit remains default; Bergamot remains experimental.
+
+## Final verification — v0.12.12 device diagnostic handoff (2026-11-16)
+- Latest head `c22d66db7d29f27138176ff6a76678e12f5b1811`: Push #837 and PR #838 passed.
+- Inspected #837 test report: 812 tests, 0 failures, 0 ignored, 100% success (1.862s).
+- Downloaded APK from #837 Actions, extracted and hashed it: 71,384,898 bytes; SHA-256 `d9ce84716675f08e5bbf7ac29643afa04d936f16c0e56dcf141838935a5c06d0`. Exact match with the published v0.12.12 Release asset.
+- Release #834 update gate: v0.12.11 → v0.12.12, `com.manhwalens.app`, versionCode 51 → 52, same signer SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`. Release is a published prerelease. Latest #837 correctly skipped republishing the existing tag.
+- Current head is two documentation-only commits after tag target `18f90a108e69044fa1298f1970a218454f7617cf`; compare confirms no app-source or build-file changes after the released binary.
+- Physical-device test is now the remaining gate. Use v0.12.12 guide: install over v0.12.11, keep translation cache, clear only pair log, reproduce the short dialogue, share pair log with `request` + `matched` and include Last capture if OCR source is wrong. No device test claimed.
+- PR #3 is open to main; PR #4 is open Draft targeting PR #3's branch. Preserve the stack.
