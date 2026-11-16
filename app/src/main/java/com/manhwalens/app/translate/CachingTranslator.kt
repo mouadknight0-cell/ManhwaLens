@@ -68,6 +68,7 @@ class CachingTranslator(
             )
         }
         val start = System.currentTimeMillis()
+        val traceRequestId = nextTraceRequestId()
 
         // 1) Serve what we can from cache (engine+style namespaced, normalized).
         val cached = LinkedHashMap<Int, String>(blocks.size)
@@ -202,7 +203,7 @@ class CachingTranslator(
                 is PageTranslation.Failure -> {
                     misses.forEach { block ->
                         runCatching {
-                            onTranslationPair?.invoke(TranslationPairTrace(block.id, block.english, "", "", engineId, "ENGINE_FAILURE", result.reason.name, 0L))
+                            onTranslationPair?.invoke(TranslationPairTrace(block.id, block.english, "", "", engineId, "ENGINE_FAILURE", result.reason.name, 0L, traceRequestId))
                         }
                     }
                     return PageTranslation.Failure(result.reason, result.message, engineId)
@@ -248,7 +249,8 @@ class CachingTranslator(
                                 engineId,
                                 if (issue == null && tb.arabic.isNotBlank()) "OK" else if (issue != null) "QUALITY_REJECTED" else "EMPTY",
                                 issue?.name ?: if (tb.arabic.isBlank()) "empty translation" else "",
-                                result.elapsedMs
+                                result.elapsedMs,
+                                traceRequestId
                             ))
                         }
                     }
@@ -265,7 +267,7 @@ class CachingTranslator(
                         runCatching {
                             onTranslationPair?.invoke(TranslationPairTrace(
                                 block.id, block.english, "", "", engineId, "MISSING_RESULT",
-                                "engine returned no block for this id", result.elapsedMs
+                                "engine returned no block for this id", result.elapsedMs, traceRequestId
                             ))
                         }
                     }
@@ -338,6 +340,9 @@ class CachingTranslator(
          * can never be served where a cloud translation was requested (and vice versa).
          */
         private val memos = java.util.concurrent.ConcurrentHashMap<String, TranslationMemo>()
+        private val traceRequestSequence = java.util.concurrent.atomic.AtomicLong(0L)
+
+        private fun nextTraceRequestId(): String = "p${traceRequestSequence.incrementAndGet() }"
 
         fun memoFor(engineId: String, style: String): TranslationMemo =
             memos.getOrPut("$engineId|$style") { TranslationMemo() }
