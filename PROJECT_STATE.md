@@ -1195,3 +1195,19 @@ Never use one label as evidence for another.
 - Downloaded the Actions APK artifact and independently hashed its contained APK; it is byte-identical to the published Release asset (same 71,384,898 bytes and SHA-256).
 - **Ready for real-device diagnostic verification; not yet device-verified.** Follow `MANUAL_TESTS.md` → `v0.12.12 — translation-cache provenance capture`. Install over v0.12.11 without uninstalling; preserve translation cache, clear only pair history, reproduce the previous short-dialogue issue, copy the translation-pair report, and include Last capture diagnostics if source OCR is wrong. Disable Debug mode after.
 - Keep PR #4 open Draft stacked on PR #3; no merge to main. ML Kit remains default offline; Bergamot stays experimental.
+
+## Final-head verification — v0.12.12 device diagnostic handoff (2026-11-16)
+
+- Latest branch head: `c22d66db7d29f27138176ff6a76678e12f5b1811`. Push workflow #837 (`43826864158`) and PR workflow #838 (`43826867055`) both completed successfully on this head.
+- Downloaded and inspected the #837 Gradle HTML test artifact (`14205964577`): **812 tests, 0 failures, 0 ignored, 100% successful**, 1.862s reported.
+- Downloaded #837 APK artifact (`14206548176`), extracted its APK and independently computed SHA-256: `d9ce84716675f08e5bbf7ac29643afa04d936f16c0e56dcf141838935a5c06d0`; size 71,384,898 bytes. It exactly matches the published `v0.12.12` Release asset digest and size.
+- Release asset URL: `https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.12/ManhwaLens-v0.12.12-debug.apk`; Release page: `https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.12` (published prerelease).
+- Release publication workflow #834 (`43826352333`) verified update compatibility against v0.12.11: package `com.manhwalens.app`, versionCode `51 → 52`, signing certificate SHA-256 unchanged at `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`; the workflow published the tag and APK. Later #837 branch validation correctly skipped republishing an existing v0.12.12 tag, but still built the same byte-identical APK and rechecked the pinned signer.
+- Compared the current branch head against the release-tag commit `18f90a108e69044fa1298f1970a218454f7617cf`: only two documentation files changed (`PROJECT_STATE.md`, `REPOSITORY_REPORT.md`), with zero app source/build changes after the released binary.
+- PR #3 remains open, non-draft, from `feature/v0.12.3-paddle-default-settings` to `main`. PR #4 remains open Draft from `feature/v0.12.4-bergamot-experiment` to `feature/v0.12.3-paddle-default-settings`; keep the stack and do not merge either PR as part of this diagnostic handoff.
+
+### Device gate — ready, not yet tested
+- No device testing is claimed. The remaining high-value evidence is the actual previous short-dialogue reproduction on the physical phone.
+- Install v0.12.12 directly over v0.12.11; do not uninstall and do not clear translation cache. In Settings → Diagnostics turn Debug mode ON and clear only the translation-pair history. Keep ML Kit selected; reproduce the same page/dialogue; copy the translation-pair report. Preserve `request=...`, `block #...`, `status`, `detail=...matched=...`, `EN`, `CANDIDATE AR`, and `FINAL AR` fields. Include Last capture / pipeline report only where OCR text or grouping is wrong. Turn Debug mode OFF afterward.
+- Classification guide: wrong `EN` versus screenshot = OCR; correct `EN` + `FUZZY_HIT` with a different `matched` source = fuzzy memo reuse; `CACHE_HIT` = exact in-memory/disk cache; fresh `OK` = engine/post-processing. Compare request IDs before interpreting repeated block numbers.
+- Next engineering work after receiving the report: make the smallest evidence-based correction only if a concrete mismatch is confirmed. Continue treating Arabic semantic correctness as a manual evaluation dimension; lexical token F1 is not a semantic score.
