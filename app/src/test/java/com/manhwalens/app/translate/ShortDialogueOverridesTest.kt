@@ -100,7 +100,7 @@ class ShortDialogueOverridesTest {
         ))
 
         assertEquals("لم أسمع قط بوجود وحوش بهذه القوة في دهاليز من الرتبة D!", ShortDialogueOverrides.apply(
-            "I'VE NEVER HEARD OF MON-\\nSTERS AS STRONG AS THEM IN THE LIKES OF D-RANK DUNGEONS!",
+            "I'VE NEVER HEARD OF MON-\nSTERS AS STRONG AS THEM IN THE LIKES OF D-RANK DUNGEONS!",
             "لم أسمع أبدا عن الوحوش قوية مثلهم في أمثال D-Rank الأبراج المحصنة!"
         ))
         assertEquals("هذه ليست المرة الأولى التي أواجه فيها تجربة كدت أموت خلالها.", ShortDialogueOverrides.apply(
