@@ -86,10 +86,12 @@ class CachingTranslator(
             var hit = memHit ?: diskHit
             var fromFuzzy = false
             var fromExactMemo = false
+            var memoMatchedSource: String? = null
             if (hit == null) {
                 val memoHit = memo?.get(cachePrepared(b.english))
                 if (memoHit != null) {
                     hit = memoHit.arabic
+                    memoMatchedSource = memoHit.matchedSource
                     fromFuzzy = !memoHit.exact
                     fromExactMemo = memoHit.exact
                     if (fromFuzzy) {
@@ -123,8 +125,8 @@ class CachingTranslator(
                     cacheHitDetails[b.id] = when {
                         memHit != null -> "served from in-memory exact cache"
                         diskHit != null -> "served from persistent exact cache"
-                        fromExactMemo -> "served from exact translation memo"
-                        fromFuzzy -> "served from fuzzy translation memo"
+                        fromExactMemo -> memoHitDetail("exact", memoMatchedSource)
+                        fromFuzzy -> memoHitDetail("fuzzy", memoMatchedSource)
                         else -> "served from cache"
                     }
                 }
@@ -315,6 +317,15 @@ class CachingTranslator(
             cacheHits = cacheHits,
             cacheMisses = misses.size
         )
+    }
+
+    /** Source provenance for exact/fuzzy memo hits; keep the detail short enough for the bounded pair log. */
+    private fun memoHitDetail(tier: String, matchedSource: String?): String {
+        val source = matchedSource.orEmpty()
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .take(52)
+        return "served from $tier translation memo; matched=$source"
     }
 
     /** Exact text the engine is shown (glossary-prepared) — same string the caches key on. */
