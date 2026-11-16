@@ -74,6 +74,14 @@ class ShortDialogueOverridesTest {
 
     @Test fun soloLevelingChapterFourObservedLinesGetSourceExactRepairs() {
         assertEquals("ما رتبة الشخص الذي مات للتو؟", ShortDialogueOverrides.apply(
+            "WHAT Was RANK OF THE THE ONE WHO DIED JUST NOW?",
+            "ما كان رتبة الشخص الذي مات الآن؟"
+        ))
+        assertEquals("حتى لو كان ضعيفًا، لظل أقوى مني، فأنا من الرتبة E.", ShortDialogueOverrides.apply(
+            "IF EVEN HE Was Bad, HE STILL WOULO'VE BEEN STRONGER THAN AN E-RANK LIKE ME.",
+            "إذا كان حتى أنه كان سيئا، فسيظل Woulo've أقوى من المرتبة الإلكترونية مثلي."
+        ))
+        assertEquals("ما رتبة الشخص الذي مات للتو؟", ShortDialogueOverrides.apply(
             "WHAT WaS THE RANK OF THE ONE WHO DIED JUST NOW?", "ما هو رتبة الشخص الذي مات الآن؟"
         ))
         assertEquals("الرتبة D", ShortDialogueOverrides.apply("D-RANK?", "د المرتبة؟"))
