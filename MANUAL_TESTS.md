@@ -790,3 +790,14 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 5. Report any page still taking over 3 seconds.
 
 **Gate:** CI build, APK signer and update compatibility must pass before installation. The shorter wait is not confirmed faster until measured on-device.
+
+
+# v0.12.19 — OCR detector speed check
+
+1. Install v0.12.19 over v0.12.18 without uninstalling or clearing app data. Keep ML Kit and Debug mode enabled.
+2. Use the same page and device as the previous speed capture. Clear pair history only; preserve translation cache.
+3. Measure tap-to-first-Arabic and tap-to-complete-overlay separately. This is one performance check; do not repeat the translation quality corpus.
+4. Copy Pipeline trace and Last capture. Compare detector inference/input shape, OCR total, ML Kit translation and overlay timings against the previous capture.
+5. Confirm small text is still detected. Report any page over 3 seconds and whether the app UI appears in OCR.
+
+**Target:** reduce OCR work while preserving captured resolution. A full-page ≤1 s result is not claimed until measured, and may exceed one second for pages with many bubbles because the previous 20-bubble ML Kit batch itself measured about 1.03 s.

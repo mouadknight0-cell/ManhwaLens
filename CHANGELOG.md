@@ -1,3 +1,9 @@
+## 0.12.19 — avoid detector upscaling
+- Reduce PaddleOCR detector max side from 1920 px to 1600 px. Captures capped to 720 px wide no longer get enlarged beyond their original tall-screen resolution before detection.
+- For a 720×1600 capture, this reduces detector input from about 864×1920 to 704×1600 after alignment (about 32% fewer detector pixels); this is a model-input estimate, not a measured end-to-end speedup.
+- Preserve captured source pixels and recognition crops; translation engine, ML Kit batching and text thresholds are unchanged.
+- The requested ≤1 s scan-to-page target is not guaranteed: the prior 20-bubble ML Kit batch alone took about 1.03 s. Measure first visible text and full-page completion separately.
+
 ## 0.12.18 — faster clean-frame capture
 - Reduce the post-overlay fresh-frame wait ceiling from 800 ms to 300 ms and the compositor settle delay from 120 ms to 32 ms.
 - Preserve dirty-frame marking and owned-window OCR exclusions when no clean frame arrives before the shorter deadline.

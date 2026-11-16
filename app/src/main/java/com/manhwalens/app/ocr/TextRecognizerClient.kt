@@ -113,7 +113,7 @@ class TextRecognizerClient(context: Context) {
         private const val TAG = "MLCapture"
         private const val PADDLE_DET_LIMIT_SIDE = 1280
         private const val PADDLE_DET_LIMIT_TYPE = "min"
-        private const val PADDLE_DET_MAX_SIDE = 1920
+        private const val PADDLE_DET_MAX_SIDE = 1600
         private const val PADDLE_DET_THRESHOLD = 0.3f
         private const val PADDLE_DET_BOX_THRESHOLD = 0.6f
         private const val PADDLE_DET_UNCLIP_RATIO = 1.5f

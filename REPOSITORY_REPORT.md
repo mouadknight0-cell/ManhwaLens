@@ -4,7 +4,7 @@
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر حالة موثقة الآن:** v0.12.17 / code 57 نُشر كـ prerelease بعد نجاح CI #944 على commit `cd24478dbb1233331590ba203c9acf433d127b4d`؛ APK بحجم 71,393,738 bytes وSHA-256 `06216c494bcb563abfdb83aed564337311fbb26b088c99955bd5a846c87e0767`. تعديلات الفصل الخامس ما زالت بانتظار إعادة فحص الجهاز. مرشح السرعة الحالي v0.12.18 / code 58؛ لم يُبن بعد.
+**آخر حالة موثقة الآن:** v0.12.17 / code 57 نُشر كـ prerelease بعد نجاح CI #944 على commit `cd24478dbb1233331590ba203c9acf433d127b4d`؛ APK بحجم 71,393,738 bytes وSHA-256 `06216c494bcb563abfdb83aed564337311fbb26b088c99955bd5a846c87e0767`. تعديلات الفصل الخامس ما زالت بانتظار إعادة فحص الجهاز. نُشر v0.12.18 / code 58 بعد نجاح CI [#946](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43874213720) كـ prerelease، واختبار سرعة الهاتف ما زال مطلوبًا.
 **CI لنسخة v0.12.8:** [43724428631](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43724428631) — نجحت Unit tests والتحققات من نماذج PaddleOCR وBergamot ARM64 وبناء Debug APK ورفع artifacts. كان هذا تشغيل PR validation، لذا تخطّى خطوات نشر Release بشكل صحيح. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
@@ -1519,3 +1519,12 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - عند عدم وصول إطار جديد، يبقى السلوك الوقائي الحالي: توسم الصورة بأنها غير نظيفة وتُستبعد مناطق واجهة ManhwaLens من OCR. لم يُخفض دقة الصورة أو يُغيّر OCR/ML Kit أو التوازي.
 - ارتفع الإصدار من v0.12.17 / code 57 إلى v0.12.18 / code 58. أضيف فحص واحد موجّه للسرعة في MANUAL_TESTS.md: نفس الجهاز والصفحة، قياس tap-to-first-Arabic وtap-to-complete، ومقارنة spans في Pipeline trace. لا حاجة لإعادة فحص جودة الترجمة.
 - هذه مراجعة كود ذات حد زمني نظري أقصر؛ لا نزعم تحسنًا فعليًا قبل قياس الجهاز. CI وتوافق APK مع الإصدار السابق والنشر مطلوبة قبل التثبيت.
+
+
+## خفض زمن OCR — مرشح v0.12.19 (2026-11-16)
+
+- طلب المستخدم هدفًا لا يتجاوز ثانية من مسح النص حتى إخراج الصفحة. القياس السابق يعرض قيدًا مهمًا: ML Kit وحده ترجم 20 فقاعة في 1033 ms median، قبل زمن OCR والرسم؛ لذلك لا يمكن ضمان الهدف الكامل بهذه المنظومة والقياس المتاح.
+- فحص إعداد PaddleOCR وجد أن الشاشة الملتقطة تُحد إلى عرض 720 px، لكن كاشف OCR يرفع أصغر ضلع إلى 1280 ثم يسمح بضلع طويل 1920. على إدخال 720×1600 ينتج ذلك تقريبًا 864×1920 بعد المحاذاة.
+- عدّل v0.12.19 الحد الطويل للكاشف إلى 1600، فيقارب حجم الإدخال 704×1600؛ أي خفض بنحو 32% من بكسلات الكاشف مع الحفاظ على مستوى دقة المصدر الملتقط. هذا توقع حجم معالجة، وليس قياس سرعة فعليًا.
+- لم تتغير أداة OCR أو ML Kit أو batching أو عتبة الثقة. المطلوب قياس واحد على نفس الهاتف/الصفحة، مع فصل tap-to-first-Arabic عن tap-to-complete، ومقارنة detection input/inference وOCR وtranslation وoverlay في Pipeline trace. لا حاجة لإعادة اختبار مجموعة جودة الترجمة.
+- المرشح v0.12.19 / code 59. CI وتوقيع APK وتوافق التحديث والنشر مطلوبة قبل التثبيت؛ والسرعة وجودة النص الصغير لا تزالان غير متحققين على الهاتف.
