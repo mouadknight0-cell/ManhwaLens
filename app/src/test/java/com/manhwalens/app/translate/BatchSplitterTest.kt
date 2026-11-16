@@ -237,7 +237,6 @@ class BatchSplitterTest {
         assertTrue(result.reason, result.ok)
         assertEquals(listOf("مرحباً بك", "ابق خلفي"), result.segments)
     }
-}
 
     // ---------- HASH strategy: the newly selected device-local separator ----------
 
@@ -258,4 +257,4 @@ class BatchSplitterTest {
         assertFalse(result.ok)
         assertTrue(result.reason.contains("count"))
     }
-
+}
