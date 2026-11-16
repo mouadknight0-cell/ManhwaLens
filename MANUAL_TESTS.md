@@ -679,10 +679,13 @@ Context limitation: the current Bergamot JNI bridge accepts independent text seg
 
 1. Install **v0.12.12** directly over v0.12.11; do not uninstall. Keep the existing translation cache and app data intact.
 2. Open Settings → Diagnostics. Turn **Debug mode ON**. Press **Clear** for the translation-pair log only; do **not** press the translation-cache reset action.
-3. Keep the same offline translator (ML Kit) and reproduce the short-dialogue problem on the same chapter/page used for the previous report. Capture at least two pages/requests if possible.
+3. Keep **ML Kit / on-device** selected and open the same Solo Leveling chapter-3 page from the earlier device report. Reproduce the two short OCR sources `AH...` and `YEAH` in the same reading session (and any other previously failing short reply). Capture the page/request containing both when possible. Do not change translation style while testing.
 4. Return to Settings → Diagnostics and press **Copy** beside the translation-pair count. Share the full report. Each record now displays `request=...` and `block #...`; records with the same request ID belong to the same page translation call.
-5. For `FUZZY_HIT`, inspect `detail=...matched=...`. Compare `matched` with `EN:`: a different matched source proves which memo source supplied the Arabic candidate. `CACHE_HIT` identifies exact in-memory or persistent cache reuse; a fresh `OK` entry identifies a new engine result. Legacy entries without request IDs are shown as `request=legacy`.
+5. Specifically compare the `AH...` and `YEAH` entries. They must not receive the same cached Arabic merely because the lines are short. For `FUZZY_HIT`, inspect `detail=...matched=...`; compare `matched` with `EN:`. A different matched source proves which memo source supplied the Arabic candidate. `CACHE_HIT` identifies exact in-memory or persistent cache reuse; a fresh `OK` entry identifies a new engine result. Legacy entries without request IDs are shown as `request=legacy`.
 6. If the failure concerns OCR source text rather than cache reuse, also copy the Last capture / pipeline report so raw OCR text and bounding boxes can be compared with the translated pair.
 7. Turn **Debug mode OFF** after collecting the reports. Do not clear the translation cache before the reproduction, because preserving it is necessary to investigate stale cache entries.
 
 **Privacy:** Debug mode records page text in app-private storage and the copied report includes it. Review the report before sharing.
+
+
+**Historical regression target:** the previous device report showed `AH...` and `YEAH` incorrectly served the same unrelated Arabic after fuzzy normalization collapsed both to a one-character shape. The current fuzzy policy must refuse ambiguous short shapes, and a fuzzy result must never be promoted under a different exact source key. The v0.12.12 report is intended to verify that behavior on the phone, not merely repeat the JVM tests.
