@@ -1227,3 +1227,7 @@ Never use one label as evidence for another.
 ### Verification boundary
 - CI for the latest head is pending. No build, release, device test or improvement in real-world OCR accuracy is claimed yet.
 - Native memory behavior after repeated captures requires phone validation; see the v0.12.13 manual test section. Do not install until the v0.12.13 Release is published and package/version/signature continuity is verified.
+
+### Additional detector post-processing cleanup
+- Extended native-resource hardening to `DBPostProcessor`: owns probability/mask/hierarchy/dilation Mats in one cleanup scope, releases the dilation kernel and failed dilation destination, and releases the per-contour score mask/polygon/ROI even when `fillPoly` or `Core.mean` throws.
+- This preserves thresholding, dilation kernel size, contour discovery, scoring, unclip behavior and box coordinates. Commit: `b7ecd44a01d5e1fb72a7b6a819bcbd8ad72af624`; follow-up partial-dilation cleanup hardening: `94be8d944d1355c1be47b1b7f87c455b2d26f716`.
