@@ -1184,3 +1184,14 @@ Never use one label as evidence for another.
 2. Obtain the v0.12.12 pair report and classify any wrong result as exact memory/disk cache, exact memo, fuzzy memo (using `matched`), or fresh engine output before touching translation behavior.
 3. Keep ML Kit as the default offline translator and Bergamot experimental. No fuzzy thresholds, cache key semantics, OCR thresholds, bubble geometry, or batching policy changed in this diagnostic-only patch.
 4. No real-device validation is claimed yet.
+
+## v0.12.12 release completed — 2026-11-16
+
+- Final release CI: Push workflow #834 (`43826352333`) completed successfully on `18f90a108e69044fa1298f1970a218454f7617cf`; PR workflow #835 also completed successfully. All model/runtime setup, 812 unit tests, debug APK build, pinned experimental signer verification, package/version/signer update compatibility, artifact upload and GitHub Release publication steps passed.
+- Final test report was downloaded and inspected: **812 tests, 0 failures, 0 ignored**, 2.869 seconds reported by Gradle.
+- Update compatibility gate output: `v0.12.11` → `v0.12.12`, package `com.manhwalens.app`, versionCode `51 → 52`, certificate SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
+- Published prerelease: https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.12
+- APK asset: `ManhwaLens-v0.12.12-debug.apk`; 71,384,898 bytes; SHA-256 `d9ce84716675f08e5bbf7ac29643afa04d936f16c0e56dcf141838935a5c06d0`.
+- Downloaded the Actions APK artifact and independently hashed its contained APK; it is byte-identical to the published Release asset (same 71,384,898 bytes and SHA-256).
+- **Ready for real-device diagnostic verification; not yet device-verified.** Follow `MANUAL_TESTS.md` → `v0.12.12 — translation-cache provenance capture`. Install over v0.12.11 without uninstalling; preserve translation cache, clear only pair history, reproduce the previous short-dialogue issue, copy the translation-pair report, and include Last capture diagnostics if source OCR is wrong. Disable Debug mode after.
+- Keep PR #4 open Draft stacked on PR #3; no merge to main. ML Kit remains default offline; Bergamot stays experimental.
