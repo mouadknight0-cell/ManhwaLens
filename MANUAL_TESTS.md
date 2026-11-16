@@ -768,3 +768,14 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 5. Keep current parallel x2 unless a real-page run verifies full bubble mapping. Fixed-corpus speed alone does not remove the prior real-page separator ban.
 
 **Gate:** wait for CI, signature/update compatibility and a published APK before installing. Device verification remains required.
+
+
+# v0.12.17 — Solo Leveling chapter 5 dialogue follow-up
+
+1. Wait for the candidate to pass unit tests, APK build, signature verification and update-compatibility checks, then install v0.12.17 over v0.12.16 without uninstalling or clearing app data.
+2. Keep ML Kit selected and Debug mode enabled. Clear translation-pair history only; keep the translation cache.
+3. Revisit the same chapter-5 pages. Check the bowing/commandment lines, survival questions, “gut feeling” line and short reactions corrected in this build. Confirm neighboring text remains unchanged.
+4. Return the app version from Settings, the full pair report, Last capture and pipeline trace. Identify any page over 3 seconds and include both captured English and visible Arabic for remaining errors.
+5. Keep ML Kit parallel x4. Joined pipe remains banned unless a real-page run demonstrates complete mapping without mismatch.
+
+**Gate:** app version in the prior report was not stated. Do not label these source-specific corrections phone-verified until v0.12.17 is installed and the same-page report is returned.

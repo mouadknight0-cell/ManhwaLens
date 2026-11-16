@@ -1,3 +1,9 @@
+## 0.12.17 — chapter-5 dialogue follow-up
+- Add exact-source Arabic repairs for clear dialogue failures in the latest Solo Leveling chapter-5 device trace, including the “gut feeling” idiom, the bowing exchange, survival questions and short reactions.
+- Tie every repair to the complete observed OCR block; leave heavily scrambled source blocks untouched.
+- Keep ML Kit parallel x4: it mapped 20/20 with a 1033 ms median in the latest fixed benchmark. The faster joined pipe remains disqualified by a prior real-page mapping mismatch.
+- Device app version was not included in the report. This candidate still needs CI, update-signature compatibility and a published APK before another phone check.
+
 ## 0.12.11 — cache integrity and PaddleOCR capture telemetry
 - Sanitize legacy memory, persistent-disk and memo cache hits through the same deterministic output cleaner used for fresh engine results before character-name repair, source-exact corrections and the Arabic quality guard.
 - Persist corrected source-exact cache results back to the persistent cache so old mistranslations and unclean labels do not reappear after an app restart.

@@ -85,6 +85,27 @@ object ShortDialogueOverrides {
         "COMMAND MENT" to "الوصية؟",
         "THE FIRST WOULD BE" to "الأولى هي...",
         "SIR THERE S A RULE IN THIS DUNGEON" to "سيدي، هناك قاعدة في هذا الدهليز.",
+        // Exact-source follow-up fixes from the latest chapter-5 device trace.
+        // Garbled blocks without a reliable reading are intentionally left untouched.
+        "HE STARTS TO ATTACK IF YOL MOVE PAST A CERTAIN HEIGHT" to "يبدأ بالهجوم عند تجاوز ارتفاع معين.",
+        "HE ATTACKS IF YOL MOVE PAST A CERTAIN HEIGHT AND THEREFORE DOESN T ATTACK WHEN YOU BOW DOWN LOW ENOUGH" to "يهاجم عند تجاوز ارتفاع معين؛ لذلك لا يهاجم عندما تنحني بما يكفي.",
+        "I FINALLY LNDERSTAND THE MEANING OF THE FIRST COMMANDMENT" to "أخيرًا فهمت معنى الوصية الأولى!",
+        "WORSHIP THE LORD MEANS TO LITERALLY BOW DOWN AND WORSHIP HIM" to "«عبادة الرب» تعني أن تنحني له وتعبده حرفيًا.",
+        "THIS DIDN T COME FROM JUST A GUT FEELING RIGHT" to "هذا ليس مجرد حدس، أليس كذلك؟",
+        "WE GET TO LIVE" to "هل سننجو؟",
+        "WE CAN FINALLY GET OUT OF HERE" to "هل يمكننا أخيرًا الخروج من هنا؟",
+        "BY JUST BOWING" to "بمجرد الانحناء؟",
+        "WH WHAT S WITH THAT FACE" to "ما هذه النظرة؟!",
+        "IT CHANGED" to "لقد تغيّر؟!",
+        "HOW MANY HAS HE ATTACKED BEFORE" to "كم شخصًا هاجم من قبل؟",
+        "HOW MANY ARE STILL ALIVE" to "كم شخصًا ما زال على قيد الحياة؟",
+        "HOW LONG DO WE HAVE TO DO THIS" to "إلى متى علينا الاستمرار في هذا؟",
+        "DON T YOU THINK HE S GOING TO TRY SOMETHING ELSE NOW" to "ألا تظن أنه سيحاول شيئًا آخر الآن؟",
+        "L LOOK" to "ا-انظر!",
+        "THE ATTACKS STOPPED" to "توقفت الهجمات!",
+        "IT S TRUE HE ISN T DOING ANYTHING" to "هذا صحيح! إنه لا يفعل شيئًا!",
+        "WE SURVIVED" to "لقد نجونا!",
+        "W WAIT IT S NOT OVER" to "ا-انتظر، لم ينتهِ الأمر بعد.",
         "IF I M CORRECT" to "إن لم أكن مخطئًا..."
     )
 
