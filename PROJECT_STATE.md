@@ -1211,3 +1211,19 @@ Never use one label as evidence for another.
 - Install v0.12.12 directly over v0.12.11; do not uninstall and do not clear translation cache. In Settings → Diagnostics turn Debug mode ON and clear only the translation-pair history. Keep ML Kit selected; reproduce the same page/dialogue; copy the translation-pair report. Preserve `request=...`, `block #...`, `status`, `detail=...matched=...`, `EN`, `CANDIDATE AR`, and `FINAL AR` fields. Include Last capture / pipeline report only where OCR text or grouping is wrong. Turn Debug mode OFF afterward.
 - Classification guide: wrong `EN` versus screenshot = OCR; correct `EN` + `FUZZY_HIT` with a different `matched` source = fuzzy memo reuse; `CACHE_HIT` = exact in-memory/disk cache; fresh `OK` = engine/post-processing. Compare request IDs before interpreting repeated block numbers.
 - Next engineering work after receiving the report: make the smallest evidence-based correction only if a concrete mismatch is confirmed. Continue treating Arabic semantic correctness as a manual evaluation dimension; lexical token F1 is not a semantic score.
+
+## v0.12.13 — native OCR memory-lifecycle hardening (2026-11-16)
+
+### Source changes implemented; CI pending
+- `QuadTextCrop.crop`: all temporary point/transform Mats now release in `finally`; warped output ownership is transferred only when returned; a failed vertical rotation releases its destination.
+- `OCREngine`: batch crop generation now sits inside the crop batch's `try/finally`, so previously created crops are released even if a later perspective crop throws.
+- `RecPreprocessor`: validates non-empty three-channel input crops, tracks all created resize/float/padding Mats and releases them in reverse order in `finally`; per-batch channel splits are released even if split/read/copy fails. BGR channel order, 48px resize, 320px base width, padding, normalization and tensor layout are unchanged.
+- `DetPreprocessor`: validates non-empty source, and releases RGB conversion, resize, float and split-channel Mats on all exits. Normalization and detector tensor layout are unchanged.
+- `ImageUtils.resizeToMultipleOf32`: releases the allocated destination if OpenCV resize throws.
+- Commits: `006020511bc525218dd6cb5ffecf231ff0fd8bc4`, `c07bfead64e6f950a86083c7e10d6247a719c168`, `fef0c81415b05fe10470ddd7b698b71571b359ea`, `e8932f619a0d6c80e533d88cdf9243c6f8e9626a`, `557c1c2a16d8442a9498ec5aa19a11b0d59b5955`, `6d9e6fff831b8c0f2dc36a3c1b104265760d9cd5`.
+- Bumped version metadata to `0.12.13` / `versionCode 53` for a safe update over v0.12.12 / code 52. Added `MANUAL_TESTS.md` section `v0.12.13 — repeated-page OCR memory stability`.
+- This is resource-lifecycle hardening; no OCR detector/recognizer thresholds, tensor values/shapes, crop geometry, box ordering, bubble grouping or translation output policy were intentionally changed.
+
+### Verification boundary
+- CI for the latest head is pending. No build, release, device test or improvement in real-world OCR accuracy is claimed yet.
+- Native memory behavior after repeated captures requires phone validation; see the v0.12.13 manual test section. Do not install until the v0.12.13 Release is published and package/version/signature continuity is verified.
