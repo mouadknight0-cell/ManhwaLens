@@ -1159,3 +1159,28 @@ Never use one label as evidence for another.
 - Fix commit: `55b50914170326b63271be835e8a607d2a9761f5` — `fix: attach page request ID to cache-hit traces`.
 - This is a diagnostic metadata correction only. It does not alter cache lookup, memo matching, Arabic output, engine dispatch or bubble IDs.
 - The previous #822 push run was against the pre-fix head. The latest head after this note will require a fresh Push and PR CI run; no green result is claimed for the request-ID change yet.
+
+## CI verified — translation-cache provenance diagnostics (2026-11-16)
+
+### Final verified CI on v0.12.11 metadata
+- Push workflow #827 (`43824312263`) and PR workflow #828 (`43824320821`) both completed successfully on head `335c36aebfeab140e52e575b880c5652924547c5`.
+- Inspected the uploaded Gradle HTML report directly: **812 tests, 0 failures, 0 ignored**, 100% success.
+- Model checksum/runtime setup, `:app:testDebugUnitTest`, `:app:assembleDebug`, and pinned experimental debug certificate verification all succeeded.
+- Push build produced `ManhwaLens-v0.12.11-debug.apk`, 71,384,902 bytes; SHA-256 `1be1a7dd3e11d3556b80f30a89aca4c7d76bb6297847980a2d9ce8e3bdae4063`. This is an Actions validation artifact, not a published Release. Release v0.12.11 already exists and was intentionally not republished.
+
+### Instrumentation completed
+- Fuzzy memo entries retain the source which populated their shape slot; exact/fuzzy hit details include `matched=...`.
+- Translation pair records now carry a process-unique page `requestId` across engine results, cache hits, failures and missing results. Old 9-field log records stay readable as `request=legacy`.
+- Tests verify both matched-source provenance and per-request grouping. The cache-hit propagation omission found in PR CI was fixed, then the full 812-test suite passed.
+- The evidence does **not** prove that an `AH` / `YEAH` false hit occurred; the existing test already rejects that direct pairing. The new report will disclose the matched source for other fuzzy hits and disambiguate pages that reuse numeric block IDs.
+
+### v0.12.12 device-validation build
+- Bumped app metadata to `versionName=0.12.12`, `versionCode=52` so the diagnostic update can install over v0.12.11 (versionCode 51) without replacing/reusing the existing v0.12.11 tag.
+- Added `MANUAL_TESTS.md` section `v0.12.12 — translation-cache provenance capture`. Preserve the translation cache during reproduction; clear only the pair log, capture the previous failing page, and share both the translation-pair report and (if OCR input is wrong) the Last capture report.
+- v0.12.12 CI and release are pending on the next final branch head. Do not install until the v0.12.12 Release APK is published and its package/version/signature continuity gate passes.
+
+### Next engineering decision
+1. Complete CI + Release v0.12.12 (expected versionCode 51 → 52, same package `com.manhwalens.app` and pinned signing certificate).
+2. Obtain the v0.12.12 pair report and classify any wrong result as exact memory/disk cache, exact memo, fuzzy memo (using `matched`), or fresh engine output before touching translation behavior.
+3. Keep ML Kit as the default offline translator and Bergamot experimental. No fuzzy thresholds, cache key semantics, OCR thresholds, bubble geometry, or batching policy changed in this diagnostic-only patch.
+4. No real-device validation is claimed yet.
