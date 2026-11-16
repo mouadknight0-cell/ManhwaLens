@@ -9,5 +9,7 @@ data class TranslationPairTrace(
     val engineId: String,
     val status: String,
     val detail: String,
-    val elapsedMs: Long
+    val elapsedMs: Long,
+    /** Unique within the running process for one translatePage request. */
+    val requestId: String = ""
 )
