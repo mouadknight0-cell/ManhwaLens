@@ -1293,3 +1293,13 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - Fixed by passing the same `traceRequestId` into the cache-hit trace. Commit `55b50914170326b63271be835e8a607d2a9761f5`.
 - This is instrumentation-only. No production translation or cache behavior changed.
 - Fresh CI is required on the new head; current status is pending/unverified.
+
+## CI verified — translation memo/page provenance (2026-11-16)
+- Push #827 (`43824312263`) and PR #828 (`43824320821`) passed on head `335c36aebfeab140e52e575b880c5652924547c5`.
+- Verified the uploaded HTML test summary: **812 tests, 0 failures, 0 ignored**.
+- Pinned models/runtime preparation, unit tests, debug APK build and pinned debug signer validation passed.
+- The #827 APK artifact was 71,384,902 bytes with SHA-256 `1be1a7dd3e11d3556b80f30a89aca4c7d76bb6297847980a2d9ce8e3bdae4063`. It was not a Release: v0.12.11 already exists, and the workflow correctly skipped republishing that version.
+- Diagnostic behavior now exposes exact/fuzzy memo `matched` source and per-page `request` IDs. Direct tests prove `AH...` does not fuzzy-hit `YEAH`; these additions provide attribution for other possible false hits and eliminate ambiguity from block numbers repeated between captures.
+- App metadata is being advanced to v0.12.12 / versionCode 52 for a real installable diagnostic update over the v0.12.11 / versionCode 51 release. v0.12.12 CI/release are pending.
+- The device validation guide is in `MANUAL_TESTS.md`, section `v0.12.12 — translation-cache provenance capture`. Preserve translation cache, clear pair log only, reproduce the prior failure, share pair log and relevant OCR capture report.
+- No runtime cache/fuzzy matching/OCR/batching behavior changed; no phone test has been performed.
