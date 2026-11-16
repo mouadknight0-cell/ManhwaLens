@@ -288,6 +288,7 @@ class FloatingButtonService : Service() {
     @Volatile private var activeCaptureDiagnostics: com.manhwalens.app.util.CaptureDiagnostics? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val captureInFlight = AtomicBoolean(false)
+    @Volatile private var serviceDestroying = false
     private var mediaProjection: android.media.projection.MediaProjection? = null
     private val projectionCallbackHandler = Handler(Looper.getMainLooper())
     private var projectionCallback: android.media.projection.MediaProjection.Callback? = null
@@ -550,6 +551,7 @@ class FloatingButtonService : Service() {
     }
 
     override fun onDestroy() {
+        serviceDestroying = true
         if (instance === this) instance = null
         // Stop the live loop FIRST — no callbacks may fire once views start going away.
         liveLoopActive = false
@@ -3588,22 +3590,50 @@ class FloatingButtonService : Service() {
                 PipelineTracer.span("live overlay shown", 0, "patches painted = ${patches.size} of ${finalBoxes.size} · engine=$shownEngine")
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "live translate failed — ${e.javaClass.name}: ${e.message}", e)
-            ErrorLog.write(this, "live", e)
+            val cancelled = isLiveCancellation(e)
+            if (cancelled) {
+                PipelineTracer.span(
+                    "live pass cancelled", 0,
+                    if (serviceDestroying) "service stopping" else "interrupted/cancelled worker"
+                )
+                com.manhwalens.app.util.LiveLog.i(TAG, "live pass cancelled during OCR/translation")
+            } else {
+                Log.e(TAG, "live translate failed — ${e.javaClass.name}: ${e.message}", e)
+                ErrorLog.write(this, "live", e)
+            }
             // The frame is recycled here only if no pending upgrade has taken it over
-            // (ownership is handed over right before the paint is queued, after which
-            // nothing in this pass can throw).
+            // (ownership is handed over right before the paint is queued).
             val up = pendingUpgrade
             val owned = up != null && synchronized(up) { up.frame != null }
             if (!owned) {
                 up?.let { synchronized(it) { it.consumed = true } }
                 runCatching { if (!frame.isRecycled) frame.recycle() }
             }
-            setLiveStatus(com.manhwalens.app.live.LiveStatus.ERROR)
+            if (!serviceDestroying) {
+                setLiveStatus(
+                    if (cancelled) com.manhwalens.app.live.LiveStatus.WAITING
+                    else com.manhwalens.app.live.LiveStatus.ERROR
+                )
+            }
         } finally {
             // Phase 1 is queued (or this pass is over): the remote upgrade may now paint.
             pendingUpgrade?.phase1Latch?.countDown()
         }
+    }
+
+    private fun isLiveCancellation(error: Throwable): Boolean {
+        if (serviceDestroying || Thread.currentThread().isInterrupted) return true
+        val seen = java.util.Collections.newSetFromMap(
+            java.util.IdentityHashMap<Throwable, Boolean>()
+        )
+        var current: Throwable? = error
+        while (current != null && seen.add(current)) {
+            if (current is InterruptedException ||
+                current is java.util.concurrent.CancellationException
+            ) return true
+            current = current.cause
+        }
+        return false
     }
 
     /** Hand-over between one Live pass (ML Kit draft) and its optional remote upgrade. */

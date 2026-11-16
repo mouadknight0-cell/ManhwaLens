@@ -810,3 +810,11 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 3. Translate one ordinary page once with Debug mode on and copy Pipeline trace plus Last capture. Record tap-to-first-Arabic and tap-to-complete if shown.
 4. Compare capture, OCR, ML Kit and overlay stages separately. The batching table measures only the translation-engine request strategies and cannot stand in for the full page time.
 5. Include the app version shown in Settings. One run is sufficient; do not repeat unless it reports an error.
+
+
+# v0.12.21 — Live OCR interruption recovery
+
+1. Install v0.12.21 over v0.12.20. Keep Live mode enabled and ML Kit selected.
+2. Start Live on a page after a fresh service start so PaddleOCR initialization is exercised. Let the first stable frame finish, then scroll normally through several small page changes.
+3. Confirm Live returns to Waiting after translating and resumes on each stable frame. A shutdown/cancel interruption must not leave a false ERROR status or an unhandled crash report; genuine OCR failures should still appear as ERROR.
+4. If the app is stopped while OCR is initializing, confirm it does not record that expected cancellation as a Live crash. Send Live diagnostics/Last error only if the error repeats.

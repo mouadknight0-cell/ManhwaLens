@@ -1,3 +1,8 @@
+## 0.12.21 — Live cancellation handling
+- Treat InterruptedException/CancellationException during Live OCR/translation as a cancelled frame, not an OCR crash.
+- Recycle the unowned frame, release the live pass, and return the status to Waiting so the next stable frame can be processed. Suppress shutdown-time error logging while the service is stopping.
+- Preserve real OCR/translation errors as ERROR with diagnostics. OCR engine, model settings and ML Kit batching are unchanged.
+
 ## 0.12.20 — more stable batching benchmark
 - Interleave each strategy across measured rounds, rotating the start order and alternating direction to reduce fixed-order thermal and background-load bias.
 - Keep the same request count and warm-up count; add per-strategy sample times and max-minus-min range beside median and worst.
