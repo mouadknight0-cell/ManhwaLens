@@ -1544,4 +1544,12 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - بقية quality benchmark لم تتغير: raw exact ‏2/23 وF1 ‏49.6%؛ final visible exact ‏9/23 وF1 ‏74.8%. F1 تداخل معجمي لا دقة معنى. لا يوجد دليل من هذا التقرير وحده أن سرعة المسح الكامل تحسنت أو تراجعت؛ benchmark يستدعي محرك ML Kit فقط.
 - استجابةً لطلب تحسين دقة benchmark، عُدّل BenchmarkRunner ليُحمّي كل الاستراتيجيات ثم يقيسها بجولات متداخلة ذات ترتيب دوّار ومعكوس بالتناوب، مع الحفاظ على عدد الاستدعاءات. أضيف عرض كل أزمنة الجولات ومدى التشتت (max-min) إلى median/worst، واختبارات تغطي الحساب والعرض.
 - ارتفع الإصدار إلى v0.12.20 / code 60. لا يتغير محرك التطبيق أو مستوى التوازي المحفوظ. ما زال أداء التطبيق الكامل غير متحقق؛ نحتاج تشغيل benchmark الجديد مرة واحدة مع Pipeline trace لصفحة واحدة لفصل OCR عن الترجمة والعرض. لا حاجة لتكرار quality corpus.
-- CI وتوافق APK والنشر لم تُتحقق لهذا المرشح بعد.
+- CI push #952 نجح؛ v0.12.20 نُشر كـ prerelease كما هو موثق أدناه.
+
+
+### تحقق benchmark v0.12.20 — 2026-11-16
+- نجح Android build CI [#952](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43877999559) على commit `ed89f78cbe34a174a4fb6a1d018fa9a9093c37af`: unit tests، APK build، التوقيع، توافق التحديث والنشر.
+- تحقق prerelease [v0.12.20](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.20) مع `ManhwaLens-v0.12.20-debug.apk` (71,398,262 bytes)، SHA-256 `56ce51cbb72493edae1c38f08a1dcbb5451ed0595a682cea8a4b52b64f4af58f`.
+- طريقة القياس أصبحت interleaved مع عدد طلبات ثابت وwarm-up واحد لكل طريقة، وتعرض median/worst/range وأزمنة الجولات الأربع. الاختبارات الآلية اجتازت في CI.
+- من المهم: لا يوجد قياس للهاتف بعد التعديل؛ نتيجة مستخدم التقرير الأخيرة لم تذكر نسخة التطبيق، وx4 فيها 1024 ms مقابل 1033 ms سابقًا. لا دليل أن x4 صار أسوأ، لكن لا يمكن استنتاج زمن OCR إلى overlay من benchmark المحرك.
+- الخطوة التالية فحص واحد على v0.12.20: شغّل batching benchmark مرة واحدة، ثم التقط صفحة واحدة وأرفق Pipeline trace وLast capture. لا تعِد اختبار quality corpus.
