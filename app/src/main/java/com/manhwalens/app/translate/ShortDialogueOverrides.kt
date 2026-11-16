@@ -68,24 +68,24 @@ object ShortDialogueOverrides {
         "THEIR STRENGTH STAYS THE SAME FROM WHEN THEY WERE AWAKENED IT NEVER CHANGES" to "تظل قوتهم كما كانت منذ استيقاظهم؛ فهي لا تتغير أبدًا.",
         "I TOO BECAME A HUNTER BUT MY STRENGTH WAS ONLY ENOUGH FOR AN E RANK" to "وأنا أيضًا أصبحت صيادًا، لكن قوتي لم تؤهلني إلا للرتبة E.",
         "INSANE MONSTER THAT SPRINGS OUT OF NOWHERE" to "وحش مرعب يظهر من العدم.",
-        "THERES NOTHING WE CAN DO NOW IS THERE" to "لا يسعنا فعل شيء الآن، أليس كذلك؟",
+        "THERE S NOTHING WE CAN DO NOW IS THERE" to "لا يسعنا فعل شيء الآن، أليس كذلك؟",
         "I BROUGHT ONLY THREE HEALERS BECAUSE I THOUGHT THIS WOULD BE OVER QUICKLY" to "أحضرت ثلاثة معالجين فقط لأنني ظننت أن الأمر سينتهي بسرعة.",
         "ONE GOT ATTACKED SO BRUTALLY THAT NOT EVEN HIS CORPSE REMAINED" to "تعرض أحدهم لهجوم وحشي حتى لم يبقَ من جثته شيء.",
         "I THINK IT WOULD BE BETTER TO JUST STAY STILL AGAINST THE LIKES OF HIM" to "أظن أن الأفضل أن نبقى ساكنين أمام أمثاله.",
-        "WHEN THE SITUATION CLEARS A BIT LETS TRY RUNNING THEN" to "عندما تهدأ الأمور قليلًا، لنحاول الركض حينها.",
+        "WHEN THE SITUATION CLEARS A BIT LET S TRY RUNNING THEN" to "عندما تهدأ الأمور قليلًا، لنحاول الركض حينها.",
         "EVEN IF WE SOMEHOW BYPASS HIM WE STILL HAVE TO GO THROUGH THE GUARD STATLE" to "حتى لو تجاوزناه بطريقة ما، فلا يزال علينا اجتياز تمثال الحارس.",
         "HE PROBABLY NEVER INTENDED FOR US TO LEAVE" to "ربما لم يكن ينوي السماح لنا بالمغادرة أبدًا.",
-        "SO WHY ARENT THEY" to "فلماذا لا يفعلون ذلك؟",
+        "SO WHY AREN T THEY" to "فلماذا لا يفعلون ذلك؟",
         "DUNNO" to "لا أدري.",
-        "ITS DIFFERENT FROM THE MONSTERS WHO BLINDLY ATTACK HUNTERS ON SIGHT" to "إنه يختلف عن الوحوش التي تهاجم الصيادين فور رؤيتهم.",
+        "IT S DIFFERENT FROM THE MONSTERS WHO BLINDLY ATTACK HUNTERS ON SIGHT" to "إنه يختلف عن الوحوش التي تهاجم الصيادين فور رؤيتهم.",
         "THEY ATTACK IN A PATTERN" to "إنها تهاجم وفق نمط محدد!",
-        "IT CANT BE" to "مستحيل...",
+        "IT CAN T BE" to "مستحيل...",
         "MR SONG CHI YUL WHAT WAS THE FIRST COMMANDMENT" to "سيد سونغ تشي يول! ما الوصية الأولى؟",
         "COMMANDMENT" to "الوصية؟",
         "COMMAND MENT" to "الوصية؟",
         "THE FIRST WOULD BE" to "الأولى هي...",
-        "SIR THERES A RULE IN THIS DUNGEON" to "سيدي، هناك قاعدة في هذا الدهليز.",
-        "IF IM CORRECT" to "إن لم أكن مخطئًا..."
+        "SIR THERE S A RULE IN THIS DUNGEON" to "سيدي، هناك قاعدة في هذا الدهليز.",
+        "IF I M CORRECT" to "إن لم أكن مخطئًا..."
     )
 
     fun apply(source: String, translated: String): String {
