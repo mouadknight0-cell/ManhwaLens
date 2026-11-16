@@ -1151,3 +1151,11 @@ Never use one label as evidence for another.
 1. Verify CI on the latest PR #4 head, including the new request grouping and memo-source tests.
 2. Once CI is green, the next device pair report should be interpreted by `request=...`, `block #...`, `EN`, and `detail=...matched=...`; distinguish wrong OCR source, fuzzy source reuse, exact cache reuse, and model mistranslation before changing behavior.
 3. Keep ML Kit default and Bergamot experimental. Use screenshots/ground truth for OCR evaluation; text-only translation logs cannot justify OCR threshold changes.
+
+### CI correction — cache-hit request ID propagation (2026-11-16)
+- PR workflow #823 / run `43824001315` completed with 812 tests and one failure: `CachingTranslatorTest.observerRecordsFreshFinalPairAndSubsequentCacheHit`, assertion at line 72. The failing assertion showed the cache-hit trace was missing `requestId`.
+- Root cause: the fresh engine, failure and missing-result trace constructors received the page request ID, but the cache-hit `TranslationPairTrace` constructor had not received it.
+- Fixed the cache-hit trace constructor to pass the same `traceRequestId` used by the rest of the page's records.
+- Fix commit: `55b50914170326b63271be835e8a607d2a9761f5` — `fix: attach page request ID to cache-hit traces`.
+- This is a diagnostic metadata correction only. It does not alter cache lookup, memo matching, Arabic output, engine dispatch or bubble IDs.
+- The previous #822 push run was against the pre-fix head. The latest head after this note will require a fresh Push and PR CI run; no green result is claimed for the request-ID change yet.
