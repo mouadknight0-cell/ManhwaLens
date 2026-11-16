@@ -1327,3 +1327,6 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - Prepared `0.12.13` / versionCode `53`, appended a repeated-page OCR memory-stability device checklist to `MANUAL_TESTS.md`.
 - Commits: `006020511bc525218dd6cb5ffecf231ff0fd8bc4`, `c07bfead64e6f950a86083c7e10d6247a719c168`, `fef0c81415b05fe10470ddd7b698b71571b359ea`, `e8932f619a0d6c80e533d88cdf9243c6f8e9626a`, `557c1c2a16d8442a9498ec5aa19a11b0d59b5955`, `6d9e6fff831b8c0f2dc36a3c1b104265760d9cd5`, with metadata/docs changes after them.
 - CI and APK release are not yet verified. Real-device multi-page stability also remains unverified.
+
+### Detector post-processing ownership
+- `DBPostProcessor` now releases raw probability/mask/hierarchy/dilated Mats and every contour; temporary score-mask, polygon and probability ROI Mats are protected by `finally`. Dilation destination and kernel are also released on failure. No contour thresholds/scoring or geometry changed.
