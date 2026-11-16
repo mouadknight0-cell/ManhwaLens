@@ -746,3 +746,14 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 3. Revisit the same Solo Leveling chapter-4 pages. Verify repaired rank/dungeon, raid/healer, hunter-description and danger-dialogue lines; also confirm unrelated lines remain unchanged.
 4. Copy the complete translation-pair report and Last capture / pipeline trace. Include any page-level delay over 3 seconds.
 5. Distinguish OCR source errors from Arabic translation errors. Include the exact source text and visible output for each remaining defect.
+
+
+# v0.12.15 — chapter 4 OCR-variant recheck
+
+1. Install v0.12.15 over v0.12.14 without uninstalling or clearing app data. Keep ML Kit selected and Debug mode enabled.
+2. Clear translation-pair history only; preserve translation cache. Revisit the same Solo Leveling chapter-4 pages.
+3. Confirm “WHAT WAS RANK OF THE THE ONE WHO DIED JUST NOW?” renders as “ما رتبة الشخص الذي مات للتو؟” and the observed “WOULO'VE” sentence renders as “حتى لو كان ضعيفًا، لظل أقوى مني، فأنا من الرتبة E.”
+4. Confirm unrelated dialogue remains unchanged. Collect the complete pair report and Last capture / pipeline trace; distinguish source OCR errors from Arabic errors and include any page over 3 seconds.
+5. Keep the ML Kit batching preference at parallel x6 unless a real-page repeat validates mapping for all bubbles. The fixed benchmark alone is insufficient to remove the existing separator ban.
+
+**Gate:** release and signer/update compatibility must pass CI before installation; device confirmation is still required.
