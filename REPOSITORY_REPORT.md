@@ -4,7 +4,7 @@
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر حالة موثقة الآن:** v0.12.16 / versionCode 56 مرشح قيد التحقق، مع إصلاحات ترجمة مصدرية exact مبنية على تقرير هاتف للفصل الخامس. تحديثات المصدر والاختبارات وسجل التغييرات ودليل الجهاز موجودة على فرع التطوير؛ تشغيل push الأحدث يحتاج التحقق. لم يُنشر v0.12.16 ولم يُختبر هذا المرشح على الهاتف. أحدث Release متحقق يبقى v0.12.15.
+**آخر حالة موثقة الآن:** نُشر v0.12.16 / versionCode 56 كـ prerelease بعد نجاح CI push #940 (`43868679522`) على `5324f642a9f147769666e1a5bf292c3411801d29`. اجتازت 814 unit tests، بناء APK، التوقيع وبوابة توافق التحديث، وتحقق وجود APK في GitHub Releases. APK حجمه 71,392,762 bytes؛ SHA-256 `0fcac67fbb4936811336a12bacbb0379b1e14389d8f7c1d541ab56d0fe2cc351`. الخطوة التالية إعادة اختبار فصل 5 على الهاتف؛ لم تُتحقق تعديلات الفصل الخامس بعد على الجهاز.
 **CI لنسخة v0.12.8:** [43724428631](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43724428631) — نجحت Unit tests والتحققات من نماذج PaddleOCR وBergamot ARM64 وبناء Debug APK ورفع artifacts. كان هذا تشغيل PR validation، لذا تخطّى خطوات نشر Release بشكل صحيح. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
@@ -1479,3 +1479,13 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 1. متابعة push CI على آخر commit، وإصلاح أي فشل.
 2. التحقق من نجاح unit tests وAPK build والتوقيع وتوافق التحديث ونشر prerelease v0.12.16 مع وجود APK.
 3. إعادة اختبار الفصل الخامس على الهاتف فوق v0.12.15؛ جمع تقرير pairs وLast capture/pipeline trace، وذكر نسخة التطبيق. لا تُسجل إصلاحات الفصل الخامس على أنها device-verified قبل النتائج.
+
+
+## التحقق النهائي v0.12.16 وإعادة اختبار الفصل الخامس — 2026-11-16
+
+- CI push [#940](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43868679522) على `5324f642a9f147769666e1a5bf292c3411801d29` اكتمل بنجاح. نجحت Unit tests (814 tests؛ ثم لا فشل مسجل)، Debug APK build، فحص مفتاح التوقيع، بوابة توافق APK مع أحدث Release، رفع artifacts ونشر Release.
+- وقع فشل واحد في التشغيل السابق #938: مصدر `THERE'S NOTHING WE CAN DO NOW, IS THERE?` طُبّع إلى `THERE S ...` لأن الترقيم غير الأبجدي يُحوّل لمسافة؛ مفتاح override المضاف كان `THERES ...` فلم يطابق. عُدلت كل المفاتيح الجديدة التي احتوت contractions لتتبع قاعدة التطبيع، ونجح التشغيل التالي.
+- تحقق Releases API من [v0.12.16](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.16) كـ prerelease مع APK `ManhwaLens-v0.12.16-debug.apk`، 71,392,762 bytes، SHA-256 `0fcac67fbb4936811336a12bacbb0379b1e14389d8f7c1d541ab56d0fe2cc351`.
+- رابط التحميل المباشر: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.16/ManhwaLens-v0.12.16-debug.apk.
+- الخطوة التالية: ثبّت v0.12.16 فوق v0.12.15 دون حذف التطبيق أو مسح بياناته؛ اترك ML Kit وDebug mode مفعّلين؛ امسح سجل translation-pair فقط واحتفظ بذاكرة الترجمة؛ أعد صفحة الفصل الخامس نفسها. تحقق من تصحيحات النفق والبوابة والرتب والمعالجين والتماثيل والوصية والردود القصيرة، وتأكد أن الأسطر المجاورة لم تتغير.
+- أرسل رقم نسخة التطبيق الظاهر في Settings، وتقرير الأزواج كاملًا وLast capture وpipeline trace. أشر إلى كل صفحة تجاوزت 3 ثوانٍ، وارفق النص الإنجليزي الملتقط والناتج العربي لكل خطأ باقٍ. سجل CI والتحقق من APK لا يثبت الاختبار الحقيقي على الهاتف.
