@@ -1036,3 +1036,8 @@ Never use one label as evidence for another.
 - Device policy Joined ### is observed applied on the user's Xiaomi; not generalized to other devices.
 - ML Kit remains the default translator; Bergamot remains experimental. No OCR thresholds/grouping geometry were changed because the report lacks paired screenshots and ground-truth box labels.
 - Next: inspect CI for commit a84fa560909bfd18589be6c4a4eac093b690e0d8; then trace the AH/YEAH wrong results against the diagnostic provenance fields and audit cache key construction, persistent cache, memo and stable block identity. Separately, build a labeled screenshot OCR set to classify OCR recognition vs filtering/grouping vs translation errors. Do not tune OCR thresholds from text-only logs.
+
+### CI rerun update — 2026-11-16
+- Push workflow #43818215304 initially had its build job cancelled during Android SDK setup before unit tests began; no test result was inferred from that attempt.
+- Successfully requested a rerun of the cancelled build job (job 133135019763). At the time of this update, the workflow is pending; unit tests and APK build remain unverified until the rerun completes.
+- PR #4 remains open Draft, base feature/v0.12.3-paddle-default-settings, and its current head is the documentation commit 2e2f4b43617db07aa374cd5181fc7fed127141c8. No merge or release action was taken.
