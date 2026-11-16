@@ -1130,3 +1130,24 @@ Never use one label as evidence for another.
 2. Inspect the next real-device pair report only if an actual mismatch remains; use the new matched-source field to isolate fuzzy memo reuse from exact-cache hits and bubble-ID reuse.
 3. Continue OCR accuracy work only with paired screenshots and labeled ground-truth text/boxes; translation-pair text alone cannot justify changing OCR thresholds.
 4. No phone intervention requested yet. Real-device validation remains necessary later for OCR, semantic translation, native Bergamot behavior, latency/RAM, and update installation.
+
+
+## Diagnostic grouping continuation — 2026-11-16
+
+### Implemented (CI pending)
+- Added `requestId` to `TranslationPairTrace`, generated once per `CachingTranslator.translatePage` call. IDs include a process-random prefix plus an atomic sequence, so request IDs do not repeat after an app-process restart within the same retained diagnostic log.
+- `TranslationPairLog` now appends requestId as the 10th encoded field and prints `request=...` in the report header. Legacy 9-field entries remain readable and are labeled `request=legacy`.
+- Added a JVM test that all pair events from one page share one request ID, and separate page calls receive different IDs.
+- This resolves a diagnostic ambiguity: bubble IDs are 1-based per OCR capture and may legitimately repeat across pages; a request ID groups the records belonging to one `translatePage` call. It does not alter bubble identity, caches, matching, or translation output.
+- Commits: `926aa5b77209597b0a7e74a2e66133e3362d92d1`, `a4de950205178fc8461a91269488d885b6c83a71`, `ff80b94bc69db43a98ce2468939b598fdba1d4f9`, `bd6945cd18b324c10959f9eee663d9d5847d7a81`, `ccb6181b82d8e470c8ba8fac11a6c033eb97be49`.
+- Translation memo source provenance remains included in `detail=...matched=...` for exact/fuzzy memo hits.
+
+### Verification boundary
+- Push workflow #808 was already in progress on an earlier intermediate head; final source+documentation commits now require a fresh CI run. No CI success is claimed for these latest additions yet.
+- Existing direct tests still rule out `AH...` being fuzzy-served for `YEAH`; the new diagnostics will identify a matched source if any other fuzzy hit is wrong, while request IDs distinguish pages with repeated numeric bubble IDs.
+- No physical-device test was run. No OCR thresholds, bubble grouping, cache keys, fuzzy match rules, translation corrections, batching policy, or runtime engine default were changed.
+
+### Next actions
+1. Verify CI on the latest PR #4 head, including the new request grouping and memo-source tests.
+2. Once CI is green, the next device pair report should be interpreted by `request=...`, `block #...`, `EN`, and `detail=...matched=...`; distinguish wrong OCR source, fuzzy source reuse, exact cache reuse, and model mistranslation before changing behavior.
+3. Keep ML Kit default and Bergamot experimental. Use screenshots/ground truth for OCR evaluation; text-only translation logs cannot justify OCR threshold changes.
