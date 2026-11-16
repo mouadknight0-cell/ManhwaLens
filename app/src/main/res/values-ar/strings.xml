@@ -196,6 +196,14 @@
     <string name="ignore_list_summary">عبارة في كل سطر (أو مفصولة بفواصل)، بلا تمييز لحالة الأحرف. تُتخطى البلوكات الحاوية لأي عبارة قبل الترجمة. مملوءة مسبقًا بـ Subscribe وGet the app وContinue Reading وTOP وEpisode وviews وcoins. امسح الحقل للتعطيل.</string>
 
     <!-- Benchmark (Part C) -->
+    <string name="live_benchmark_arm">تسليح قياس جلسة Live</string>
+    <string name="live_benchmark_cancel">إلغاء قياس Live</string>
+    <string name="live_benchmark_copy">نسخ تقرير Live</string>
+    <string name="live_benchmark_summary">يقيس من تشغيل Live حتى إيقافه: مدة الجلسة، ووقت أول ترجمة ظاهرة، وأزمنة الإطارات وOCR والمحرك. سلّح القياس وLive متوقف، ثم شغّله واستخدم الصفحة وأوقفه مرة واحدة. يحتوي التقرير على أزمنة وأعداد فقط، من دون نص الصفحة.</string>
+    <string name="live_benchmark_armed">تم تسليح القياس. شغّل Live، استخدم الصفحة، ثم أوقف Live.</string>
+    <string name="live_benchmark_cancelled">أُلغي قياس Live</string>
+    <string name="live_benchmark_turn_off_first">أوقف Live قبل تسليح قياس الجلسة.</string>
+    <string name="live_benchmark_no_report">لا يوجد تقرير لجلسة Live مكتملة بعد.</string>
     <string name="benchmark_button">اختبار تجميع طلبات ML Kit</string>
     <string name="benchmark_summary">هذا اختبار خاص بـ ML Kit فقط، ويتجاهل محرك الترجمة غير المتصل المحدد في الإعدادات. يقيس ترجمة 20 جملة بالتتابع والتوازي وبطلبات مدمجة، ثم يحفظ أفضل سياسة لتجميع طلبات ML Kit وحده. لا يختبر Bergamot ولا يغيّر المحرك المحدد. للمقارنة الفعلية بين المحركين استخدم زر «مقارنة ML Kit مع Bergamot» أدناه.</string>
     <string name="benchmark_title">تقرير التشخيص</string>

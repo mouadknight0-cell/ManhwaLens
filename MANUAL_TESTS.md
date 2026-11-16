@@ -818,3 +818,14 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 2. Start Live on a page after a fresh service start so PaddleOCR initialization is exercised. Let the first stable frame finish, then scroll normally through several small page changes.
 3. Confirm Live returns to Waiting after translating and resumes on each stable frame. A shutdown/cancel interruption must not leave a false ERROR status or an unhandled crash report; genuine OCR failures should still appear as ERROR.
 4. If the app is stopped while OCR is initializing, confirm it does not record that expected cancellation as a Live crash. Send Live diagnostics/Last error only if the error repeats.
+
+
+# v0.12.22 — Live session benchmark
+
+1. Install v0.12.22 over v0.12.21 without clearing app data.
+2. In Settings → Diagnostics, arm **Live session benchmark** while Live is OFF.
+3. Turn Live ON on a manga page, wait for the first Arabic overlay, scroll through a few changes, then turn Live OFF.
+4. Return to Diagnostics and copy the Live report. It should show ON→OFF duration, first overlay latency, frame count, mean/max pass time, OCR time, engine time and visible outputs. It must not contain recognized or translated page text.
+5. If the first translation appears late, compare first-overlay latency with OCR, engine and frame times to locate the delay. The existing ML Kit batching benchmark remains a separate engine-only diagnostic.
+
+**Gate:** one Live session is enough. CI verifies build/tests; this on-device capture verifies the end-to-end timing boundaries and first-overlay measurement.

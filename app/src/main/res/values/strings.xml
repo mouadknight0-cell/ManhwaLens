@@ -203,6 +203,14 @@
     <string name="ignore_list_summary">One phrase per line (or comma-separated), case-insensitive. Blocks containing any phrase are skipped before translation. Pre-filled with common site chrome: Subscribe, Get the app, Continue Reading, TOP, Episode, views, coins. Clear the field to disable.</string>
 
     <!-- Benchmark (Part C) -->
+    <string name="live_benchmark_arm">Arm Live session benchmark</string>
+    <string name="live_benchmark_cancel">Cancel Live benchmark</string>
+    <string name="live_benchmark_copy">Copy Live report</string>
+    <string name="live_benchmark_summary">Measures from Live ON to Live OFF, including total session time, first visible translation, frame processing, OCR and engine time. Arm while Live is OFF, then turn Live on and off once. The report contains timing and counts only, no page text.</string>
+    <string name="live_benchmark_armed">Live benchmark armed. Turn Live on, use the page, then turn Live off.</string>
+    <string name="live_benchmark_cancelled">Live benchmark cancelled</string>
+    <string name="live_benchmark_turn_off_first">Turn Live off before arming the session benchmark.</string>
+    <string name="live_benchmark_no_report">No completed Live session report yet.</string>
     <string name="benchmark_button">ML Kit batching benchmark</string>
     <string name="benchmark_summary">ML Kit-only batching diagnostic; it ignores the selected offline translation engine and updates only the saved ML Kit batching policy. It does not benchmark Bergamot or switch the selected engine. Translates the same 20 sentences sequentially, in parallel (2/3/4/6 at once) and as one joined call with 8 separators. 5 passes each, first discarded; reports median/worst time and mapping integrity, plus an ML Kit-only quality check. Use Compare ML Kit vs Bergamot for a real engine comparison.</string>
     <string name="benchmark_title">Diagnostic report</string>

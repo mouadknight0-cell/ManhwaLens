@@ -552,6 +552,7 @@ class FloatingButtonService : Service() {
 
     override fun onDestroy() {
         serviceDestroying = true
+        com.manhwalens.app.util.LiveSessionBenchmark.onLiveDisabled(applicationContext, "service stopped")
         if (instance === this) instance = null
         // Stop the live loop FIRST — no callbacks may fire once views start going away.
         liveLoopActive = false
@@ -992,6 +993,7 @@ class FloatingButtonService : Service() {
         liveHandler.post(liveTickRunnable)
         val s = com.manhwalens.app.data.SettingsPrefs(applicationContext)
         if (com.manhwalens.app.live.LiveAutoStart.shouldRestoreLiveSetting(mediaProjection != null, s.liveMode, s.liveOptOut)) {
+            com.manhwalens.app.util.LiveSessionBenchmark.onLiveEnabled(applicationContext)
             setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
             Log.i(TAG, "live loop started ($reason) — restored liveMode=true")
         } else {
@@ -1499,6 +1501,7 @@ class FloatingButtonService : Service() {
         liveHandler.removeCallbacks(liveTickRunnable)
         try {
             com.manhwalens.app.data.SettingsPrefs(applicationContext).apply { liveMode = false }
+            com.manhwalens.app.util.LiveSessionBenchmark.onLiveDisabled(applicationContext, "Live stopped after error")
         } catch (t: Throwable) {
             Log.e("ManhwaLens", "could not persist liveMode=false after live error", t)
         }
@@ -2298,6 +2301,7 @@ class FloatingButtonService : Service() {
         val settings = com.manhwalens.app.data.SettingsPrefs(applicationContext)
         if (settings.liveMode || settings.liveOptOut) return
         settings.liveMode = true
+        com.manhwalens.app.util.LiveSessionBenchmark.onLiveEnabled(applicationContext)
         liveStandby = false
         liveScreenOff = false
         liveNeedsConsentToastShown = false
@@ -2487,6 +2491,7 @@ class FloatingButtonService : Service() {
             if (plan.enableLive) {
                 pendingLiveEnable = false
                 st.liveMode = true
+                com.manhwalens.app.util.LiveSessionBenchmark.onLiveEnabled(applicationContext)
                 st.liveOptOut = false
                 liveStandby = false
                 liveStandbyEnteredAtMs = 0L
@@ -3210,12 +3215,15 @@ class FloatingButtonService : Service() {
         var frame = inputFrame
         var gray = initialGray
         val t0 = SystemClock.elapsedRealtime()
+        var ocrMs = -1L
+        var engineMs = -1L
         // Remote request started alongside the ML Kit draft (null = single engine).
         var pendingUpgrade: LiveUpgrade? = null
         // Black frames (FLAG_SECURE) carry no page content — skip OCR, draw nothing.
         if (isNearlyBlack(frame)) {
             Log.w(TAG, "live: black frame — OCR skipped, overlay untouched")
             com.manhwalens.app.util.PipelineTracer.span("live black frame", 0, "black=true — skipped OCR")
+            com.manhwalens.app.util.LiveSessionBenchmark.recordFrame(SystemClock.elapsedRealtime() - t0, -1L, -1L)
             runCatching { if (!frame.isRecycled) frame.recycle() }
             setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
             return
@@ -3271,10 +3279,8 @@ class FloatingButtonService : Service() {
 
             // ---------- 2) OCR (new band only, or full frame) ----------
             val newBoxes: ArrayList<com.manhwalens.app.render.BubbleRenderBox> = ArrayList()
-            var ocrMs = -1L
             var newBlockCount = 0
             var engineLabel: String? = null
-            var engineMs = -1L
             var hits = 0
             var misses = 0
             var translatedExpanded: List<com.manhwalens.app.translate.TranslatedBlock> = emptyList()
@@ -3448,9 +3454,10 @@ class FloatingButtonService : Service() {
                                 if (tr.engineId == "gemini") {
                                     openGeminiCircuit(tr.reason, tr.message)
                                 }
+                                engineMs = android.os.SystemClock.elapsedRealtime() - trStartedAt
                                 recordTranslateResult(
                                     tr.engineId,
-                                    android.os.SystemClock.elapsedRealtime() - trStartedAt,
+                                    engineMs,
                                     "${tr.reason}: ${tr.message}"
                                 )
                                 com.manhwalens.app.util.LiveLog.e(
@@ -3579,6 +3586,7 @@ class FloatingButtonService : Service() {
                 if (patches.isNotEmpty()) {
                     val po = patchOverlayEnsure()
                     po.replaceAll(patches, meta.width, meta.height)
+                    com.manhwalens.app.util.LiveSessionBenchmark.recordOutput()
                     // Runs on the main thread, so replaceAll has already been applied.
                     if (upgradeOwnsFrame) upgrade?.epoch = po.contentEpoch()
                 } else {
@@ -3616,6 +3624,11 @@ class FloatingButtonService : Service() {
                 )
             }
         } finally {
+            com.manhwalens.app.util.LiveSessionBenchmark.recordFrame(
+                SystemClock.elapsedRealtime() - t0,
+                ocrMs,
+                engineMs
+            )
             // Phase 1 is queued (or this pass is over): the remote upgrade may now paint.
             pendingUpgrade?.phase1Latch?.countDown()
         }
@@ -3998,6 +4011,8 @@ class FloatingButtonService : Service() {
         val settings = com.manhwalens.app.data.SettingsPrefs(applicationContext)
         settings.liveMode = enable
         settings.liveOptOut = !enable
+        if (enable) com.manhwalens.app.util.LiveSessionBenchmark.onLiveEnabled(applicationContext)
+        else com.manhwalens.app.util.LiveSessionBenchmark.onLiveDisabled(applicationContext, "Live turned off")
         if (enable) {
             liveStandby = false
             liveScreenOff = false

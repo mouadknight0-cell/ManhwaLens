@@ -107,6 +107,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var lensTapMode by remember { mutableStateOf(prefs.lensTapMode) }
     val translationPrefs = remember { com.manhwalens.app.data.TranslationPrefs(context) }
     var benchmarkRunning by remember { mutableStateOf(false) }
+    var liveBenchmarkArmed by remember { mutableStateOf(com.manhwalens.app.util.LiveSessionBenchmark.isArmed(context)) }
     var benchmarkResult by remember { mutableStateOf<String?>(null) }
     val benchmarkReport = benchmarkResult
     if (benchmarkReport != null) {
@@ -288,6 +289,48 @@ fun SettingsScreen(onBack: () -> Unit) {
             Spacer(Modifier.size(6.dp))
             OutlinedButton(onClick = { showLiveSelfCheck = true }) {
                 Text(stringResource(R.string.self_check_button))
+            }
+            Spacer(Modifier.size(14.dp))
+            Text(
+                text = stringResource(R.string.live_benchmark_summary),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.size(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    if (liveBenchmarkArmed) {
+                        com.manhwalens.app.util.LiveSessionBenchmark.disarm(context)
+                        liveBenchmarkArmed = false
+                        Toast.makeText(context, R.string.live_benchmark_cancelled, Toast.LENGTH_SHORT).show()
+                    } else {
+                        val armed = com.manhwalens.app.util.LiveSessionBenchmark.arm(context)
+                        liveBenchmarkArmed = armed
+                        Toast.makeText(
+                            context,
+                            if (armed) R.string.live_benchmark_armed else R.string.live_benchmark_turn_off_first,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }) {
+                    Text(stringResource(if (liveBenchmarkArmed) R.string.live_benchmark_cancel else R.string.live_benchmark_arm))
+                }
+                OutlinedButton(onClick = {
+                    liveBenchmarkArmed = com.manhwalens.app.util.LiveSessionBenchmark.isArmed(context)
+                    val report = com.manhwalens.app.util.LiveSessionBenchmark.readReport(context)
+                    if (report.isNullOrBlank()) {
+                        Toast.makeText(context, R.string.live_benchmark_no_report, Toast.LENGTH_SHORT).show()
+                    } else {
+                        runCatching {
+                            val clip = context.getSystemService(android.content.ClipboardManager::class.java)
+                            clip?.setPrimaryClip(android.content.ClipData.newPlainText("Live session benchmark", report))
+                        }.onSuccess {
+                            Toast.makeText(context, R.string.benchmark_copied, Toast.LENGTH_SHORT).show()
+                        }.onFailure {
+                            Toast.makeText(context, R.string.toast_capture_failed, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }) { Text(stringResource(R.string.live_benchmark_copy)) }
             }
             Spacer(Modifier.size(14.dp))
             Text(
