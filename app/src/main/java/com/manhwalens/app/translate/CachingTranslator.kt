@@ -340,9 +340,10 @@ class CachingTranslator(
          * can never be served where a cloud translation was requested (and vice versa).
          */
         private val memos = java.util.concurrent.ConcurrentHashMap<String, TranslationMemo>()
+        private val traceProcessId = java.util.UUID.randomUUID().toString().take(8)
         private val traceRequestSequence = java.util.concurrent.atomic.AtomicLong(0L)
 
-        private fun nextTraceRequestId(): String = "p${traceRequestSequence.incrementAndGet() }"
+        private fun nextTraceRequestId(): String = "$traceProcessId-p${traceRequestSequence.incrementAndGet()}"
 
         fun memoFor(engineId: String, style: String): TranslationMemo =
             memos.getOrPut("$engineId|$style") { TranslationMemo() }
