@@ -71,17 +71,17 @@ object DBPostProcessor {
             val contourMask = if (useDilation) {
                 val kernel = Mat.ones(2, 2, CvType.CV_8UC1)
                 var dilated: Mat? = null
+                var transferred = false
                 try {
                     val destination = Mat().also { dilated = it }
                     Imgproc.dilate(mask, destination, kernel)
                     ownedMats += destination
+                    transferred = true
                     destination
                 } finally {
                     kernel.release()
                     // A failed dilate never transfers ownership to the common cleanup list.
-                    if (dilated != null && dilated !in ownedMats) {
-                        dilated?.release()
-                    }
+                    if (!transferred) dilated?.release()
                 }
             } else {
                 mask
@@ -192,7 +192,8 @@ object DBPostProcessor {
             Imgproc.fillPoly(scoreMask, mutableListOf(pointsMat), Scalar(1.0))
 
             val region = probMap.submat(ymin, ymax + 1, xmin, xmax + 1).also { roi = it }
-            return Core.mean(region, scoreMask).`val`[0].toFloat()
+            val mean = Core.mean(region, scoreMask)
+            return mean.`val`[0].toFloat()
         } finally {
             roi?.release()
             polygon?.release()
