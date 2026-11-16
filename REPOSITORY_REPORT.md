@@ -1560,4 +1560,11 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - سجل المستخدم: `InterruptedException` داخل `TextRecognizerClient.paddleClient()` أثناء `runBlocking` لتهيئة PaddleOCR، مستدعى من `FloatingButtonService.liveTranslate()`. أعقبه حدث startup جديد بعد 37 ثانية؛ هذا متوافق مع انقطاع worker أثناء توقف/إعادة إنشاء الخدمة، لكنه لا يثبت وحده المصدر الدقيق للمقاطعة.
 - أصلح v0.12.21 مسار Live ليميّز InterruptedException/CancellationException أو إيقاف الخدمة عن أخطاء OCR/الترجمة الحقيقية. الإلغاء يعيد تدوير frame غير المملوك، ولا يسجل ErrorLog كفشل ترجمة، ويعيد الحالة إلى Waiting إذا كانت الخدمة ما زالت حية. أخطاء OCR الحقيقية تظل ظاهرة كـ ERROR.
 - لم يتغير محرك OCR أو ML Kit أو الإعدادات أو جودة الترجمة. أضيف فحص Live واحد بعد تثبيت النسخة إلى MANUAL_TESTS.md.
-- المرشح v0.12.21 / code 61. CI وتوافق APK والنشر مطلوبان قبل فحص الهاتف؛ الإصلاح غير متحقق على الجهاز.
+- نُشر v0.12.21 / code 61 بعد نجاح CI push #956؛ إصلاح Live ما زال بانتظار فحص الهاتف.
+
+
+### تحقق إصدار Live v0.12.21 — 2026-11-16
+- نجح Android build CI [#956](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43881494523) على commit `38c8809293b41c2df13fb6b1d72a6b8cfc8b9b9c`: unit tests، APK build، التوقيع، التوافق والنشر.
+- تحقق prerelease [v0.12.21](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.21) مع APK `ManhwaLens-v0.12.21-debug.apk`، 71,398,818 bytes، SHA-256 `7ab4c21bc776e7a9137a4e44f28c30d61c2358306728d218a42f4bd016726cf3`.
+- لإعادة فحص Live مرة واحدة: ثبّت فوق v0.12.20، شغّل Live بعد بدء جديد للخدمة حتى تمر تهيئة PaddleOCR، ثم أرسل Live diagnostics/Last error فقط إن عاد الخطأ. الإلغاء أثناء الإيقاف لا يفترض أن يظهر كخطأ OCR.
+- لا يوجد تحقق فعلي على الجهاز بعد.
