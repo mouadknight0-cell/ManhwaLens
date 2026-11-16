@@ -1346,3 +1346,29 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - Reconfirmed current recorded development head `78155310cb167ff5629b8a7403e0671e2594c579`; latest commit is documentation-only. Exact-head PR workflow #872 completed successfully. The recorded push workflow #871 passed and its HTML report showed 812 tests, 0 failures, 0 ignored. The combined status endpoint returned an empty status list, so no additional status conclusion is drawn from it.
 - v0.12.13 / versionCode 53 remains the latest recorded Release-published build; APK SHA-256 `daaf7c9776afbe0522568ef2de551a8106e9c373a20bbde091011b6eb9582c90`; package `com.manhwalens.app`; signer continuity verified by CI against v0.12.12. These facts are inherited from the release evidence already recorded above, not a new APK download in this interaction.
 - Current status: CI-verified + Release-published; physical-device verification remains outstanding. Next action is the repeated-page OCR memory-stability protocol in `MANUAL_TESTS.md`. No app source or runtime behavior changed in this interaction; ML Kit default and experimental Bergamot decision remain unchanged.
+
+
+## Solo Leveling chapter 4 — device findings and targeted repair (2026-11-16)
+
+### User-supplied device evidence
+- Device: Xiaomi 23106RN0DA, Android 14. The supplied diagnostic is a real-device capture; it is not an independent test performed by the maintainer.
+- ML Kit 20-bubble batching: Joined ` | ` median 573 ms / worst 576 ms, 20/20 mapping on every measured pass, one engine request. Sequential median 969 ms; parallel x2 979 ms; x3 1357 ms; x4 1096 ms; x6 1005 ms. Joined pipe is about 40.9% faster than sequential for this measured sample. `@@@`, newline and double-newline produced count=1 instead of 20 and remain invalid.
+- The device reports the joined-pipe verdict was applied. Offline engine selection was unchanged. Do not confuse the separate 23-case quality report with this 20-bubble batching sample.
+- Quality corpus: raw and cleaned candidate mean token F1 49.6%, final visible mean token F1 74.8%, visible exact 9/23; seven exact-source corrections contributed to visible score. These are lexical-overlap metrics, not semantic-quality scores.
+- The 59 pair entries show multiple accepted-but-weak translations. The Arabic validator checks Arabic-script presence, echoes and structural issues; it does not establish semantic correctness.
+- Several source strings contain likely OCR recognition artifacts (e.g. `OLT`, `BLYING`, `QLICKLY`, `STATLES`). These need image-level confirmation before adding generic OCR substitutions.
+- Request `ed782881-p17` took 20,430 ms for three bubbles. This is a latency outlier outside the controlled batching sample; its pipeline-stage trace is needed before changing timeouts or concurrency.
+
+### Implementation from this evidence
+- Added source-exact Solo Leveling chapter-4 repairs in `ShortDialogueOverrides.kt` for rank/dungeon phrasing, the D/E rank dialogue, raid/healer dialogue, hunter description and the final danger exchange.
+- Kept repairs exact-source only; no broad English-token replacements, OCR thresholds, translation engine, cache policy or batch strategy were changed.
+- Added chapter-4 regression assertions in `ShortDialogueOverridesTest.kt`, including apostrophe normalization and the OCR line-wrap form `MON-\\nSTERS`.
+- Added a repeatable device recheck section to `MANUAL_TESTS.md`: install as update over v0.12.13, keep translation cache, clear only pair history, inspect repaired and unrelated lines, and capture any >3 s pipeline trace.
+- Relevant implementation commits: `b59ff325217b9011e99c752ac4ef8bb78d6d2cfe`, `621317c566475106dcffde7176535213e85dfe02`, `83d3b77c81a673e527fcc6568bd332250d70806b`, `120d96ccf966bbd3e09df46476cdf68a256a5348`. Regression-test commits include `6bd44ba4488cf3099e9ce796f2006f8751fbc9db`, `45a92bba5a9dd28d78f5aecdc55f497603557ca4`, and `deb5a382dec72c1ede59da67fb6bdc39a9073e7e`.
+- CI/build result for the latest branch tip is **not yet verified**. The available commit-workflow lookup returned no PR-triggered run for the latest tip; the workflow file includes push triggers for this branch, but no success is claimed. No APK or release has been published for these changes.
+
+### Current gate and next action
+1. Obtain/inspect the GitHub Actions run for the latest branch tip `deb5a382dec72c1ede59da67fb6bdc39a9073e7e`; require unit tests and debug APK build to pass.
+2. If CI passes, bump the app to a new update-compatible version (next patch release) without changing package ID or pinned signer, then publish and verify a prerelease APK.
+3. Ask for the chapter-4 device recheck only after that APK exists. Do not claim the targeted repairs are device-validated until the new pair report is returned.
+4. Separately investigate the 20.43 s request using its stage-level pipeline trace; do not infer that joined batching caused it.
