@@ -672,3 +672,17 @@ Context limitation: the current Bergamot JNI bridge accepts independent text seg
 6. Confirm a failed or malformed batch is retried per case and counted as a batch recovery; one bad case must not erase other outputs.
 7. Run the comparison while the app's ML Kit batching self-test would otherwise be eligible. **PASS:** the benchmark-only warm-up does not start a new self-test, and the shared diagnostic lock covers both warm-up and all measured passes so an existing or pending self-test cannot compete with the comparison.
 8. Record phone model, Android version, first/warm timings, screenshots of the report and any native errors. Do not promote Bergamot or change the default from this report alone; semantic review, OCR checks, memory observation and update-install validation remain required.
+
+## v0.12.12 — translation-cache provenance capture
+
+**Purpose:** determine whether an incorrect short-dialogue result came from an exact cache entry, a fuzzy memo entry from a different OCR source, or a fresh engine response. This build adds per-page request IDs and the original source that populated each exact/fuzzy memo hit.
+
+1. Install **v0.12.12** directly over v0.12.11; do not uninstall. Keep the existing translation cache and app data intact.
+2. Open Settings → Diagnostics. Turn **Debug mode ON**. Press **Clear** for the translation-pair log only; do **not** press the translation-cache reset action.
+3. Keep the same offline translator (ML Kit) and reproduce the short-dialogue problem on the same chapter/page used for the previous report. Capture at least two pages/requests if possible.
+4. Return to Settings → Diagnostics and press **Copy** beside the translation-pair count. Share the full report. Each record now displays `request=...` and `block #...`; records with the same request ID belong to the same page translation call.
+5. For `FUZZY_HIT`, inspect `detail=...matched=...`. Compare `matched` with `EN:`: a different matched source proves which memo source supplied the Arabic candidate. `CACHE_HIT` identifies exact in-memory or persistent cache reuse; a fresh `OK` entry identifies a new engine result. Legacy entries without request IDs are shown as `request=legacy`.
+6. If the failure concerns OCR source text rather than cache reuse, also copy the Last capture / pipeline report so raw OCR text and bounding boxes can be compared with the translated pair.
+7. Turn **Debug mode OFF** after collecting the reports. Do not clear the translation cache before the reproduction, because preserving it is necessary to investigate stale cache entries.
+
+**Privacy:** Debug mode records page text in app-private storage and the copied report includes it. Review the report before sharing.
