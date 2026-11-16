@@ -1207,7 +1207,7 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - This is a test declaration/class-boundary issue. Existing class-based `BatchSplitterTest` cases all passed; do not modify production splitter behavior to address it.
 
 ### Repair implemented
-- Moved the two HASH separator regression tests back inside `BatchSplitterTest` in `app/src/test/java/com/manhw alens/app/translate/BatchSplitterTest.kt` (canonical path: `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt`).
+- Moved the two HASH separator regression tests back inside `BatchSplitterTest` in `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt` (canonical path: `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt`).
 - Commit: `b751a78e70ba4fcdb47543066d8968fde7cc1335` — `test: keep hash batching cases inside JUnit test class`.
 - Status: Implemented and pushed. CI verification for this new head is pending; no APK or Release is claimed.
 
