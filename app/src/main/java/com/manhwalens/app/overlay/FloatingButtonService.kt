@@ -3215,6 +3215,7 @@ class FloatingButtonService : Service() {
         var frame = inputFrame
         var gray = initialGray
         val t0 = SystemClock.elapsedRealtime()
+        com.manhwalens.app.util.LiveSessionBenchmark.recordFrameStarted(t0)
         var ocrMs = -1L
         var engineMs = -1L
         // Remote request started alongside the ML Kit draft (null = single engine).
@@ -3297,6 +3298,7 @@ class FloatingButtonService : Service() {
                 try {
                     val recognized = ocrClient.recognize(ocrBitmap)
                     ocrMs = recognized.elapsedMs
+                    com.manhwalens.app.util.LiveSessionBenchmark.recordOcrStats(recognized.engineStats)
                     recordOcrResult(recognized.lines.size, ocrMs)
                     val lines = if (ocrBitmap !== frame) {
                         recognized.lines.map {

@@ -829,3 +829,13 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 5. If the first translation appears late, compare first-overlay latency with OCR, engine and frame times to locate the delay. The existing ML Kit batching benchmark remains a separate engine-only diagnostic.
 
 **Gate:** one Live session is enough. CI verifies build/tests; this on-device capture verifies the end-to-end timing boundaries and first-overlay measurement.
+
+
+# v0.12.23 — Live OCR detector timing and speed check
+
+1. Install v0.12.23 over v0.12.22 without clearing app data. Use the same device and manga page used for the previous Live session measurement.
+2. Arm Live session benchmark while Live is OFF, switch Live ON, wait for the first Arabic overlay, scroll through a few page changes, then switch Live OFF.
+3. Copy the Live report once. Compare detector and recognizer total/inference times with OCR total, and inspect the first-frame entry, first-frame work and delay outside it.
+4. Confirm that small text remains detected. Do not rerun the ML Kit batching or translation-quality corpora.
+
+**Gate:** detector input is capped at 1280 px on the long side, expected to reduce detector pixels by about 36% versus the previous 1600 px cap for a 720×1600 frame. This estimates detector workload only; it is not a claimed end-to-end speedup. Check small-text recall in the same Live session.

@@ -93,13 +93,14 @@ class TextRecognizerClient(context: Context) {
                     context = appContext,
                     config = PaddleOCRConfig(
                         detLimitSideLen = PADDLE_DET_LIMIT_SIDE,
-                        // Keep narrow phone text large; the 1920px cap bounds CPU and memory use.
+                        // Cap detector input; recognition later crops from the original source image.
                         detLimitType = PADDLE_DET_LIMIT_TYPE,
                         detMaxSideLimit = PADDLE_DET_MAX_SIDE,
                         detThresh = PADDLE_DET_THRESHOLD,
                         detBoxThresh = PADDLE_DET_BOX_THRESHOLD,
                         detUnclipRatio = PADDLE_DET_UNCLIP_RATIO,
-                        recScoreThresh = PADDLE_MIN_REC_CONFIDENCE
+                        recScoreThresh = PADDLE_MIN_REC_CONFIDENCE,
+                        recBatchSize = PADDLE_REC_BATCH_SIZE
                     ),
                     engineConfig = EngineConfig(numThreads = PADDLE_THREADS)
                 )
@@ -113,11 +114,13 @@ class TextRecognizerClient(context: Context) {
         private const val TAG = "MLCapture"
         private const val PADDLE_DET_LIMIT_SIDE = 1280
         private const val PADDLE_DET_LIMIT_TYPE = "min"
-        private const val PADDLE_DET_MAX_SIDE = 1600
+        private const val PADDLE_DET_MAX_SIDE = 1280
         private const val PADDLE_DET_THRESHOLD = 0.3f
         private const val PADDLE_DET_BOX_THRESHOLD = 0.6f
         private const val PADDLE_DET_UNCLIP_RATIO = 1.5f
         private const val PADDLE_THREADS = 4
+        // Four recognition crops per ONNX call cuts per-crop invocation overhead on manga pages.
+        private const val PADDLE_REC_BATCH_SIZE = 4
         // PaddleOCR's documented default drop_score is 0.5; filter uncertain lines before grouping.
         private const val PADDLE_MIN_REC_CONFIDENCE = 0.5f
         private val PADDLE_LOCK = Any()
