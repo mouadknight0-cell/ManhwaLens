@@ -612,16 +612,25 @@ one from cache, and progressive painting is still visibly progressive (first bub
 - Manually verify tap and Live on a supported Android device. The sandbox cannot validate overlay timing or real-device OCR accuracy.
 
 
+## v0.12.11 — release update and cache/telemetry verification
+
+1. Install the v0.12.11 APK directly over v0.12.10; do not uninstall the app. **PASS:** Android treats it as an update and preserves app data/settings.
+2. Open Settings → Diagnostics, enable **Debug mode**, disable Live mode temporarily, then run a tap capture on a page with visible English dialogue.
+3. Copy **Settings → Last error** (or **Pipeline trace**). Use the P4-A checklist below to verify the OCR telemetry sections and compare raw OCR with the final overlay.
+4. Restart the app and capture the same page again. **PASS:** no stale blank/label-only cache entry becomes visible; cache-hit trace details identify the actual cache tier; corrected visible Arabic remains consistent after restart.
+5. Turn **Debug mode OFF** after collecting evidence. Share the report only if comfortable with the page text it contains.
+
 ## P4-A — collect an OCR/ML Kit evidence report (tap path)
 
 1. Open **Settings → Diagnostics** and turn **Debug mode ON**.
 2. Pause/turn off Live mode for this check, then open a manhwa page with visible English text and tap the floating lens once.
 3. Return to **Settings → Last error** (or **Pipeline trace**) and press **Copy**.
-4. Confirm the copied report contains these sections: `[RAW OCR LINES]`, `[GROUPED BLOCKS]`, `[KEPT FOR TRANSLATION]`, `[ML KIT RAW CALLS]`, and `[OVERLAY TEXT]`.
-5. For a failing bubble, compare its OCR source → prepared ML Kit input → raw ML Kit output → overlay text. A missing raw-call entry can mean a cache hit; check the report note before classifying it as a failure.
-6. Turn **Debug mode OFF** after collecting the evidence. The report remains in app-private storage until a later report replaces it; do not share it if the page contains private content.
+4. Confirm the copied report contains `[OCR ENGINE STATS] present=true`, `[RAW OCR LINES]`, `[GROUPED BLOCKS]`, `[KEPT FOR TRANSLATION]`, `[ML KIT RAW CALLS]`, and `[OVERLAY TEXT]`. The engine section should identify PaddleOCR and include stage/cold-load timings, tensor shapes, effective thresholds/resize/thread settings and low-confidence counts. Raw OCR lines should include `confidence=` and `box=left,top,right,bottom`.
+5. For every visible failure, trace the stage in order: raw OCR text/confidence/bounds → grouped block membership → kept-for-translation decision → prepared ML Kit input → raw ML Kit candidate → final overlay text. A bad source at the first stage is OCR recognition; a correct source assigned to the wrong group is OCR grouping; a correct prepared input with bad Arabic is translation/post-processing. A missing raw-call entry can mean a cache hit; check the report's cache/provenance detail before treating it as missing.
+6. Repeat on 3–5 representative pages, including short dialogue, long narration, sound effects and vertically stacked lines. Keep original screenshots where a bounding-box or grouping error needs visual comparison.
+7. Turn **Debug mode OFF** after collecting evidence. The report remains in app-private storage until a later report replaces it; do not share it if the page contains private content.
 
-**Expected:** normal captures with Debug mode OFF do not include page dialogue in the generic pipeline report. This check does not change translation behavior; use 3–5 representative pages before proposing OCR or translation-quality fixes. Live-mode per-frame raw text is not included in this P4-A pass.
+**Expected:** normal captures with Debug mode OFF do not include page dialogue in the generic pipeline report. These diagnostics do not score semantic correctness automatically; review Arabic meaning manually. Live-mode per-frame raw text is not included in this P4-A tap-path pass.
 
 
 ## P5-A — composite patch rendering (v0.11.5, device)

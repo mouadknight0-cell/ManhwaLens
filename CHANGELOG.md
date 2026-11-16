@@ -1,3 +1,12 @@
+## 0.12.11 — cache integrity and PaddleOCR capture telemetry
+- Sanitize legacy memory, persistent-disk and memo cache hits through the same deterministic output cleaner used for fresh engine results before character-name repair, source-exact corrections and the Arabic quality guard.
+- Persist corrected source-exact cache results back to the persistent cache so old mistranslations and unclean labels do not reappear after an app restart.
+- Treat blank/label-only legacy cache values as invalid misses; remove the stale entry and allow a fresh nonblank translation to replace it. A blank cache value cannot be turned into text by a character-name override.
+- Keep the original cached candidate separate from final visible Arabic, and report the actual source tier for cache hits (in-memory exact, persistent exact, exact memo or fuzzy memo) without changing existing trace status codes.
+- Add regression coverage for corrected disk-cache values surviving process recreation, legacy cached output sanitation, blank-entry recovery and trace provenance. The user-visible translation-quality diagnostic continues to show raw, cleaned and final-visible results separately.
+- Include opt-in PaddleOCR capture telemetry: detector/recognizer stage timings, cold model-load time, tensor shapes, candidate/low-confidence counts, effective configuration, and per-line OCR confidence plus bounding boxes alongside grouped and kept blocks.
+- Keep ML Kit as the default offline translator; Bergamot remains optional and experimental. OCR thresholds and bubble-grouping geometry are unchanged pending labeled screenshot evidence.
+
 ## 0.12.10 — offline model reliability and Arabic dialogue corrections
 - Allow the ML Kit English→Arabic model to download over Wi-Fi or mobile data during both first-use translation and service warm-up; remove the hidden Wi-Fi-only restriction.
 - Add conservative source-exact Arabic corrections for observed short dialogue/SFX failures: “No.” → “لا.”, “Run!” → “اهرب!”, and “KRAK” → “طَق!”.
