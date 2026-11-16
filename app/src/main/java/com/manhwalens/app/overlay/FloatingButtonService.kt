@@ -3567,9 +3567,9 @@ class FloatingButtonService : Service() {
                 val overlayCallbackStartedAtElapsedMs = SystemClock.elapsedRealtime()
                 statusPill?.hide()
                 if (finalBoxes.isEmpty()) {
-                    com.manหwalens.app.util.LiveSessionBenchmark.recordPassOutcome("empty")
+                    com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("empty")
                     patchOverlay?.clearPatches("page change")
-                    setLiveStatus(com.manหwalens.app.live.LiveStatus.WAITING)
+                    setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
                     return@post
                 }
                 val meta = CaptureMeta(
