@@ -1286,3 +1286,10 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - CI for the combined final code and documentation head is pending; the earlier intermediate #808 run does not verify these last changes.
 - After green CI, use `request`, `block`, `EN`, and `matched` to identify source-level reuse; do not change the fuzzy algorithm or cache keys unless a real false match is evidenced.
 - No phone test has been run, and no OCR/translation behavior or release version was changed by this diagnostic-only work.
+
+## CI repair — cache-hit request grouping (2026-11-16)
+- PR workflow #823 (`43824001315`) tested 812 cases and reported one failure in `CachingTranslatorTest.observerRecordsFreshFinalPairAndSubsequentCacheHit`: the cache-hit trace's `requestId` was blank.
+- Inspected the failed HTML report artifact (ID `14205109659`). The missing field was limited to the cache-hit constructor; fresh engine/failure/missing-result trace paths already propagated the per-page ID.
+- Fixed by passing the same `traceRequestId` into the cache-hit trace. Commit `55b50914170326b63271be835e8a607d2a9761f5`.
+- This is instrumentation-only. No production translation or cache behavior changed.
+- Fresh CI is required on the new head; current status is pending/unverified.
