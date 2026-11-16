@@ -37,11 +37,14 @@ class TranslationMemo(
         fun clear() = map.clear()
     }
 
-    private val exact = Lru<String>(exactCapacity)
-    private val fuzzy = Lru<String>(fuzzyCapacity)
+    private data class Entry(val source: String, val arabic: String)
+
+    private val exact = Lru<Entry>(exactCapacity)
+    private val fuzzy = Lru<Entry>(fuzzyCapacity)
     private val lock = Any()
 
-    data class Hit(val arabic: String, val exact: Boolean)
+    /** Includes the source that populated the slot, so a fuzzy hit can be audited. */
+    data class Hit(val arabic: String, val exact: Boolean, val matchedSource: String)
 
     /**
      * @param source the text as the ENGINE will see it (glossary-prepared), or the raw
@@ -50,7 +53,7 @@ class TranslationMemo(
     fun get(source: String): Hit? {
         val key = key(source)
         synchronized(lock) {
-            exact.get(key)?.let { return Hit(it, true) }
+            exact.get(key)?.let { return Hit(it.arabic, true, it.source) }
             if (source.length > fuzzyMaxChars) return null
             val shape = shapeOf(key)
             // Tiny or weak shapes are too ambiguous for dialogue. Keep fuzzy reuse
@@ -58,7 +61,7 @@ class TranslationMemo(
             // but vowel identity and word boundaries remain significant.
             if (!isFuzzySafeShape(shape)) return null
             val hit = fuzzy.get(shape) ?: return null
-            return Hit(hit, false)
+            return Hit(hit.arabic, false, hit.source)
         }
     }
 
@@ -66,10 +69,11 @@ class TranslationMemo(
         if (arabic.isBlank()) return
         val key = key(source)
         synchronized(lock) {
-            exact.put(key, arabic)
+            val entry = Entry(source, arabic)
+            exact.put(key, entry)
             if (source.length <= fuzzyMaxChars) {
                 val shape = shapeOf(key)
-                if (isFuzzySafeShape(shape)) fuzzy.put(shape, arabic)
+                if (isFuzzySafeShape(shape)) fuzzy.put(shape, entry)
             }
         }
     }
