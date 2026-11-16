@@ -194,3 +194,9 @@ Unit tests were added for request batching, response parsing, endpoint validatio
 - Add exact-source Arabic repairs for two OCR variants observed in the Solo Leveling chapter-4 phone report (duplicated “THE” in rank dialogue and “WOULO'VE” recognition error).
 - Keep ML Kit batching on parallel x6: joined ` | ` was fastest on the fixed 20-bubble benchmark, but its prior real-page mapping mismatch still disqualifies it as the saved default.
 - Verification and update-compatible prerelease build pending.
+
+
+## v0.12.16 (unreleased)
+- Add exact-source Arabic repairs for Solo Leveling chapter-5 lines reported on-device: tunnel/gate narration, rank explanation, healers, statue dialogue and short responses.
+- Keep ML Kit batching at parallel x2. The chapter-5 fixed benchmark mapped all 20 bubbles under parallel x2/x3/x4, but joined pipe remains banned after a real-page mismatch.
+- Unit tests and update-compatible prerelease build pending.
