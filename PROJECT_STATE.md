@@ -1231,3 +1231,30 @@ Never use one label as evidence for another.
 ### Additional detector post-processing cleanup
 - Extended native-resource hardening to `DBPostProcessor`: owns probability/mask/hierarchy/dilation Mats in one cleanup scope, releases the dilation kernel and failed dilation destination, and releases the per-contour score mask/polygon/ROI even when `fillPoly` or `Core.mean` throws.
 - This preserves thresholding, dilation kernel size, contour discovery, scoring, unclip behavior and box coordinates. Commit: `b7ecd44a01d5e1fb72a7b6a819bcbd8ad72af624`; follow-up partial-dilation cleanup hardening: `94be8d944d1355c1be47b1b7f87c455b2d26f716`.
+
+## v0.12.13 release verified — native OCR memory hardening (2026-11-16)
+
+### CI and test evidence
+- Push workflow #871 (`43836404334`) and PR workflow #872 (`43836409254`) completed successfully on head `78155310cb167ff5629b8a7403e0671e2594c579`.
+- Downloaded and inspected the #871 Gradle HTML report artifact (`14209764947`): **812 tests, 0 failures, 0 ignored**, 1.996s reported; all package groups show 100% success.
+- `:app:assembleDebug`, model/runtime setup and pinned experimental signer verification all succeeded.
+
+### Release and update compatibility
+- Published prerelease `v0.12.13`: `https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.13`.
+- APK: `ManhwaLens-v0.12.13-debug.apk`, 71,388,978 bytes; SHA-256 `daaf7c9776afbe0522568ef2de551a8106e9c373a20bbde091011b6eb9582c90`.
+- Downloaded the #871 Actions APK artifact (`14211665290`), extracted it and independently hashed the APK. It is byte-identical to the published Release asset (same size and SHA-256).
+- Update gate output verified previous release `v0.12.12` → `v0.12.13`, package `com.manhwalens.app`, versionCode `52 → 53`, signer SHA-256 unchanged at `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
+- Release asset URL: `https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.13/ManhwaLens-v0.12.13-debug.apk`.
+
+### Native OCR lifecycle scope
+- `QuadTextCrop`, `OCREngine` batch crop ownership, `RecPreprocessor`, `DetPreprocessor`, `ImageUtils` and `DBPostProcessor` now release temporary OpenCV Mats/ROIs/channels/kernels on both success and exception paths.
+- No OCR score thresholds, crop geometry, tensor shapes, BGR channel order, normalization, reading order, bubble grouping, or translation logic was changed.
+- This repair improves native-memory safety by code inspection and CI build/test success; it does **not** yet prove reduced memory use or long-session stability on a physical phone.
+
+### Device verification — next required gate
+- Install v0.12.13 directly over v0.12.12; do not uninstall or clear app data.
+- Follow `MANUAL_TESTS.md` → `v0.12.13 — repeated-page OCR memory stability`: keep PaddleOCR for OCR, ML Kit for translation, turn Debug mode on, capture a dense page repeatedly (5 times), then 5–10 varied pages without restarting the app. Copy Last capture / pipeline report and note device model, Android version, responsiveness and system app-memory before/after if available. Turn Debug mode off after.
+- No physical-device test is claimed. Do not adjust OCR thresholds or promote alternative OCR engines based on this resource-lifecycle patch.
+
+### Repository topology
+- Keep PR #3 open toward `main` and PR #4 open Draft stacked on PR #3. No merge was performed.
