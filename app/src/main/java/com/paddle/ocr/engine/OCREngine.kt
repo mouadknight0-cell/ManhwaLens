@@ -114,18 +114,20 @@ class OCREngine(
             val batchCrops = mutableListOf<org.opencv.core.Mat>()
             val batchBoxIndices = mutableListOf<Int>()
             var next = i
-            while (next < sortedBoxes.size && batchCrops.size < batchSize) {
-                val crop = QuadTextCrop.crop(srcMat, sortedBoxes[next])
-                if (crop.rows() > 0 && crop.cols() > 0) {
-                    batchCrops.add(crop)
-                    batchBoxIndices.add(next)
-                } else {
-                    crop.release()
-                }
-                next++
-            }
-
             try {
+                // Crop creation is inside the same ownership scope as recognition. If a
+                // later perspective crop fails, every earlier crop in this batch is released.
+                while (next < sortedBoxes.size && batchCrops.size < batchSize) {
+                    val crop = QuadTextCrop.crop(srcMat, sortedBoxes[next])
+                    if (crop.rows() > 0 && crop.cols() > 0) {
+                        batchCrops.add(crop)
+                        batchBoxIndices.add(next)
+                    } else {
+                        crop.release()
+                    }
+                    next++
+                }
+
                 if (batchCrops.isNotEmpty()) {
                     val batchResult = recognitionEngine.recognize(batchCrops)
                     totalRecPreMs += batchResult.preprocessMs
@@ -155,7 +157,7 @@ class OCREngine(
                     }
                 }
             } finally {
-                batchCrops.forEach { it.release() }
+                batchCrops.forEach { runCatching { it.release() } }
             }
             i = next
         }
