@@ -20,6 +20,7 @@ class TranslationMemoTest {
         assertNotNull(hit)
         assertTrue(hit!!.exact)
         assertEquals("مرحبا", hit.arabic)
+        assertEquals("Hello there", hit.matchedSource)
     }
 
     @Test
@@ -31,6 +32,7 @@ class TranslationMemoTest {
             val hit = memo.get(variant)
             assertNotNull("variant $variant should hit", hit)
             assertEquals("كراك", hit!!.arabic)
+            assertEquals("KRAK!!", hit.matchedSource)
         }
     }
 
@@ -155,6 +157,8 @@ class TranslationMemoTest {
         assertEquals(1, calls)
         assertEquals(listOf("OK", "FUZZY_HIT", "FUZZY_HIT"), traces.map { it.status })
         assertEquals(listOf("KRAK!", "Kraak", "Kraak"), traces.map { it.sourceEnglish })
+        assertTrue(traces[1].detail.contains("matched=KRAK!"))
+        assertTrue(traces[2].detail.contains("matched=KRAK!"))
     }
 
     @Test
@@ -171,7 +175,8 @@ class TranslationMemoTest {
         assertEquals("أين أنت؟", result.blocks.single().arabic)
         assertEquals(0, fake.calls)
         assertEquals("أين أنت؟", cache.get("fake_engine", "Where are you?"))
-        assertEquals("served from exact translation memo", traces.single().detail)
+        assertTrue(traces.single().detail.startsWith("served from exact translation memo;"))
+        assertTrue(traces.single().detail.contains("matched=Where are you?"))
     }
 
     @Test
