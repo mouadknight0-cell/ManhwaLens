@@ -1012,3 +1012,27 @@ Never use one label as evidence for another.
 2. Follow the v0.12.11 P4-A steps in `MANUAL_TESTS.md`: enable Diagnostics Debug mode, pause Live mode, capture 3–5 representative pages, and share the copied report with OCR engine stats, raw OCR confidence/bounding boxes, grouped/kept blocks, ML Kit raw candidates and final overlay. Preserve screenshots for geometry/grouping errors; disable Debug mode afterwards.
 3. After the report arrives, classify failures by stage (recognition, grouping/filtering, translation/post-processing) and implement the next evidence-backed correction. Do not tune OCR thresholds without labeled screenshot evidence.
 - **Intervention required now:** real-device update and capture test only. No further technical approval is needed.
+
+## Engineering continuation — new Xiaomi ML Kit batching and quality evidence (2026-11-16)
+
+### User-provided real-device diagnostics
+- Device: Xiaomi 23106RN0DA, Android 14; ML Kit EN→AR only. This is device-provided evidence, not an independent device session by the assistant.
+- Latest 20-bubble / 5-pass batching benchmark: Joined HASH (###) median 706 ms, worst 793 ms, 20/20 mapped on all measured passes; Parallel x6 median 1117 ms, worst 1328 ms. HASH is 36.8% faster by median in this sample. Joined PIPE median 809 ms; BRACKET_NUM 813 ms; ANGLE_NUM 875 ms; BULLET 1153 ms. AT/newline/double-newline failed mapping (1 != 20).
+- Device reports policy now applied as Joined HASH. Keep this choice device-local and subject to existing re-test/quarantine behavior; do not promote a global default from one device/sample.
+- The prior 2026-11-15 benchmark on the same device had Joined BULLET 725 ms vs Parallel x2 1637 ms. The changed winner demonstrates why the strategy must be benchmarked/re-proven per device/model state rather than hard-coded globally.
+- Latest quality check: raw and cleaned candidates accepted 22/23, exact 2/23, mean token F1 49.6%; final visible output accepted 23/23, exact 9/23, mean token F1 74.8%, with seven source-specific corrections. F1 remains lexical overlap, not semantic accuracy. The 25.2-point rise is attributable to local correction/guard stages, not an improvement in ML Kit itself.
+- Visible-output weaknesses remain: It hurts… but I can still stand (F1 0.14), I've been waiting… (0.40), and Where are you going? Come back here. (0.50). Name-heavy case #10 remains weak (0.55). Do not count acceptance or Arabic-script presence as semantic correctness.
+- Translation-pair samples show OCR contamination from Android status/telecom UI, ManhwaLens overlay, ChatGPT/Brave UI and other app chrome; recognition errors (YOL, LNINJURED, MINLTES, B055 15) and sentence fragmentation. The supplied excerpt also contains stale-looking AH/YEAH cache results identical to a previous unrelated response; this is a serious provenance regression candidate despite prior fuzzy-cache hardening. It requires checking whether the values are exact persistent cache hits, exact memo hits, or a different source-ID/cache-key collision using the new trace provenance before changing cache logic.
+- The linked chapter page was supplied as context only; no independent page inspection is claimed.
+
+### Source review and action in this interaction
+- Re-read BatchSplitter.kt, BatchPolicy.kt, MlKitTranslator.kt and BatchSplitterTest.kt on the development branch.
+- Confirmed HASH is an existing supported strategy (hash3), joins using newline + ### + newline, and MlKitTranslator only attempts the selected joined strategy when BatchSplitter.sourcesSafe(...) permits it; unsafe source text falls back to per-block translation. The source guard treats # as a marker character, conservatively preventing HASH batching when a source contains any #.
+- Added two JVM regression tests in commit a84fa560909bfd18589be6c4a4eac093b690e0d8: HASH strategy refuses source strings containing ### or #, while accepting ordinary sources; and an extra ### inside a translated segment is rejected as a mapping-count mismatch.
+- These are test additions only. They do not alter production strategy selection or global defaults.
+
+### Verification boundary and next actions
+- New test commit is pushed to feature/v0.12.4-bergamot-experiment; CI result for this commit is not yet verified in this entry.
+- Device policy Joined ### is observed applied on the user's Xiaomi; not generalized to other devices.
+- ML Kit remains the default translator; Bergamot remains experimental. No OCR thresholds/grouping geometry were changed because the report lacks paired screenshots and ground-truth box labels.
+- Next: inspect CI for commit a84fa560909bfd18589be6c4a4eac093b690e0d8; then trace the AH/YEAH wrong results against the diagnostic provenance fields and audit cache key construction, persistent cache, memo and stable block identity. Separately, build a labeled screenshot OCR set to classify OCR recognition vs filtering/grouping vs translation errors. Do not tune OCR thresholds from text-only logs.
