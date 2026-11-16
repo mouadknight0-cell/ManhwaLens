@@ -98,6 +98,28 @@ class ShortDialogueOverridesTest {
         assertEquals("لكنا أُبيدنا جميعًا.", ShortDialogueOverrides.apply(
             "WE COULD'VE BEEN WIPED OUT.", "يمكن أن تم القضاء عليها."
         ))
+
+        assertEquals("لم أسمع قط بوجود وحوش بهذه القوة في دهاليز من الرتبة D!", ShortDialogueOverrides.apply(
+            "I'VE NEVER HEARD OF MON-\\nSTERS AS STRONG AS THEM IN THE LIKES OF D-RANK DUNGEONS!",
+            "لم أسمع أبدا عن الوحوش قوية مثلهم في أمثال D-Rank الأبراج المحصنة!"
+        ))
+        assertEquals("هذه ليست المرة الأولى التي أواجه فيها تجربة كدت أموت خلالها.", ShortDialogueOverrides.apply(
+            "THIS ISN't THE FIRST TIME I ENCOUNTERED A NEAR-DEATH EXPERIENCE,",
+            "هذه ليست المرة الأولى التي واجهت فيها تجربة شبه الموت،"
+        ))
+        assertEquals("لا أستطيع فعل ذلك.", ShortDialogueOverrides.apply("I CAN'T DO THAT", "لا أستطيع فعل هذا"))
+        assertEquals("يُلقّب هذه الأيام بأضعف صياد في العالم.", ShortDialogueOverrides.apply(
+            "THESE DAYS, HE'S CALLED THE WORLD'S WEAKEST HUNTER.",
+            "في هذه الأيام، يطلق عليه أضعف هنتر في العالم."
+        ))
+        assertEquals("أي إنه، رغم كونه صيادًا، عديم الفائدة.", ShortDialogueOverrides.apply(
+            "MEANING EVEN THOUGH HE'S A HUNTER, HE'S USELESS.",
+            "وهذا يعني رغم أنه صياد، فهو عديم الفائدة."
+        ))
+        assertEquals("كدت لا أتفاداها. لولا أن سونغ صاح محذرًا،", ShortDialogueOverrides.apply(
+            "I BARELY DODGED IT. IF SUNG DIDN'T YELL OUT,",
+            "بالكاد تهرب منه. إذا كان سونغ لم يصيح،"
+        ))
     }
 
     @Test fun longerSentencesAreNeverOverridden() {
