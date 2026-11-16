@@ -703,3 +703,35 @@ Context limitation: the current Bergamot JNI bridge accepts independent text seg
 7. Turn **Debug mode OFF** after collection. Do not clear translation caches unless investigating an unrelated translation issue.
 
 **Scope:** this is a native-resource lifecycle check. CI verifies unit tests and APK packaging; only the phone can reveal device-specific OpenCV/ONNX memory pressure and long-session stability.
+
+
+## Chapter 4 — ML Kit batching and translation-quality follow-up (2026-11-16)
+
+**Device report received:** Xiaomi 23106RN0DA / Android 14. This is a real-device report supplied by the user.
+
+### Batching evidence
+- 20 bubbles; five passes per method, first discarded; four measured passes.
+- Joined ` | `: median 573 ms, worst 576 ms, 20/20 mapped on every measured pass, one ML Kit request.
+- Sequential: median 969 ms; parallel x2: 979 ms; x3: 1357 ms; x4: 1096 ms; x6: 1005 ms.
+- Joined ` | ` is the fastest valid strategy in this sample (40.9% lower median than sequential). `@@@`, newline and double-newline strategies failed mapping and must not be selected for this sample.
+- User report says the verdict was applied. The selected offline translation engine did not change.
+
+### Translation quality evidence and limitations
+- Fixed 23-case EN→AR reference set: raw/cleaned mean token F1 49.6%, visible mean token F1 74.8%; visible exact 9/23. The visible score includes seven exact source corrections. Token F1 is lexical overlap only, not semantic accuracy.
+- The 59-entry chapter-4 pair trace shows many validly accepted but semantically weak ML Kit outputs (e.g. rank/dungeon phrasing, healer/raid lines, and awkward sentence structure). The Arabic guard is a script/echo/shape guard, not a semantic-quality evaluator.
+- OCR source strings also contain likely recognition errors/wrap artifacts (e.g. `OLT` for `OUT`, `BLYING` for `BUYING`, `QLICKLY` for `QUICKLY`, `STATLES` for `STATUES`). Do not silently treat these as translation-engine defects or introduce broad OCR substitutions without image-level evidence.
+- The high-latency page request `ed782881-p17` took 20,430 ms for three bubbles. This is a separate latency outlier from the 20-bubble batching benchmark and needs a focused follow-up with its stage trace before changing global timeouts/concurrency.
+
+### Source-exact repair follow-up
+- Added conservative exact-source repairs in `ShortDialogueOverrides` for observed chapter-4 strings (rank/dungeon terminology, raid/healer dialogue, hunter description, and final danger exchange).
+- Added JVM regression coverage for observed normalized OCR variants. These repairs are intentionally exact-source only; they are not a general language model and do not prove semantic quality for unseen sentences.
+- CI/build verification for these new changes is pending. Do not publish a new APK until the current branch build and all unit tests pass.
+
+### Device recheck after the next CI-verified APK
+1. Install the new APK as an update over v0.12.13; do not uninstall or clear app data.
+2. Keep ML Kit selected and Debug mode enabled. Clear only the translation-pair history, not the translation cache.
+3. Revisit the same chapter-4 page(s). Confirm the observed exact-source lines now show the repaired Arabic, and check that unrelated lines are unchanged.
+4. Copy the complete translation-pair report and Last capture / pipeline trace. Include any page-level delay over 3 seconds.
+5. Report any source OCR mismatch separately from a wrong Arabic translation.
+
+**Current gate:** source-level repairs committed; automated CI and device confirmation are not yet verified.
