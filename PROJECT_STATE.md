@@ -1288,3 +1288,16 @@ Never use one label as evidence for another.
 - Implemented exact-source chapter-4 repairs in `ShortDialogueOverrides.kt` and added JVM regression assertions in `ShortDialogueOverridesTest.kt`. Updated `MANUAL_TESTS.md` with a device recheck plan that preserves translation cache and clears only pair history.
 - CI/build for the latest branch tip is pending/unverified. No new APK, version bump, or GitHub Release has been created. Do not request device recheck until CI passes and an update-compatible prerelease APK is published.
 - Next engineering action: inspect the Actions run for `deb5a382dec72c1ede59da67fb6bdc39a9073e7e`; fix any unit-test/build failures, then bump the patch version and publish only after verifying CI and signer/package continuity.
+
+
+## CI recovery and v0.12.14 candidate — 2026-11-16 11:15 UTC
+
+- Latest source head before this update: `fbe497c1ed7f7f9f8319a105d58bcf61d2e9b29e`.
+- The previous CI run #896 failed one assertion in `soloLevelingChapterFourObservedLinesGetSourceExactRepairs`; implementation output was correct and the expected string in the test was stale. Updated the assertion to the implementation's exact Arabic wording.
+- New push run #898 (`43855482191`) and PR validation run #899 (`43855488720`) both completed successfully on `fbe497c1ed7f7f9f8319a105d58bcf61d2e9b29e`. Gradle unit-test task, debug APK build and pinned signer verification passed. APK artifact: `ManhwaLens-v0.12.13-debug-apk`, 70,080,396 bytes. Test report artifact was uploaded.
+- Verified signer SHA-256 from CI: `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`, matching the established v0.12.13 release signer.
+- The CI branch build correctly did not republish v0.12.13 because that Release tag already exists. Latest published Release remains v0.12.13 / versionCode 53; no new APK Release was created by these validation runs.
+- Candidate version advanced in this commit to `0.12.14` / versionCode `54`; applicationId remains `com.manhwalens.app`. This is a version metadata change only, not proof of update compatibility or a published build.
+- Next gate: run CI on the versioned head. Require unit tests, APK build, signer check, and the release update-compatibility gate against v0.12.13 (package unchanged, versionCode 53 → 54, signer unchanged) to pass before asking for installation.
+- PR #4 remains open Draft and stacked on PR #3. Do not merge it directly into main.
+- Device retest remains outstanding: after a verified v0.12.14 prerelease is published, install over v0.12.13 without uninstalling/clearing data; keep ML Kit selected and Debug enabled; clear only translation-pair history; recheck chapter 4 and collect pair/pipeline reports.

@@ -735,3 +735,14 @@ Context limitation: the current Bergamot JNI bridge accepts independent text seg
 5. Report any source OCR mismatch separately from a wrong Arabic translation.
 
 **Current gate:** source-level repairs committed; automated CI and device confirmation are not yet verified.
+
+
+## v0.12.14 — chapter 4 translation repair recheck (pending release)
+
+Do not install until GitHub Release v0.12.14 exists and CI confirms package/version/signer continuity against v0.12.13.
+
+1. Install v0.12.14 directly over v0.12.13; do not uninstall or clear app data.
+2. Keep ML Kit selected and Debug mode enabled. Clear only translation-pair history, not the translation cache.
+3. Revisit the same Solo Leveling chapter-4 pages. Verify repaired rank/dungeon, raid/healer, hunter-description and danger-dialogue lines; also confirm unrelated lines remain unchanged.
+4. Copy the complete translation-pair report and Last capture / pipeline trace. Include any page-level delay over 3 seconds.
+5. Distinguish OCR source errors from Arabic translation errors. Include the exact source text and visible output for each remaining defect.

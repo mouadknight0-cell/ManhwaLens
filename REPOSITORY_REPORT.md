@@ -1372,3 +1372,18 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 2. If CI passes, bump the app to a new update-compatible version (next patch release) without changing package ID or pinned signer, then publish and verify a prerelease APK.
 3. Ask for the chapter-4 device recheck only after that APK exists. Do not claim the targeted repairs are device-validated until the new pair report is returned.
 4. Separately investigate the 20.43 s request using its stage-level pipeline trace; do not infer that joined batching caused it.
+
+
+## Session update — CI recovery and v0.12.14 candidate (2026-11-16)
+
+### Automated verification
+- CI run #898 (push: `43855482191`) and PR validation #899 (`43855488720`) passed on source head `fbe497c1ed7f7f9f8319a105d58bcf61d2e9b29e`.
+- The initial failure was one stale expected-value assertion, not a compile/runtime regression. The assertion now matches the exact Arabic output from the source-specific correction.
+- Gradle unit-test task and `:app:assembleDebug` completed successfully. The stable experimental signer check passed with SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
+- Both validation runs uploaded a v0.12.13 APK artifact (70,080,396 bytes) and test reports. These are validation artifacts, not a new GitHub Release.
+- The workflow correctly skipped publishing because v0.12.13 already exists. Latest actual Release is still v0.12.13; no new installable APK is claimed.
+
+### Candidate release
+- Bumped `versionName` from `0.12.13` to `0.12.14` and `versionCode` from 53 to 54. Package ID and signing configuration remain unchanged.
+- This versioned commit must pass the complete CI release gate, including APK package/version metadata and certificate comparison against the published v0.12.13 APK. Only then can the automatic branch-release workflow publish v0.12.14.
+- Physical-device chapter-4 verification is still pending. After publication, install v0.12.14 over v0.12.13 without clearing data, keep ML Kit selected, clear only pair history, and return the pair/pipeline reports.
