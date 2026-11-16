@@ -106,7 +106,7 @@ class CachingTranslator(
             // before name/source corrections and the Arabic quality guard.
             val cleanedHit = rawHit?.let(TranslationOutputSanitizer::clean)
             val nameOverride = pinnedOverride
-            val repairedHit: String? = if (cleanedHit != null && nameOverride != null) {
+            val repairedHit: String? = if (!cleanedHit.isNullOrBlank() && nameOverride != null) {
                 runCatching { nameOverride.invoke(b.english, cleanedHit) }.getOrDefault(cleanedHit)
             } else {
                 cleanedHit
