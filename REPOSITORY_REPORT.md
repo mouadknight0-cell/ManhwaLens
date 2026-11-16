@@ -1674,3 +1674,10 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - أُنشئ prerelease [v0.12.25](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.25) وتحقق ظهوره في Releases مع `ManhwaLens-v0.12.25-debug.apk` (71,399,110 bytes، SHA-256 `82b547772b4f7443f03d1f8d9d1d9d9a433d7a5db2a39d6ae209b2ff43ac2b84`). رابط التنزيل المباشر: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.25/ManhwaLens-v0.12.25-debug.apk.
 - اختبار `LiveOverlayStageTimesTest` اجتاز حالتي تقسيم الفواصل الصحيحة ومعالجة الطوابع غير الصالحة دون قيم سالبة. لا توجد مطالبة بتسريع فعلي حتى تعاد جلسة الهاتف نفسها؛ زيادة batch size ما زالت تجربة تحتاج تحقق latency والذاكرة وتغطية OCR.
 - العمل المطلوب من الهاتف: تثبيت v0.12.25 فوق v0.12.24، واستخدام الجهاز والصفحة نفسيهما، ثم إرسال تقرير Live benchmark الجديد للتحقق من سرعة recognizer/عدد دفعاته ومراحل أول overlay ورفض الثقة وتغطية النص.
+
+
+## إعادة إرسال قياس v0.12.24 — 2026-11-16
+
+- وصل تقرير Live session مطابق لقياس Xiaomi السابق: التطبيق المبلغ عنه هو v0.12.24 (code 64)، ووقت الجلسة 17:01:48–17:03:30، والقياسات نفسها (16 إطارًا، OCR متوسط 2,686 ms، recognition متوسط 1,784 ms، وأول إخراج بعد 11,919 ms).
+- هذا ليس اختبارًا لـ v0.12.25؛ لذلك لا يقيّم دفعة recognition الجديدة بحجم 8 ولا يحتوي تفصيل First overlay stages الذي أضيف في ذلك الإصدار. لا تغيير برمجي أو استنتاج أداء جديد من هذه الإعادة.
+- المقارنة المطلوبة ما تزال: تشغيل v0.12.25 / code 65 على الهاتف نفسه والصفحة نفسها، ثم إرسال تقرير Live session benchmark الذي يعرض إصدار التطبيق وFirst overlay stages وعداد recBatches.
