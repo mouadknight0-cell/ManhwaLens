@@ -1056,7 +1056,7 @@ Never use one label as evidence for another.
 - This is a test-file structural defect, not a production `BatchSplitter` failure. The existing `BatchSplitterTest` class itself had 25 passing tests; the new top-level test holder failed discovery.
 
 ### Fix implemented
-- Moved both HASH-strategy regression tests inside `BatchSplitterTest` by correcting the class closing-brace placement in `app/src/test/java/com/manhw alens/app/translate/BatchSplitterTest.kt` (actual repository path: `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt`).
+- Moved both HASH-strategy regression tests inside `BatchSplitterTest` by correcting the class closing-brace placement in `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt` (actual repository path: `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt`).
 - Commit: `b751a78e70ba4fcdb47543066d8968fde7cc1335` — `test: keep hash batching cases inside JUnit test class`.
 - This fix is pushed to the development branch through GitHub's file update API. It is Implemented; the new commit's CI has not yet been verified.
 
