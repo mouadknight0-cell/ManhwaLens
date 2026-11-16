@@ -757,3 +757,14 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 5. Keep the ML Kit batching preference at parallel x6 unless a real-page repeat validates mapping for all bubbles. The fixed benchmark alone is insufficient to remove the existing separator ban.
 
 **Gate:** release and signer/update compatibility must pass CI before installation; device confirmation is still required.
+
+
+# v0.12.16 — Solo Leveling chapter 5 translation recheck
+
+1. Install v0.12.16 over v0.12.15 without uninstalling or clearing app data. Keep ML Kit selected and Debug mode enabled.
+2. Clear translation-pair history only; preserve the translation cache. Revisit the same chapter-5 page.
+3. Check the tunnel/gate narration, hunter/rank explanation, healer dialogue, guard statue descriptions, first commandment lines and corrected short replies.
+4. Confirm corrected Arabic appears and neighboring lines remain unchanged. Collect the full pair report plus Last capture and pipeline trace. Include page latency above 3 seconds.
+5. Keep current parallel x2 unless a real-page run verifies full bubble mapping. Fixed-corpus speed alone does not remove the prior real-page separator ban.
+
+**Gate:** wait for CI, signature/update compatibility and a published APK before installing. Device verification remains required.
