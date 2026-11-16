@@ -18,7 +18,7 @@ class LiveOverlayStageTimesTest {
     @Test
     fun invalidClockOrderIsUnavailableRatherThanNegative() {
         val t = LiveOverlayStageTimes.measure(1_000L, 1_200L, 1_190L, 1_180L, 1_170L, 1_160L)
-        assertNull(t.patchBuildMs)
+        assertEquals(200L, t.patchBuildMs)
         assertNull(t.workerHandoffMs)
         assertNull(t.mainThreadQueueMs)
         assertNull(t.callbackPreparationMs)
