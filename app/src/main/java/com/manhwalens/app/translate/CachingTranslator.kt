@@ -182,7 +182,8 @@ class CachingTranslator(
                         id, source, arabic, candidate, engineId,
                         if (isFuzzy) "FUZZY_HIT" else "CACHE_HIT",
                         cacheHitDetails[id] ?: "served from translation cache",
-                        0L
+                        0L,
+                        requestId = traceRequestId
                     )
                 )
             }
