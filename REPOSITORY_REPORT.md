@@ -1330,3 +1330,11 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 
 ### Detector post-processing ownership
 - `DBPostProcessor` now releases raw probability/mask/hierarchy/dilated Mats and every contour; temporary score-mask, polygon and probability ROI Mats are protected by `finally`. Dilation destination and kernel are also released on failure. No contour thresholds/scoring or geometry changed.
+
+## v0.12.13 release verified — OCR native resource lifecycle
+- Push #871 and PR #872 passed on head `78155310cb167ff5629b8a7403e0671e2594c579`.
+- Inspected downloaded Gradle report: 812 tests, 0 failures, 0 ignored (1.996s); debug APK packaging and pinned signing verification passed.
+- Published prerelease v0.12.13. APK asset is 71,388,978 bytes, SHA-256 `daaf7c9776afbe0522568ef2de551a8106e9c373a20bbde091011b6eb9582c90`. The independently downloaded Actions APK artifact matches the release asset exactly.
+- Update check passed against v0.12.12: `com.manhwalens.app`, versionCode 52 → 53, signing certificate SHA-256 unchanged `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
+- Resource lifecycle fixes cover perspective crops, crop batch failure paths, recognition/detection preprocess Mats and channel splits, detector resize failure, DB probability/mask/dilation/contour/score ROI Mats. No image math/threshold/geometry/output behavior was intentionally changed.
+- Device test remains required to validate repeated-page OCR memory stability; detailed checklist is in `MANUAL_TESTS.md` under v0.12.13.
