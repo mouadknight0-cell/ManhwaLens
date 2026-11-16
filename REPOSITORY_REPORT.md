@@ -1,10 +1,10 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.6  
-**تاريخ التحديث:** 2026-11-15  
+**الإصدار:** 5.7  
+**تاريخ التحديث:** 2026-11-16  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر حالة موثقة الآن:** المرشح v0.12.10 (versionCode 50) على فرع التطوير؛ لم يُنشر بعد. آخر Release متحقق منه هو v0.12.9 (prerelease) مع APK مرفق. PR #4 مفتوح Draft ومكدّس فوق PR #3. راجع آخر ملحق مؤرخ أدناه؛ المقاطع التاريخية الأقدم لا تتجاوز هذا الملحق في وصف الحالة الحالية.  
+**آخر حالة موثقة الآن:** مرشح v0.12.14 (versionCode 54) على `feature/v0.12.4-bergamot-experiment`، وآخر commit مرئي `c33bdf94991bd122d81b7450c0c4874d26efbabb` (2026-11-16 11:20 UTC). آخر CI موثق ناجح هو التشغيلان #898 و#899 على الرأس السابق `fbe497c1ed7f7f9f8319a105d58bcf61d2e9b29e`؛ حالة CI على الرأس الحالي غير متحققة، وواجهة combined status أعادت قائمة فارغة. أحدث إصدار منشور وفق السجل هو v0.12.13 (versionCode 53). PR #4 مفتوح كمسودة ومكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main.
 **CI لنسخة v0.12.8:** [43724428631](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43724428631) — نجحت Unit tests والتحققات من نماذج PaddleOCR وBergamot ARM64 وبناء Debug APK ورفع artifacts. كان هذا تشغيل PR validation، لذا تخطّى خطوات نشر Release بشكل صحيح. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
@@ -1387,3 +1387,13 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - Bumped `versionName` from `0.12.13` to `0.12.14` and `versionCode` from 53 to 54. Package ID and signing configuration remain unchanged.
 - This versioned commit must pass the complete CI release gate, including APK package/version metadata and certificate comparison against the published v0.12.13 APK. Only then can the automatic branch-release workflow publish v0.12.14.
 - Physical-device chapter-4 verification is still pending. After publication, install v0.12.14 over v0.12.13 without clearing data, keep ML Kit selected, clear only pair history, and return the pair/pipeline reports.
+
+
+## Session update — بروتوكول الاستمرارية الهندسية (2026-11-16)
+
+- أكد المستخدم أن هذا مشروع هندسي مستمر، وأن التقرير الموحد يجب تحديثه بعد كل تفاعل متعلق بـ ManhwaLens، مع الفصل بين المنفذ والمتحقق والمخطط له.
+- أعيد تدقيق الحالة من GitHub: المستودع `mouadknight0-cell/ManhwaLens`؛ فرع التطوير النشط `feature/v0.12.4-bergamot-experiment`؛ رأسه المرئي `c33bdf94991bd122d81b7450c0c4874d26efbabb` الذي يجهز v0.12.14 / versionCode 54. المستودع المحلي في مجلد هذه المحادثة غير موجود؛ لم تُجر تغييرات على كود التطبيق.
+- PR #4 مفتوح كمسودة ومكدّس فوق PR #3. PR #3 مفتوح، وPR #2 مدمج. تقرير `main` قديم، لذا اعتمد هذا التقرير على فرع PR #4 كسجل هندسي نشط.
+- تحقق سجل الفرع من CI #898 و#899 الناجحين على الرأس السابق `fbe497c1ed7f7f9f8319a105d58bcf61d2e9b29e`. لم يظهر دليل CI للرأس الحالي؛ أرجعت واجهة commit status قائمة فارغة، لذلك لا تُعدّ ذلك نجاحًا. لا يوجد دليل في هذا التفاعل على نشر v0.12.14؛ أحدث إصدار مسجل يبقى v0.12.13 / versionCode 53.
+- لم تُنفذ اختبارات محلية أو على جهاز. تحقق الهاتف الحقيقي المطلوب لإعادة فحص إصلاحات الفصل 4 يظل معلقًا إلى أن يجتاز الرأس الحالي CI وبوابة توافق الحزمة/التوقيع ويُنشر APK قابل للتحديث.
+- القرار التالي: فحص تشغيلات Actions للرأس `c33bdf94991bd122d81b7450c0c4874d26efbabb`؛ إن لم توجد، تشغيل أو استعادة CI وفق سير العمل المتاح، ومعالجة أي فشل، ثم التحقق من إصدار APK وتوافقه قبل طلب اختبار الجهاز.
