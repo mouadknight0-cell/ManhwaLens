@@ -1258,3 +1258,21 @@ Never use one label as evidence for another.
 
 ### Repository topology
 - Keep PR #3 open toward `main` and PR #4 open Draft stacked on PR #3. No merge was performed.
+
+
+## Session continuation — protocol adoption and repository re-audit (2026-11-16 11:40 UTC+1)
+
+### Actual repository state rechecked
+- Repository metadata confirms public repository `mouadknight0-cell/ManhwaLens`, default branch `main`; the engineering handoff files `PROJECT_STATE.md` and `REPOSITORY_REPORT.md` are maintained on `feature/v0.12.4-bergamot-experiment`, not on `main`. A request for `PROJECT_STATE.md` on `main` returns 404; do not mistake this for a missing project handoff.
+- Development branch head recorded and fetched: `78155310cb167ff5629b8a7403e0671e2594c579` (`docs: include detector score mask cleanup`). The latest commit only updates the engineering report; it does not change app source.
+- Latest recorded release remains v0.12.13, versionCode 53, package `com.manhwalens.app`; published prerelease APK URL: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.13/ManhwaLens-v0.12.13-debug.apk. Release/CI evidence is recorded in the preceding v0.12.13 section.
+- Workflow run #872 (`43836409254`) for the exact head was re-fetched and reports completed/success. The prior state records push run #871 (`43836404334`) success and the inspected 812/812 test report. Combined commit status endpoint returned no status entries; this is not interpreted as a failure or as extra CI evidence.
+- Branch listing confirms `feature/v0.12.4-bergamot-experiment`, `feature/v0.12.3-paddle-default-settings`, three arena branches and `main`. PR #3/#4 remain the documented stacked development path; no merge or source change was made in this interaction.
+
+### Current engineering gate
+- v0.12.13 is **CI-verified and Release-published**, but **not device-verified**.
+- The sole immediate user-side evidence still required is the v0.12.13 repeated-page PaddleOCR/OpenCV memory-stability check described in `MANUAL_TESTS.md`: install over v0.12.12, capture one dense page five times and 5–10 varied pages without restarting, then return the Last capture/pipeline report plus device model, Android version, responsiveness and memory observations if available.
+- Do not alter OCR thresholds, tensor geometry, reading order or translation policy before this resource-lifecycle validation. ML Kit remains the default translator; Bergamot remains experimental.
+
+### Protocol update
+- This interaction revalidated repository state and handoff. No app code, tests or release assets were changed. The next state update is recorded in this file and `REPOSITORY_REPORT.md`.
