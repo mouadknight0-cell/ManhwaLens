@@ -116,7 +116,7 @@ class ShortDialogueOverridesTest {
             "MEANING EVEN THOUGH HE'S A HUNTER, HE'S USELESS.",
             "وهذا يعني رغم أنه صياد، فهو عديم الفائدة."
         ))
-        assertEquals("كدت لا أتفاداها. لولا أن سونغ صاح محذرًا،", ShortDialogueOverrides.apply(
+        assertEquals("كدت أعجز عن تفاديها. لولا أن سونغ صاح محذرًا،", ShortDialogueOverrides.apply(
             "I BARELY DODGED IT. IF SUNG DIDN'T YELL OUT,",
             "بالكاد تهرب منه. إذا كان سونغ لم يصيح،"
         ))
