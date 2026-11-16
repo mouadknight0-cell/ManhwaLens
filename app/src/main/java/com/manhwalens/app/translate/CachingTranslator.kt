@@ -100,11 +100,15 @@ class CachingTranslator(
             // P1: a cached translation may pre-date a name correction — repair it BEFORE the
             // quality guard sees it, so the guard judges the text we would actually paint.
             val rawHit = hit
+            // Cache entries can outlive output-sanitizer changes across app upgrades.
+            // Apply the same deterministic sanitation used for fresh engine candidates
+            // before name/source corrections and the Arabic quality guard.
+            val cleanedHit = rawHit?.let(TranslationOutputSanitizer::clean)
             val nameOverride = pinnedOverride
-            val repairedHit: String? = if (rawHit != null && nameOverride != null) {
-                runCatching { nameOverride.invoke(b.english, rawHit) }.getOrDefault(rawHit)
+            val repairedHit: String? = if (cleanedHit != null && nameOverride != null) {
+                runCatching { nameOverride.invoke(b.english, cleanedHit) }.getOrDefault(cleanedHit)
             } else {
-                rawHit
+                cleanedHit
             }
             hit = repairedHit
             val dialogueRepairedHit = repairedHit?.let { ShortDialogueOverrides.apply(b.english, it) }
