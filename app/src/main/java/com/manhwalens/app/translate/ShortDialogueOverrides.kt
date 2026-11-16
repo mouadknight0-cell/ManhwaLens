@@ -29,7 +29,7 @@ object ShortDialogueOverrides {
         "I M FINE SO YOU DON T NEED TO WORRY ABOUT ME" to "أنا بخير، فلا داعي للقلق عليّ.",
         "TO BE HONEST NO I AM DEFINITELY NOT OKAY" to "بصراحة... لا، لست بخير إطلاقاً.",
         "IF YOU RE THAT SORRY HOW ABOUT TREATING ME TO SOME FOOD" to "إذا كنت تشعر بالأسف إلى هذا الحد، فما رأيك أن تعزمني على الطعام؟",
-        "WHAT EVEN MADE YOU SAY YES HUH DID YOU ALSO HURT YOUR HEAD" to "ما الذي دفعك إلى الموافقة أصلاً؟ هل أصبت رأسك أيضاً؟"
+        "WHAT EVEN MADE YOU SAY YES HUH DID YOU ALSO HURT YOUR HEAD" to "ما الذي دفعك إلى الموافقة أصلاً؟ هل أصبت رأسك أيضاً؟",
 
         // Exact OCR/source variants observed in the Solo Leveling chapter-4 device trace.
         // Keep these source-specific: rank terminology and sentence repairs must not become
