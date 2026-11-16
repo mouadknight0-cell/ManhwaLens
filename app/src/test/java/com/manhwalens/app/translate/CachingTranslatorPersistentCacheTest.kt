@@ -94,6 +94,7 @@ class CachingTranslatorPersistentCacheTest {
             assertEquals("هل أنت بخير؟", disk.get(key))
             assertEquals("الترجمة: هل أنت بخير ?", traces.single().candidateArabic)
             assertEquals("هل أنت بخير؟", traces.single().finalArabic)
+            assertEquals("served from persistent exact cache", traces.single().detail)
         } finally {
             file.delete()
         }
