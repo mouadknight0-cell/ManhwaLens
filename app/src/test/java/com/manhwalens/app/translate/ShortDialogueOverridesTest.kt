@@ -144,6 +144,7 @@ class ShortDialogueOverridesTest {
             "I BROUGHT ONLY THREE HEALERS BECAUSE I THOUGHT THIS WOULD BE OVER QUICKLY.." to "أحضرت ثلاثة معالجين فقط لأنني ظننت أن الأمر سينتهي بسرعة.",
             "ONE GOT ATTACKED SO BRUTALLY THAT NOT EVEN HIS CORPSE REMAINED," to "تعرض أحدهم لهجوم وحشي حتى لم يبقَ من جثته شيء.",
             "WHEN THE SITUATION CLEARS A BIT, LET'S TRY RUNNING THEN." to "عندما تهدأ الأمور قليلًا، لنحاول الركض حينها.",
+            "EVEN IF WE SOMEHOW BYPASS HIM, WE STILL HAVE TO GO THROUGH THE GUARD STATLE." to "حتى لو تجاوزناه بطريقة ما، فلا يزال علينا اجتياز تمثال الحارس.",
             "HE PROBABLY NEVER INTENDED FOR US TO LEAVE!" to "ربما لم يكن ينوي السماح لنا بالمغادرة أبدًا.",
             "SO WHY AREN'T THEY?" to "فلماذا لا يفعلون ذلك؟",
             "DUNNO.." to "لا أدري.",
@@ -152,6 +153,7 @@ class ShortDialogueOverridesTest {
             "IT CAN'T BE.." to "مستحيل...",
             "MR. SONG CHI-YUL! WHAT WAS THE FIRST COMMANDMENT??" to "سيد سونغ تشي يول! ما الوصية الأولى؟",
             "COMMAND-MENT?" to "الوصية؟",
+            "COMMANDMENT?" to "الوصية؟",
             "THE FIRST WOULD BE...." to "الأولى هي...",
             "SIR, THERE'S A RULE IN THIS DUNGEON." to "سيدي، هناك قاعدة في هذا الدهليز.",
             "IF I'M CORRECT...." to "إن لم أكن مخطئًا..."
