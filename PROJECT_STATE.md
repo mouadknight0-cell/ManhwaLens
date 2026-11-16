@@ -989,3 +989,26 @@ Never use one label as evidence for another.
 - Then follow the updated v0.12.11 / P4-A checklist: enable Diagnostics Debug mode, pause Live, do tap captures on 3–5 representative pages, and copy the report containing OCR engine stats, raw line confidence/bounds, grouped and kept blocks, ML Kit raw candidates and overlay text. Keep original screenshots for bounding-box/grouping failures; turn Debug mode OFF afterwards and share only reports/page text the user is comfortable sharing.
 - Next engineering task after receiving the report: compare raw OCR against screenshots and stage telemetry, then separate recognition errors, grouping/filter false positives, and translation/post-processing errors before changing any threshold or model.
 - Current branch release head at publication: `5118b0aba8fba777de8db3c75fb698c40feb2d32`; PR #4 remains open Draft and stacked on `feature/v0.12.3-paddle-default-settings`. Main was not modified.
+
+
+## Engineering status check — 2026-11-16 (user asked current progress)
+
+### Live state revalidated
+- Development branch: `feature/v0.12.4-bergamot-experiment`.
+- Branch HEAD at start of this check: `1c345cd59341c95e1d9c2ea67f98dcc6eea39804`. This is newer than the v0.12.11 release-preparation commit `5118b0aba8fba777de8db3c75fb698c40feb2d32`; no source changes or release changes are inferred from the newer HEAD without reviewing its diff.
+- PR #4 remains open Draft, mergeable against its current stacked base `feature/v0.12.3-paddle-default-settings`. Main was not changed.
+- Push run #43814268875 and PR run #43814273798 both completed with conclusion **success** on the v0.12.11 release-preparation SHA. The final test report recorded **809 tests, 0 failures, 0 ignored**.
+- GitHub Release `v0.12.11` was re-queried and confirmed published as a prerelease with uploaded APK asset `ManhwaLens-v0.12.11-debug.apk` (71,382,318 bytes; SHA-256 `1ff45531f4c537d816801cb57b1ee4c75981cf7851f241b14fed29adfd540637`). Direct URL: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.11/ManhwaLens-v0.12.11-debug.apk.
+- Release build metadata and update compatibility were CI-verified: applicationId `com.manhwalens.app`, versionCode 50 → 51, signer SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
+
+### Current project stage
+- **Implemented + unit-tested + CI-verified:** persistent-cache sanitation and correction write-back, blank legacy cache invalidation/replacement, and accurate cache-tier provenance. The regression suite includes restart/persistent-cache cases.
+- **Release-published:** v0.12.11 is available; it includes PaddleOCR capture telemetry for raw line confidence/bounds, detector/recognizer timing and effective configuration, in addition to the cache fixes.
+- **Not device-verified:** no claim is made that the APK has been installed on the user's phone or that OCR/Arabic semantic quality has been validated on real pages.
+- No OCR threshold, bubble grouping geometry, ML Kit default, Bergamot status or batching policy was changed based solely on CI.
+
+### Required next action / user handoff
+1. Install v0.12.11 directly over v0.12.10 (do not uninstall) and confirm Android accepts it as an update and retains app data.
+2. Follow the v0.12.11 P4-A steps in `MANUAL_TESTS.md`: enable Diagnostics Debug mode, pause Live mode, capture 3–5 representative pages, and share the copied report with OCR engine stats, raw OCR confidence/bounding boxes, grouped/kept blocks, ML Kit raw candidates and final overlay. Preserve screenshots for geometry/grouping errors; disable Debug mode afterwards.
+3. After the report arrives, classify failures by stage (recognition, grouping/filtering, translation/post-processing) and implement the next evidence-backed correction. Do not tune OCR thresholds without labeled screenshot evidence.
+- **Intervention required now:** real-device update and capture test only. No further technical approval is needed.
