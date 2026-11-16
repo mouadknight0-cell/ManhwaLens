@@ -205,6 +205,7 @@
     <string name="live_benchmark_turn_off_first">أوقف Live قبل تسليح قياس الجلسة.</string>
     <string name="live_benchmark_no_report">لا يوجد تقرير لجلسة Live مكتملة بعد.</string>
     <string name="benchmark_copied">نُسخت النتائج</string>
+    <string name="benchmark_close">إغلاق</string>
 
     <string name="safe_mode_title">الوضع الآمن</string>
     <string name="safe_mode_body">تعطّل التطبيق مرتين عند الإقلاع، فتم تشغيله بدون الزر العائم والترجمة ووضع Live. إعداداتك لم تتغيّر. اضغط للمحاولة بشكل طبيعي.</string>

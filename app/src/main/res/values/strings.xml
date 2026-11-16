@@ -212,6 +212,7 @@
     <string name="live_benchmark_turn_off_first">Turn Live off before arming the session benchmark.</string>
     <string name="live_benchmark_no_report">No completed Live session report yet.</string>
     <string name="benchmark_copied">Benchmark copied</string>
+    <string name="benchmark_close">Close</string>
 
     <string name="safe_mode_title">Safe Mode</string>
     <string name="safe_mode_body">The app crashed twice at startup, so it launched without the floating button, translation and Live mode. Your settings were left untouched. Tap below to retry normally.</string>
