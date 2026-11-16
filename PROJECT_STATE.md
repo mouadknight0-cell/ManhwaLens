@@ -1041,3 +1041,33 @@ Never use one label as evidence for another.
 - Push workflow #43818215304 initially had its build job cancelled during Android SDK setup before unit tests began; no test result was inferred from that attempt.
 - Successfully requested a rerun of the cancelled build job (job 133135019763). At the time of this update, the workflow is pending; unit tests and APK build remain unverified until the rerun completes.
 - PR #4 remains open Draft, base feature/v0.12.3-paddle-default-settings, and its current head is the documentation commit 2e2f4b43617db07aa374cd5181fc7fed127141c8. No merge or release action was taken.
+
+## Session continuation — 2026-11-16 (independent engineering protocol and CI repair)
+
+### Verified repository state
+- Repository: `mouadknight0-cell/ManhwaLens`; default branch `main`; development branch `feature/v0.12.4-bergamot-experiment`.
+- PR #3 remains open and targets `main`; PR #4 remains open Draft and targets PR #3. Preserve this stacked relationship; do not merge PR #4 directly into `main`.
+- Before this repair, PR #4 head was `934573156239a010e3e3f99d073a38b1433424cd`. The commit only changed `PROJECT_STATE.md`; app metadata on the branch is `0.12.11` / versionCode `51`, applicationId `com.manhwalens.app`, minSdk 26, ARM64 + ARMv7.
+- `PROJECT_STATE.md` is intentionally maintained on the development branch; a 404 on `main` is not evidence of a missing development state file.
+
+### CI failure diagnosed from workflow artifact
+- Android build run #787 / run ID `43818326700` failed in `:app:testDebugUnitTest`: 810 tests completed, 1 failed; APK build and signing/update checks were skipped as downstream steps.
+- Downloaded and inspected the `test-reports` artifact (ID `14202939122`). The sole failure is JUnit `initializationError` for `BatchSplitterTestKt`: two `@Test` functions (`hashStrategy_refusesSourcesContainingHashCharacters` and `hashStrategy_rejectsAnExtraHashSeparatorInsideTranslatedText`) were placed after the `BatchSplitterTest` class closing brace, causing static top-level test methods to be rejected by JUnit 4.
+- This is a test-file structural defect, not a production `BatchSplitter` failure. The existing `BatchSplitterTest` class itself had 25 passing tests; the new top-level test holder failed discovery.
+
+### Fix implemented
+- Moved both HASH-strategy regression tests inside `BatchSplitterTest` by correcting the class closing-brace placement in `app/src/test/java/com/manhw alens/app/translate/BatchSplitterTest.kt` (actual repository path: `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt`).
+- Commit: `b751a78e70ba4fcdb47543066d8968fde7cc1335` — `test: keep hash batching cases inside JUnit test class`.
+- This fix is pushed to the development branch through GitHub's file update API. It is Implemented; the new commit's CI has not yet been verified.
+
+### Verification boundary
+- CI failure is confirmed and its single cause is identified from the uploaded Gradle HTML report.
+- Previous run #787 did not produce an APK; no Release was published by that run.
+- No physical-device test was run. OCR accuracy, grouping, Arabic semantic quality, Bergamot JNI/offline behavior, memory/latency and update installation remain Not device-verified.
+- ML Kit remains the default offline translator; Bergamot remains experimental. Do not infer engine quality from this unit-test repair.
+
+### Next actions
+1. Inspect push and PR workflow runs for commit `b751a78e70ba4fcdb47543066d8968fde7cc1335`; require all unit tests and APK packaging to pass.
+2. If another failure occurs, inspect the exact test report artifact before changing production code.
+3. Reconcile the latest actual GitHub Release and APK asset, package/version metadata and signing certificate continuity before preparing any phone test.
+4. Continue with source-aware translation quality and labeled OCR evaluation; do not change OCR thresholds without paired screenshot/ground-truth evidence.
