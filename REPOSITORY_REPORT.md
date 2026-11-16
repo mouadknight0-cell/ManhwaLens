@@ -4,7 +4,7 @@
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر حالة موثقة الآن:** v0.12.14 منشور ومختبر CI؛ وصل تقرير جهاز Xiaomi 23106RN0DA / Android 14 بنتائج ML Kit batching و23 حالة جودة و81 سجل ترجمة. أضيف تصحيحان source-exact لاختلافَي OCR في فصل 4، واختباراهما، وجهزت النسخة v0.12.15 / versionCode 55. آخر commit في الفرع `84f83cb4a575c0a119aa5de3df61a39d4850fe70`؛ تشغيل push #914 قيد الانتظار وPR #4 validation #915 pending، ولم يُنشر APK v0.12.15 بعد. لم تُختبر التعديلات الجديدة على الجهاز.
+**آخر حالة موثقة الآن:** v0.12.15 / versionCode 55 منشور كـ prerelease بعد نجاح CI push #916 (`43864481551`) على `9d2f966895022b94cb718aa6f332b44ff3057b46`. نجحت Unit tests، APK build، شهادة التوقيع، بوابة توافق التحديث، وRelease publish؛ APK المرفق هو `ManhwaLens-v0.12.15-debug.apk` (71,390,882 bytes). المطلوب الآن هو اختبار هاتف موجه للنصين المصححين من فصل 4، مع تقرير الأزواج وLast capture/pipeline trace.
 **CI لنسخة v0.12.8:** [43724428631](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43724428631) — نجحت Unit tests والتحققات من نماذج PaddleOCR وBergamot ARM64 وبناء Debug APK ورفع artifacts. كان هذا تشغيل PR validation، لذا تخطّى خطوات نشر Release بشكل صحيح. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
@@ -1438,3 +1438,11 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 1. متابعة CI للرأس الحالي؛ إصلاح أي فشل ثم إعادة التحقق.
 2. التحقق من ظهور prerelease APK v0.12.15 وتوافق التحديث فوق v0.12.14.
 3. بعدها إعادة اختبار الجهاز للنصين المحددين وصفحات الفصل نفسه، مع تقرير الأزواج وLast capture/pipeline trace. لا نزعم Device-verified قبل وصول تلك النتائج.
+
+
+## حالة الإصدار v0.12.15 — 2026-11-16
+
+- نجح تشغيل push [#916](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43864481551) على commit `9d2f966895022b94cb718aa6f332b44ff3057b46`. اجتازت الوظيفة Unit tests، بناء APK، التحقق من شهادة التوقيع، بوابة توافق التحديث، ونشر Release. تحقق تشغيل PR #917 ناجح أيضًا على الرأس نفسه.
+- تم التحقق من [GitHub Release v0.12.15](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.15) ووجود APK المرفق `ManhwaLens-v0.12.15-debug.apk` (71,390,882 bytes).
+- حالة العمل: الإصلاحان المصدر-المحددان وCI وRelease متحققون؛ اختبار الهاتف للنصين المحددين لم يُنفذ بعد. سياسة ML Kit batching لا تزال parallel x6 بسبب إخفاق ` | ` السابق في صفحة حقيقية.
+- الخطوة التالية الوحيدة المطلوبة: تثبيت v0.12.15 كتحديث فوق v0.12.14 ثم إعادة فحص نصي فصل 4 وجمع diagnostics وفق `MANUAL_TESTS.md`.
