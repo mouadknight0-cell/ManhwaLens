@@ -35,6 +35,8 @@ object ShortDialogueOverrides {
         // Keep these source-specific: rank terminology and sentence repairs must not become
         // broad substitutions that can corrupt unrelated manhwa dialogue.
         "WHAT WAS THE RANK OF THE ONE WHO DIED JUST NOW" to "ما رتبة الشخص الذي مات للتو؟",
+        "WHAT WAS RANK OF THE THE ONE WHO DIED JUST NOW" to "ما رتبة الشخص الذي مات للتو؟",
+        "IF EVEN HE WAS BAD HE STILL WOULO VE BEEN STRONGER THAN AN E RANK LIKE ME" to "حتى لو كان ضعيفًا، لظل أقوى مني، فأنا من الرتبة E.",
         "D RANK" to "الرتبة D",
         "IF EVEN HE WAS BAD HE STILL WOULD VE BEEN STRONGER THAN AN E RANK LIKE ME" to "حتى لو كان ضعيفًا، لظل أقوى مني، فأنا من الرتبة E.",
         "WAIT WAIT A SECOND" to "مهلًا، انتظر لحظة!",
