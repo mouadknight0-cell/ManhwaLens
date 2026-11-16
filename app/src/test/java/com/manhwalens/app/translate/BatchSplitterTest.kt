@@ -238,3 +238,24 @@ class BatchSplitterTest {
         assertEquals(listOf("مرحباً بك", "ابق خلفي"), result.segments)
     }
 }
+
+    // ---------- HASH strategy: the newly selected device-local separator ----------
+
+    @Test
+    fun hashStrategy_refusesSourcesContainingHashCharacters() {
+        assertFalse(BatchSplitter.sourcesSafe(SplitStrategy.HASH, listOf("The code is ###", "Stay here.")))
+        assertFalse(BatchSplitter.sourcesSafe(SplitStrategy.HASH, listOf("This is rank #1", "Stay here.")))
+        assertTrue(BatchSplitter.sourcesSafe(SplitStrategy.HASH, listOf("Wait, what?", "Stay here.")))
+    }
+
+    @Test
+    fun hashStrategy_rejectsAnExtraHashSeparatorInsideTranslatedText() {
+        val result = BatchSplitter.validate(
+            SplitStrategy.HASH,
+            listOf("Wait", "Stay here"),
+            "انتظر\\n###\\nابق ### هنا"
+        )
+        assertFalse(result.ok)
+        assertTrue(result.reason.contains("count"))
+    }
+
