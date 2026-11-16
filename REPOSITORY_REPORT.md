@@ -1270,3 +1270,19 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - After CI passes, a fresh report can attribute a fuzzy result to the exact matched source rather than infer cache behavior from repeated numeric IDs.
 - Joined HASH remains a device-specific speed result; mapping 20/20 checks structural output count, not necessarily semantic one-to-one order if the model reorders the joined list.
 - Device verification remains Not verified. Do not request installation until CI is green and an actual behavior needs physical-device evidence.
+
+
+## Diagnostic grouping continuation — 2026-11-16
+
+### Implemented (CI pending)
+- `TranslationPairTrace` now carries a unique `requestId` per `CachingTranslator.translatePage` call. IDs are process-prefixed and sequence-based so they remain unique across app restarts in one retained report.
+- `TranslationPairLog` adds `requestId` as an optional 10th encoded field and prints it with each PAIR header. Existing 9-field log records remain readable as `request=legacy`.
+- Added a JVM test proving pair events from one page share an ID and a later page call uses a different ID.
+- This addresses false inference from repeated block numbers: `BubbleGrouper` assigns IDs per capture, so block #1 on separate captures is not a collision. `requestId` groups events from one translator page invocation.
+- The earlier memo provenance improvement also includes the original source in `detail=...matched=...` for exact/fuzzy memo hits.
+- Commits: `926aa5b77209597b0a7e74a2e66133e3362d92d1`, `a4de950205178fc8461a91269488d885b6c83a71`, `ff80b94bc69db43a98ce2468939b598fdba1d4f9`, `bd6945cd18b324c10959f9eee663d9d5847d7a81`, `ccb6181b82d8e470c8ba8fac11a6c033eb97be49`.
+
+### Verification / next action
+- CI for the combined final code and documentation head is pending; the earlier intermediate #808 run does not verify these last changes.
+- After green CI, use `request`, `block`, `EN`, and `matched` to identify source-level reuse; do not change the fuzzy algorithm or cache keys unless a real false match is evidenced.
+- No phone test has been run, and no OCR/translation behavior or release version was changed by this diagnostic-only work.
