@@ -1,6 +1,7 @@
 package com.manhwalens.app.translate
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Fake engine: records every call, replies with "AR:" + input (or fails on demand). */
@@ -67,6 +68,9 @@ class CachingTranslatorTest {
         assertEquals("Where are you?", traces.first().sourceEnglish)
         assertEquals("AR:Where are you?", traces.first().finalArabic)
         assertEquals("AR:Where are you?", traces.last().finalArabic)
+        assertTrue(traces.first().requestId.isNotBlank())
+        assertTrue(traces.last().requestId.isNotBlank())
+        assertTrue("separate translatePage calls must have different IDs", traces.first().requestId != traces.last().requestId)
     }
 
     @Test
@@ -337,4 +341,18 @@ class CachingTranslatorTest {
         val result = caching.translatePage(input) as PageTranslation.Success
         assertEquals(listOf(3, 1, 2), result.blocks.map { it.id })
     }
+
+    @Test
+    fun allPairEventsFromOnePageShareARequestId() {
+        val fake = FakeTranslator()
+        val traces = ArrayList<TranslationPairTrace>()
+        val caching = CachingTranslator(fake, TranslationCache(), onTranslationPair = { traces += it })
+
+        caching.translatePage(blocks(1 to "Hello", 2 to "World"))
+
+        assertEquals(2, traces.size)
+        assertEquals(1, traces.map { it.requestId }.toSet().size)
+        assertTrue(traces.first().requestId.isNotBlank())
+    }
+
 }
