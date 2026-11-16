@@ -127,6 +127,13 @@ class CachingTranslator(
                 // Never promote an approximate decision into an exact key for different text.
                 if (!fromFuzzy && dialogueRepairedHit != rawHit) {
                     cache.put(engineId, b.english, dialogueRepairedHit, style)
+                    // Keep the persistent exact tier in sync with the source-exact repair.
+                    // Without this write-back, an old disk candidate is reloaded on every
+                    // process start and has to be corrected again on every cache hit.
+                    persistent?.put(
+                        cache.key(engineId, b.english, style),
+                        dialogueRepairedHit
+                    )
                 }
             } else {
                 if (hit != null && issue != null) {
