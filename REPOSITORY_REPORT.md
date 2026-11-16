@@ -1303,3 +1303,10 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - App metadata is being advanced to v0.12.12 / versionCode 52 for a real installable diagnostic update over the v0.12.11 / versionCode 51 release. v0.12.12 CI/release are pending.
 - The device validation guide is in `MANUAL_TESTS.md`, section `v0.12.12 — translation-cache provenance capture`. Preserve translation cache, clear pair log only, reproduce the prior failure, share pair log and relevant OCR capture report.
 - No runtime cache/fuzzy matching/OCR/batching behavior changed; no phone test has been performed.
+
+## v0.12.12 release completed — 2026-11-16
+- Push #834 and PR #835 passed. Verified HTML test report: **812 tests, 0 failures, 0 ignored**.
+- Update gate explicitly confirmed `com.manhwalens.app`, versionCode `51 → 52`, and unchanged signer SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152` against v0.12.11.
+- Published prerelease: https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.12
+- APK: 71,384,898 bytes; SHA-256 `d9ce84716675f08e5bbf7ac29643afa04d936f16c0e56dcf141838935a5c06d0`. The downloaded APK from the Actions artifact was independently hashed and matches the release asset exactly.
+- Device validation is the next gate, not yet completed. Use the v0.12.12 instructions in MANUAL_TESTS.md, preserve translation cache and clear only pair history before reproducing the short-dialogue mismatch. ML Kit remains default; Bergamot remains experimental.
