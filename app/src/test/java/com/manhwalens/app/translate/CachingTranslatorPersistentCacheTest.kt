@@ -138,7 +138,8 @@ class CachingTranslatorPersistentCacheTest {
             assertEquals("إيرين", (result as PageTranslation.Success).blocks.single().arabic)
             assertEquals("the empty legacy entry must be rejected and sent to the engine", 1, engineCalls)
             assertEquals("name repair runs only for the non-empty fresh candidate", 1, overrideCalls)
-            assertEquals(null, disk.get(key))
+            // The stale blank value is removed; the fresh accepted engine result is persisted instead.
+            assertEquals("إيرين", disk.get(key))
         } finally {
             file.delete()
         }
