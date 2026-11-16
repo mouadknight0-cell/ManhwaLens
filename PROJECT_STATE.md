@@ -950,3 +950,42 @@ Never use one label as evidence for another.
 - Not device-verified: actual OCR accuracy, bubble grouping, semantic Arabic translation, Bergamot offline inference, latency/RAM and real-device update installation.
 - Next: inspect the cache persistence and diagnostic trace implementations together with the fresh-vs-cached post-processing tests; add a regression test only for a demonstrated stale-persistent-cache or provenance defect. Then continue with OCR screenshot ground-truth evaluation; do not alter PaddleOCR thresholds or grouping without labeled screenshot evidence.
 - No phone installation requested in this interaction.
+
+
+## Engineering continuation — persistent-cache hardening and v0.12.11 release (2026-11-16)
+
+### Confirmed defects and implemented fixes
+- **Persistent cache write-back:** when a source-exact cached entry is repaired by current source-aware dialogue/name handling, the corrected value is now written to both the in-memory exact cache and the persistent disk cache. This prevents a stale pre-fix value from being reloaded on every process restart. Commit: `0ab7569f9e75a456d45f302dbbe7adfb2184d9c6`.
+- **Cached-output sanitation parity:** cache hits now pass through `TranslationOutputSanitizer.clean` before name repair, exact source corrections and the Arabic quality guard, matching fresh engine results. The original cached candidate is retained separately for diagnostics. Commit: `68e44b75f22f64794b90d4f2e70fed0b319ffbc1`.
+- **Blank legacy cache safety:** if sanitation turns an old entry into blank output, the pinned name override is not called. The invalid disk entry is removed and the fresh engine result is used instead; the accepted fresh result replaces the old blank entry. Commit: `cc21b4058d89d12edbd3f24b5b84b9d21a6d1852`.
+- **Cache provenance:** translation-pair trace detail now distinguishes in-memory exact, persistent exact, exact memo and fuzzy memo hits while preserving the existing status codes. Commits: `95cea1d245542cf46c35dd22188162a75569a601`, tests `09496a819529b6c57a725985bf559f362c377b79` and `5ba3142d0173734b3eb4aeb082e3ecaca6343f7e`.
+- Regression tests added in `CachingTranslatorPersistentCacheTest.kt` cover source-exact correction surviving a new cache instance/restart, sanitation of old persistent values, and blank-entry replacement. The cache provenance tests also cover exact-memo and disk hits.
+
+### Test-failure investigation and final verification
+- An intermediate run on `f02d6d2a40fe00602828ec361267148a0602c6d1` reported 809 tests with one failure. The downloaded Gradle HTML report showed the failure was a **test expectation defect**, not a production failure: the test expected the persistent cache to remain null after the app correctly deleted an invalid blank entry, called the engine, and persisted the fresh Arabic translation `إيرين`.
+- Corrected the test to expect the fresh translation to replace the invalid legacy value: commit `3e61faf858ad17b9e1f969b65ad09cee9803eb37`.
+- Final tested source head before release preparation: `3e61faf858ad17b9e1f969b65ad09cee9803eb37`.
+- Push workflow [#43813900351](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43813900351): **success**. PR workflow [#43813907113](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43813907113): **success**.
+- Downloaded and inspected the Gradle test report artifact: **809 tests, 0 failures, 0 ignored** (reported test duration 1.869 s). All three new persistent-cache regression tests passed.
+
+### v0.12.11 release candidate and published release
+- Updated `app/build.gradle.kts` to `versionName = "0.12.11"`, `versionCode = 51`; kept `applicationId = "com.manhwalens.app"`.
+- Updated `CHANGELOG.md` for cache-integrity fixes and the PaddleOCR capture telemetry included in this source line.
+- Updated `MANUAL_TESTS.md`: P4-A now requires `[OCR ENGINE STATS] present=true`, PaddleOCR stage/cold-load timings, tensor/config/low-confidence counts, and raw OCR line `confidence=` plus bounding-box `box=` fields. Added v0.12.11 update/cache verification steps.
+- Release-preparation commit: `5118b0aba8fba777de8db3c75fb698c40feb2d32` (`release: prepare v0.12.11 cache and OCR telemetry build`).
+- Push workflow [#43814268875](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43814268875): **success**. PR workflow [#43814273798](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43814273798): **success**. Dependency submission #43814268570: success.
+- Verified build metadata and update continuity from the workflow log: package `com.manhwalens.app`; `versionCode 50 → 51`; APK signer SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`, matching the fixed future signing baseline.
+- GitHub Release [v0.12.11](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.11) is **published** as a prerelease, not a draft. APK asset: `ManhwaLens-v0.12.11-debug.apk`, 71,382,318 bytes, SHA-256 `1ff45531f4c537d816801cb57b1ee4c75981cf7851f241b14fed29adfd540637`.
+- Direct APK: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.11/ManhwaLens-v0.12.11-debug.apk
+- The CI Actions APK artifact (70,070,781 bytes; SHA-256 `2697513357fbb6d1823df3eee11b5ead19a6c2916d6f429df4009d543c4361d4`) is not the Release asset; do not confuse the two.
+
+### OCR/translation verification boundaries
+- The v0.12.11 Release includes the PaddleOCR capture telemetry previously added to the development branch. The older v0.12.10 tag did not contain `OcrRunStats.kt`; use v0.12.11 for the updated evidence report.
+- No OCR threshold, recognizer model, grouping geometry, translation engine default or batching policy was changed in this session. ML Kit remains default; Bergamot remains optional/experimental.
+- CI and JVM tests do not prove screenshot-level OCR quality, semantic Arabic correctness, bubble-grouping precision/recall, overlay behavior, native offline inference, RAM/latency or actual phone update installation. No physical-device test is claimed.
+
+### Device handoff and next step
+- **Real-device check is now required:** install v0.12.11 directly over v0.12.10 without uninstalling. CI verified package/version/signer continuity; the phone must confirm Android performs an in-place update and preserves app data.
+- Then follow the updated v0.12.11 / P4-A checklist: enable Diagnostics Debug mode, pause Live, do tap captures on 3–5 representative pages, and copy the report containing OCR engine stats, raw line confidence/bounds, grouped and kept blocks, ML Kit raw candidates and overlay text. Keep original screenshots for bounding-box/grouping failures; turn Debug mode OFF afterwards and share only reports/page text the user is comfortable sharing.
+- Next engineering task after receiving the report: compare raw OCR against screenshots and stage telemetry, then separate recognition errors, grouping/filter false positives, and translation/post-processing errors before changing any threshold or model.
+- Current branch release head at publication: `5118b0aba8fba777de8db3c75fb698c40feb2d32`; PR #4 remains open Draft and stacked on `feature/v0.12.3-paddle-default-settings`. Main was not modified.
