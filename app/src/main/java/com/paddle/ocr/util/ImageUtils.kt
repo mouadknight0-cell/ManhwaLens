@@ -35,11 +35,16 @@ object ImageUtils {
             maxSideLimit = maxSideLimit
         )
         val dst = Mat()
-        Imgproc.resize(
-            src, dst,
-            Size(dimensions.width.toDouble(), dimensions.height.toDouble()),
-            0.0, 0.0, Imgproc.INTER_LINEAR
-        )
-        return dst
+        return try {
+            Imgproc.resize(
+                src, dst,
+                Size(dimensions.width.toDouble(), dimensions.height.toDouble()),
+                0.0, 0.0, Imgproc.INTER_LINEAR
+            )
+            dst
+        } catch (t: Throwable) {
+            dst.release()
+            throw t
+        }
     }
 }
