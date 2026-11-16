@@ -779,3 +779,14 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 5. Keep ML Kit parallel x4. Joined pipe remains banned unless a real-page run demonstrates complete mapping without mismatch.
 
 **Gate:** app version in the prior report was not stated. Do not label these source-specific corrections phone-verified until v0.12.17 is installed and the same-page report is returned.
+
+
+# v0.12.18 — capture latency check
+
+1. Install v0.12.18 over v0.12.17 without uninstalling or clearing app data. Keep ML Kit and Debug mode enabled.
+2. Use the same device and the same page used for the previous approximately 4-second capture. Clear pair history only; preserve the translation cache.
+3. Capture the page once and note tap-to-first-Arabic and tap-to-complete-overlay time. This is a speed check, not a translation-quality retest.
+4. Copy Pipeline trace and Last capture. Compare capture frame wait, OCR, translation and overlay durations with the previous trace; confirm no ManhwaLens UI was included in OCR.
+5. Report any page still taking over 3 seconds.
+
+**Gate:** CI build, APK signer and update compatibility must pass before installation. The shorter wait is not confirmed faster until measured on-device.

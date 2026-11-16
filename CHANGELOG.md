@@ -1,8 +1,14 @@
+## 0.12.18 — faster clean-frame capture
+- Reduce the post-overlay fresh-frame wait ceiling from 800 ms to 300 ms and the compositor settle delay from 120 ms to 32 ms.
+- Preserve dirty-frame marking and owned-window OCR exclusions when no clean frame arrives before the shorter deadline.
+- This targets capture latency only; OCR models, translation engine, batching policy and translation output are unchanged.
+- Benchmark and compare full tap-to-overlay timing on the same device/page after installation; the expected saving is bounded by the reduced wait and is not yet device-measured.
+
 ## 0.12.17 — chapter-5 dialogue follow-up
 - Add exact-source Arabic repairs for clear dialogue failures in the latest Solo Leveling chapter-5 device trace, including the “gut feeling” idiom, the bowing exchange, survival questions and short reactions.
 - Tie every repair to the complete observed OCR block; leave heavily scrambled source blocks untouched.
 - Keep ML Kit parallel x4: it mapped 20/20 with a 1033 ms median in the latest fixed benchmark. The faster joined pipe remains disqualified by a prior real-page mapping mismatch.
-- Device app version was not included in the report. This candidate still needs CI, update-signature compatibility and a published APK before another phone check.
+- Device app version was not included in the report. CI #944 passed and v0.12.17 was published as a prerelease; phone verification remains pending.
 
 ## 0.12.11 — cache integrity and PaddleOCR capture telemetry
 - Sanitize legacy memory, persistent-disk and memo cache hits through the same deterministic output cleaner used for fresh engine results before character-name repair, source-exact corrections and the Arabic quality guard.

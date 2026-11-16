@@ -105,9 +105,9 @@ class FloatingButtonService : Service() {
         /** Tap path: how long to wait for the mirror's first/next frame when nothing is buffered. */
         private const val FRAME_WAIT_MS = 1_500L
         /** Tap path: how long to wait for the frame that follows hiding our own windows. */
-        private const val CLEAN_CAPTURE_TIMEOUT_MS = 800L
+        private const val CLEAN_CAPTURE_TIMEOUT_MS = 300L
         /** Tap path: extra settle time after the first post-hide frame (lets the compositor finish). */
-        private const val CLEAN_CAPTURE_SETTLE_MS = 120L
+        private const val CLEAN_CAPTURE_SETTLE_MS = 32L
         /** A menu closed less than this long ago may still be in the newest buffered frame. */
         private const val MENU_RECENT_MS = 500L
         /** How long a closed menu's rect still vetoes OCR text in a live frame. */
