@@ -71,6 +71,35 @@ class ShortDialogueOverridesTest {
         )
     }
 
+
+    @Test fun soloLevelingChapterFourObservedLinesGetSourceExactRepairs() {
+        assertEquals("ما رتبة الشخص الذي مات للتو؟", ShortDialogueOverrides.apply(
+            "WHAT WaS THE RANK OF THE ONE WHO DIED JUST NOW?", "ما هو رتبة الشخص الذي مات الآن؟"
+        ))
+        assertEquals("الرتبة D", ShortDialogueOverrides.apply("D-RANK?", "د المرتبة؟"))
+        assertEquals("حتى لو كان ضعيفًا، لظل أقوى مني، فأنا من الرتبة E.", ShortDialogueOverrides.apply(
+            "IF EVEN He Was BaD, HE STILL WOULD'VE BEEN STRONGER THAN AN E-RANK LIKE ME.",
+            "إذا كان الأمر كذلك، فسيظل سيكون أقوى من رتبة E مثلي."
+        ))
+        assertEquals("هذا الدهليز لا تتجاوز رتبته D.", ShortDialogueOverrides.apply(
+            "THIS DUNGEON IS A D-RANK AT MOST.", "هذا المحصنة هو رتبة D على الأكثر."
+        ))
+        assertEquals("في أول غارة لي، انفصلت عن فريقي بالخطأ وضللت الطريق.", ShortDialogueOverrides.apply(
+            "DURING MY FIRST RAID, I AcCidEnTALLY BROKE AWAY FROM MY PARTY AND GOT LOST",
+            "خلال غارة الأولى، اندلعت بطريق الخطأ بعيدا عن حزبي وتضيع"
+        ))
+        assertEquals("يستبدل الآخرون نوىهم السحرية بأسلحة أفضل.", ShortDialogueOverrides.apply(
+            "OTHERS TRADE THEIR MaGical CORES FOR BETTER WEAPONS",
+            "تجارة الآخرين من نوىهم السحرية للحصول على أسلحة أفضل"
+        ))
+        assertEquals("فهم مضطرون إلى بذل ضعف الجهد.", ShortDialogueOverrides.apply(
+            "THEY HAVE TO WORK TWICE as HaRD.", "لديهم للعمل مرتين بجد."
+        ))
+        assertEquals("لكنا أُبيدنا جميعًا.", ShortDialogueOverrides.apply(
+            "WE COULD'VE BEEN WIPED OUT.", "يمكن أن تم القضاء عليها."
+        ))
+    }
+
     @Test fun longerSentencesAreNeverOverridden() {
         val output = "شغّل البرنامج ثم انتظر"
         assertEquals(output, ShortDialogueOverrides.apply("Run the program and wait.", output))
