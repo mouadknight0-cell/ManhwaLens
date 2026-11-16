@@ -31,7 +31,11 @@ object BenchmarkRunner {
         /** Set for joined methods. */
         val strategy: SplitStrategy? = null,
         /** Set for per-bubble methods (1 = sequential). */
-        val parallelLevel: Int = 0
+        val parallelLevel: Int = 0,
+        /** Individual measured samples, excluding the warm-up pass. */
+        val samplesMs: List<Long> = emptyList(),
+        /** max(sample) - min(sample), a simple noise indicator. */
+        val spreadMs: Long = 0
     )
 
     data class Recommendation(val strategy: SplitStrategy?, val parallelLevel: Int, val why: String)
@@ -76,14 +80,15 @@ object BenchmarkRunner {
         fun toText(extraLines: List<String> = emptyList()): String = buildString {
             appendLine("ML Kit batching benchmark (EN→AR)")
             appendLine("Engine: ML Kit only. The selected offline engine setting does not affect this diagnostic.")
-            appendLine("Sample: $bubbles bubbles · $passes passes per method, first discarded (warm-up) · median / worst of ${passes - 1}")
+            appendLine("Sample: $bubbles bubbles · $passes passes per method, first discarded (warm-up) · interleaved order · median / worst / range of ${passes - 1}")
             appendLine()
-            appendLine("${"method".padEnd(22)} ${"median".padStart(7)} ${"worst".padStart(7)}  map       bad  detail")
+            appendLine("${"method".padEnd(22)} ${"median".padStart(7)} ${"worst".padStart(7)} ${"range".padStart(7)}  map       bad  detail")
             for (r in strategies) {
                 val mark = if (r.mappedOk) "map OK  " else "map FAIL"
                 appendLine(
                     "${r.name.padEnd(22)} ${(r.elapsedMs.toString() + "ms").padStart(7)} ${(r.worstMs.toString() + "ms").padStart(7)}  " +
-                        "$mark  ${r.mismatched.toString().padStart(3)}  ${r.detail}"
+                        "${r.spreadMs.toString().padStart(5)}  $mark  ${r.mismatched.toString().padStart(3)}  ${r.detail}" +
+                        (r.samplesMs.takeIf { it.isNotEmpty() }?.let { " · runs=${it.joinToString("/")}" } ?: "")
                 )
             }
             appendLine()
@@ -132,69 +137,101 @@ object BenchmarkRunner {
         clock: () -> Long = { System.nanoTime() / 1_000_000L }
     ): Report {
         val n = passes.coerceAtLeast(2)
-        // v0.9.14: time exactly what a real page sends (names resolved, lines joined).
         val sources = blocks.map { Glossary.prepare(it.english) }
 
-        /** Runs [pass] n times; pass returns the number of mismatched items, or throws. */
-        fun measure(name: String, okDetail: String, strategy: SplitStrategy?, level: Int, pass: () -> Pair<Int, String>): StrategyResult {
-            val times = ArrayList<Long>(n)
-            var worstBad = 0
-            var badReason = ""
-            for (i in 0 until n) {
-                val t0 = clock()
-                val (bad, reason) = try {
-                    pass()
-                } catch (e: Exception) {
-                    return StrategyResult(name, clock() - t0, clock() - t0, false, blocks.size, "error: ${brief(e)}", strategy, level)
-                }
-                val dt = clock() - t0
-                if (i > 0) times += dt // pass 0 = warm-up, discarded
-                if (bad > worstBad) {
-                    worstBad = bad
-                    badReason = reason
-                }
+        data class Method(
+            val name: String,
+            val okDetail: String,
+            val strategy: SplitStrategy?,
+            val level: Int,
+            val pass: () -> Pair<Int, String>
+        )
+        data class State(
+            val method: Method,
+            val samples: MutableList<Long> = ArrayList(),
+            var worstBad: Int = 0,
+            var badReason: String = "",
+            var error: String? = null
+        )
+
+        val methods = ArrayList<Method>()
+        val pools = ArrayList<java.util.concurrent.ExecutorService>()
+        methods += Method("Sequential", "${blocks.size} calls", null, 1) {
+            sources.count { translateOne(it).isBlank() } to "blank result"
+        }
+        for (level in PARALLEL_LEVELS) {
+            val pool = Executors.newFixedThreadPool(level)
+            pools += pool
+            methods += Method("Parallel x$level", "${blocks.size} calls, $level in flight", null, level) {
+                val futures = sources.map { source -> pool.submit<String> { translateOne(source) } }
+                val bad = futures.count { it.get(30, TimeUnit.SECONDS).isBlank() }
+                bad to "blank result"
             }
-            val sorted = times.sorted()
-            val median = if (sorted.size % 2 == 1) sorted[sorted.size / 2]
-            else (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) / 2
-            return StrategyResult(
-                name, median, sorted.last(), worstBad == 0, worstBad,
-                if (worstBad == 0) okDetail else "split mismatch — $badReason",
-                strategy, level
+        }
+        for (strategy in SplitStrategy.values()) {
+            methods += Method("Joined ${strategy.label}", "1 call, ${blocks.size}/${blocks.size} mapped", strategy, 0) {
+                val result = BatchSplitter.validate(
+                    strategy, sources, translateOne(BatchSplitter.join(strategy, sources))
+                )
+                result.mismatched to result.reason
+            }
+        }
+
+        val states = methods.map { State(it) }
+        fun measureOnce(state: State, keepSample: Boolean) {
+            val t0 = clock()
+            var bad = 0
+            var reason = ""
+            try {
+                val result = state.method.pass()
+                bad = result.first
+                reason = result.second
+            } catch (e: Exception) {
+                bad = blocks.size
+                reason = "error: ${brief(e)}"
+                state.error = reason
+            }
+            val elapsed = (clock() - t0).coerceAtLeast(0L)
+            if (keepSample) state.samples += elapsed
+            if (bad > state.worstBad) {
+                state.worstBad = bad
+                state.badReason = reason
+            }
+        }
+
+        try {
+            // Give every strategy one discarded warm-up before collecting any result.
+            states.forEach { measureOnce(it, keepSample = false) }
+
+            // Interleave measured rounds to reduce order, heat and background-load bias.
+            // Rotating the start point and alternating direction adds no engine calls.
+            for (round in 0 until (n - 1)) {
+                val offset = (round * 5) % states.size.coerceAtLeast(1)
+                val order = states.indices.map { (offset + it) % states.size }
+                val arranged = if (round % 2 == 0) order else order.asReversed()
+                arranged.forEach { index -> measureOnce(states[index], keepSample = true) }
+            }
+        } finally {
+            pools.forEach { it.shutdownNow() }
+        }
+
+        val results = states.map { state ->
+            val sorted = state.samples.sorted()
+            val median = if (sorted.isEmpty()) 0L else if (sorted.size % 2 == 1) {
+                sorted[sorted.size / 2]
+            } else {
+                (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) / 2
+            }
+            val worst = sorted.maxOrNull() ?: 0L
+            val spread = if (sorted.size < 2) 0L else (sorted.last() - sorted.first()).coerceAtLeast(0L)
+            val detail = state.error ?: if (state.worstBad == 0) state.method.okDetail
+                else "split mismatch — ${state.badReason}"
+            StrategyResult(
+                state.method.name, median, worst, state.worstBad == 0, state.worstBad,
+                detail, state.method.strategy, state.method.level, state.samples.toList(), spread
             )
         }
-
-        fun perBlock(level: Int): StrategyResult {
-            val name = if (level <= 1) "Sequential" else "Parallel x$level"
-            if (level <= 1) {
-                return measure(name, "${blocks.size} calls", null, 1) {
-                    val bad = sources.count { translateOne(it).isBlank() }
-                    bad to "blank result"
-                }
-            }
-            val pool = Executors.newFixedThreadPool(level)
-            return try {
-                measure(name, "${blocks.size} calls, $level in flight", null, level) {
-                    val futures = sources.map { s -> pool.submit<String> { translateOne(s) } }
-                    val bad = futures.count { it.get(30, TimeUnit.SECONDS).isBlank() }
-                    bad to "blank result"
-                }
-            } finally {
-                pool.shutdownNow()
-            }
-        }
-
-        fun joined(s: SplitStrategy): StrategyResult =
-            measure("Joined ${s.label}", "1 call, ${blocks.size}/${blocks.size} mapped", s, 0) {
-                val v = BatchSplitter.validate(s, sources, translateOne(BatchSplitter.join(s, sources)))
-                v.mismatched to v.reason
-            }
-
-        val out = ArrayList<StrategyResult>()
-        out += perBlock(1)
-        for (level in PARALLEL_LEVELS) out += perBlock(level)
-        for (s in SplitStrategy.values()) out += joined(s)
-        return Report(out, blocks.size, n)
+        return Report(results, blocks.size, n)
     }
 
     private fun brief(e: Throwable): String {

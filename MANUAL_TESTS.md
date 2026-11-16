@@ -801,3 +801,12 @@ Do not install until GitHub Release v0.12.14 exists and CI confirms package/vers
 5. Confirm small text is still detected. Report any page over 3 seconds and whether the app UI appears in OCR.
 
 **Target:** reduce OCR work while preserving captured resolution. A full-page ≤1 s result is not claimed until measured, and may exceed one second for pages with many bubbles because the previous 20-bubble ML Kit batch itself measured about 1.03 s.
+
+
+# v0.12.20 — benchmark and one-page speed check
+
+1. Install v0.12.20 over v0.12.19 without uninstalling or clearing app data.
+2. Run Settings → Diagnostics → ML Kit batching benchmark once. Save the complete table, including per-round runs and range; it now interleaves strategies. Do not run the 23-case quality benchmark.
+3. Translate one ordinary page once with Debug mode on and copy Pipeline trace plus Last capture. Record tap-to-first-Arabic and tap-to-complete if shown.
+4. Compare capture, OCR, ML Kit and overlay stages separately. The batching table measures only the translation-engine request strategies and cannot stand in for the full page time.
+5. Include the app version shown in Settings. One run is sufficient; do not repeat unless it reports an error.

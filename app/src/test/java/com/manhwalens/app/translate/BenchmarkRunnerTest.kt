@@ -72,6 +72,8 @@ class BenchmarkRunnerTest {
         assertEquals(5, calls.get())
         assertEquals(25L, hash.elapsedMs)
         assertEquals(40L, hash.worstMs)
+        assertEquals(30L, hash.spreadMs)
+        assertEquals(listOf(10L, 30L, 20L, 40L), hash.samplesMs)
         assertEquals(5, report.passes)
     }
 
@@ -149,6 +151,9 @@ class BenchmarkRunnerTest {
         for (s in report.strategies) assertTrue(s.name, text.contains(s.name))
         assertTrue(text.contains("median"))
         assertTrue(text.contains("worst"))
+        assertTrue(text.contains("range"))
+        assertTrue(text.contains("runs="))
+        assertTrue(text.contains("interleaved order"))
         assertTrue(text.contains("map OK"))
         assertTrue(text.contains("map FAIL"))
         assertTrue(text.contains("20 bubbles"))

@@ -1,3 +1,9 @@
+## 0.12.20 — more stable batching benchmark
+- Interleave each strategy across measured rounds, rotating the start order and alternating direction to reduce fixed-order thermal and background-load bias.
+- Keep the same request count and warm-up count; add per-strategy sample times and max-minus-min range beside median and worst.
+- Label this as an ML Kit engine batching benchmark, not tap-to-overlay latency. It does not change dispatch policy or engine selection.
+- No runtime translation speed claim is made from this benchmark-only change. The new report should be compared with a single real-page Pipeline trace.
+
 ## 0.12.19 — avoid detector upscaling
 - Reduce PaddleOCR detector max side from 1920 px to 1600 px. Captures capped to 720 px wide no longer get enlarged beyond their original tall-screen resolution before detection.
 - For a 720×1600 capture, this reduces detector input from about 864×1920 to 704×1600 after alignment (about 32% fewer detector pixels); this is a model-input estimate, not a measured end-to-end speedup.
