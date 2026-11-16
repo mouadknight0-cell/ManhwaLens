@@ -1,11 +1,11 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.7  
+**الإصدار:** 5.8  
 **تاريخ التحديث:** 2026-11-16  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر حالة موثقة الآن:** v0.12.17 / code 57 نُشر كـ prerelease بعد نجاح CI #944 على commit `cd24478dbb1233331590ba203c9acf433d127b4d`؛ APK بحجم 71,393,738 bytes وSHA-256 `06216c494bcb563abfdb83aed564337311fbb26b088c99955bd5a846c87e0767`. تعديلات الفصل الخامس ما زالت بانتظار إعادة فحص الجهاز. نُشر v0.12.18 / code 58 بعد نجاح CI [#946](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43874213720) كـ prerelease، واختبار سرعة الهاتف ما زال مطلوبًا.
-**CI لنسخة v0.12.8:** [43724428631](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43724428631) — نجحت Unit tests والتحققات من نماذج PaddleOCR وBergamot ARM64 وبناء Debug APK ورفع artifacts. كان هذا تشغيل PR validation، لذا تخطّى خطوات نشر Release بشكل صحيح. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
+**آخر حالة مؤكدة (2026-11-16 15:42 UTC):** الإصدار التجريبي الأحدث v0.12.24 / code 64 منشور مع APK مرفق. تغييرات إصدار Live benchmark موثقة في نهاية هذا التقرير؛ لا يوجد حتى الآن قياس فعلي على الهاتف لهذا الإصدار. أحدث HEAD على فرع `feature/v0.12.4-bergamot-experiment` هو `a90b0fbb32316a1a62a55f4fd9a3610943a616e8`. PR #4 مفتوح فوق PR #3؛ PR #3 مفتوح باتجاه `main`.
+**CI الأحدث المتحقق:** PR validation #973 [43898859813](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43898859813) نجح على HEAD `a90b0fbb32316a1a62a55f4fd9a3610943a616e8`. إصدار v0.12.24 تحقق في CI #969 [43898285502](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43898285502)، ونُشر prerelease مع APK. هذه نتائج بناء واختبارات آلية؛ لا تثبت زمن الأداء الفعلي على الهاتف.
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
 > هذا الملف هو التقرير الهندسي الرسمي الوحيد للمشروع. يستبدل النسخة السابقة من `REPOSITORY_REPORT.md` بالكامل. لا تُنشئ تقارير منفصلة لكل مرحلة أو إصلاح؛ أضف جميع الأعمال المستقبلية إلى هذا الملف مع الاحتفاظ بالتواريخ والأدلة والقرارات وسجل التغييرات.
@@ -1608,3 +1608,12 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - الإبقاء على بنشمارك واحد اختياري يغطي جلسة Live من التشغيل حتى الإيقاف، وتوسيع تقريره ليشمل زمن أول إطار وأول إخراج مرئي، متوسط/أقصى زمن الإطار وOCR والمحرك، مراحل detector/recognizer وإعداداتها، أعداد الأسطر والمرشحين ومرفوضات الثقة، محاولات الترجمة والكتل ونتائج الذاكرة المؤقتة، الطبقات المتوقعة والمعروضة، حالات Live، الإطارات الفارغة أو السوداء والإخفاقات والإلغاءات، وحجم الإطار والجهاز وإصدار التطبيق.
 - لا يسجل التقرير أي نص من الصفحة أو OCR أو الترجمة، ويظل محليًا. هذا تغيير في القياس فقط ولا يدّعي تحسنًا في السرعة.
 - تحقق الإصدار v0.12.24 / code 64: نجح CI run [#969](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43898285502) بما فيه Unit tests وبناء APK وفحوص التوقيع والتوافق. نُشر prerelease [v0.12.24](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.24)؛ APK حجمه 71,396,626 bytes وSHA-256 `6441cce2e37bf1df7c2bc714398749e2a2d2528f48049a17dbc14d4324fd17bd`. لم تُقَس سرعة على الجهاز بعد؛ القياس من جلسة Live فعلية مطلوب لاستخراج خط الأساس.
+
+
+## تدقيق الاستمرارية وتأكيد حالة المستودع — 2026-11-16
+
+- أُعيد فحص المستودع المتصل وحالة GitHub بعد تعذر العثور عليه في مجلد جلسة Codex. المستودع الصحيح هو `mouadknight0-cell/ManhwaLens`، والفرع الجاري هو `feature/v0.12.4-bergamot-experiment`؛ لم يُجرَ أي تغيير على `main`.
+- HEAD الحالي `a90b0fbb32316a1a62a55f4fd9a3610943a616e8` (`docs: record unified Live benchmark release`). PR #4 مفتوح ويستهدف فرع `feature/v0.12.3-paddle-default-settings`، وPR #3 مفتوح ويستهدف `main`.
+- الإصدار الأحدث المتحقق والمنشور هو prerelease [v0.12.24](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.24), code 64، ويتضمن `ManhwaLens-v0.12.24-debug.apk`. نجح CI الخاص بالإصدار #969، كما نجح PR validation #973 على HEAD الحالي.
+- هذا التفاعل كان تدقيق حالة فقط: لم تتغير ملفات التطبيق ولم تُشغّل اختبارات جديدة. جرى تحديث هذا التقرير وحده ليعكس حالة GitHub الراهنة.
+- العمل الهندسي التالي: تنفيذ جلسة Live واحدة على الهاتف باستخدام خيار **Live session benchmark** في v0.12.24، ثم مشاركة التقرير المحلي لتحديد خط الأساس لزمن أول إخراج مرئي ومراحل OCR والترجمة. لا توجد مطالبة بتغيير محرك أو عتبات قبل قياس الجهاز.
