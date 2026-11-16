@@ -1,3 +1,13 @@
+# v0.12.25 — first-overlay breakdown and Paddle batch-size trial
+
+1. Install the CI-built v0.12.25 APK over v0.12.24 without clearing app data.
+2. Use the same Xiaomi device and manga page as the v0.12.24 Live report. Arm the Live session benchmark while Live is OFF, turn Live ON, wait for the first Arabic overlay, scroll through a few changes, then turn Live OFF.
+3. Copy the report. Confirm **First overlay stages** reports main queue, callback prep, patch build, handoff, and overlay apply timings; confirm none is negative or missing after a visible first output.
+4. Compare OCR recognizer timing and recognition batch count with the prior run. Check low-confidence drops and visible text coverage; batch size 8 is only an experiment and must be reverted if latency or recall worsens.
+5. Confirm overlay expected/painted counts match for the observed output and that the local report contains no page text.
+
+**Gate:** one same-device/page session. This build changes only Paddle recognition batching and opt-in timing instrumentation; CI results do not prove on-device speed or OCR quality.
+
 # v0.12.8 — offline engine diagnostics
 
 The three Diagnostics actions are deliberately different. Do not treat their timings or reports as interchangeable.

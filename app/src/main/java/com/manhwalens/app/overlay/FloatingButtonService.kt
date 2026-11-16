@@ -3555,7 +3555,9 @@ class FloatingButtonService : Service() {
                         true
                     }
                 }
+            val overlayQueuedAtElapsedMs = SystemClock.elapsedRealtime()
             mainHandler.post {
+                val overlayCallbackStartedAtElapsedMs = SystemClock.elapsedRealtime()
                 statusPill?.hide()
                 if (finalBoxes.isEmpty()) {
                     com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("empty")
@@ -3586,7 +3588,9 @@ class FloatingButtonService : Service() {
                     tapToOverlayMs = -1L,
                     liveMode = true
                 )
+                val patchBuildStartedAtElapsedMs = SystemClock.elapsedRealtime()
                 val patches = buildPatches(frameToShow, finalBoxes)
+                val patchBuildFinishedAtElapsedMs = SystemClock.elapsedRealtime()
                 // The overlay shows patches ONLY — the captured frame is never displayed,
                 // never retained by Live. Recycle it now that the patches own their pixels
                 // (unless a pending remote upgrade took it over — it recycles it itself).
@@ -3594,9 +3598,16 @@ class FloatingButtonService : Service() {
                 recordPaintResult(patches.size, finalBoxes.size)
                 com.manhwalens.app.util.LiveSessionBenchmark.recordOverlay(patches.size, finalBoxes.size, patches.isEmpty())
                 if (patches.isNotEmpty()) {
+                    val overlayApplyStartedAtElapsedMs = SystemClock.elapsedRealtime()
                     val po = patchOverlayEnsure()
                     po.replaceAll(patches, meta.width, meta.height)
-                    com.manhwalens.app.util.LiveSessionBenchmark.recordOutput()
+                    com.manhwalens.app.util.LiveSessionBenchmark.recordOutput(
+                        queuedAtElapsedMs = overlayQueuedAtElapsedMs,
+                        callbackStartedAtElapsedMs = overlayCallbackStartedAtElapsedMs,
+                        patchBuildStartedAtElapsedMs = patchBuildStartedAtElapsedMs,
+                        patchBuildFinishedAtElapsedMs = patchBuildFinishedAtElapsedMs,
+                        overlayApplyStartedAtElapsedMs = overlayApplyStartedAtElapsedMs
+                    )
                     // Runs on the main thread, so replaceAll has already been applied.
                     if (upgradeOwnsFrame) upgrade?.epoch = po.contentEpoch()
                 } else {

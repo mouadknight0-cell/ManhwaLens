@@ -1,3 +1,4 @@
+- v0.12.25 device-speed experiment (2026-11-16): raise PaddleOCR recognition batch size 4→8 based on the v0.12.24 Xiaomi report (1,784 ms average recognition, 1,760 ms inference, two batches on the last OCR). Keep model/crops/confidence thresholds unchanged; treat throughput/memory and recall as unverified until the same device/page is rerun. Split first-overlay delay into main-queue, callback preparation, patch build, handoff and overlay-apply intervals; this is instrumentation, not a speed claim.
 # DECISIONS.md — one line per decision (2026-11-11, A→D pipeline task)
 
 - Live mode auto-starts on the first lens tap (tap arms the capture session AND enables Live); an explicit user disable persists `liveOptOut=true` (Settings switch or long-press) and stops auto-arming for good; Settings toggle ON or long-press ON clears it.

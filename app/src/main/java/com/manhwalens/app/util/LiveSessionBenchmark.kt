@@ -30,6 +30,7 @@ object LiveSessionBenchmark {
     private var firstFrameOcrMs = -1L
     private var firstFrameEngineMs = -1L
     private var firstOutputPostFrameMs = -1L
+    private var firstOverlayStageTimes: LiveOverlayStageTimes? = null
     private var detectorSamples = 0L
     private var detectorTotalMs = 0L
     private var detectorMaxMs = 0L
@@ -119,6 +120,7 @@ object LiveSessionBenchmark {
             val firstFrameOcr = if (firstFrameOcrMs >= 0L) "${firstFrameOcrMs} ms" else "n/a"
             val firstFrameEngine = if (firstFrameEngineMs >= 0L) "${firstFrameEngineMs} ms" else "n/a"
             val firstOutputAfterFrame = if (firstOutputPostFrameMs >= 0L) "${firstOutputPostFrameMs} ms" else "n/a"
+            val firstOverlayStages = firstOverlayStageTimes?.toReportLine() ?: "n/a"
             val avgDetector = if (detectorSamples > 0) detectorTotalMs / detectorSamples else 0L
             val avgDetectorInference = if (detectorSamples > 0) detectorInferenceTotalMs / detectorSamples else 0L
             val avgRecognizer = if (recognizerSamples > 0) recognizerTotalMs / recognizerSamples else 0L
@@ -148,6 +150,7 @@ object LiveSessionBenchmark {
                 appendLine("First frame work: total=$firstFrameDuration · OCR=$firstFrameOcr · engine=$firstFrameEngine")
                 appendLine("First visible translation: $firstOutput")
                 appendLine("Delay outside first frame work: $firstOutputAfterFrame")
+                appendLine("First overlay stages: $firstOverlayStages")
                 appendLine("Live frames processed: $frames")
                 appendLine("Frame processing: avg ${avgPass} ms · max ${passMaxMs} ms")
                 appendLine("OCR total: avg ${avgOcr} ms · max ${ocrMaxMs} ms · measured frames=$ocrSamples")
@@ -285,12 +288,27 @@ object LiveSessionBenchmark {
         }
     }
 
-    fun recordOutput() {
+    fun recordOutput(
+        queuedAtElapsedMs: Long,
+        callbackStartedAtElapsedMs: Long,
+        patchBuildStartedAtElapsedMs: Long,
+        patchBuildFinishedAtElapsedMs: Long,
+        overlayApplyStartedAtElapsedMs: Long
+    ) {
         synchronized(lock) {
             if (!active) return
             outputs++
             if (firstOutputAtMs < 0L) {
-                firstOutputAtMs = (SystemClock.elapsedRealtime() - startedElapsedMs).coerceAtLeast(0L)
+                val outputAtElapsedMs = SystemClock.elapsedRealtime()
+                firstOutputAtMs = (outputAtElapsedMs - startedElapsedMs).coerceAtLeast(0L)
+                firstOverlayStageTimes = LiveOverlayStageTimes.measure(
+                    queuedAtElapsedMs = queuedAtElapsedMs,
+                    callbackStartedAtElapsedMs = callbackStartedAtElapsedMs,
+                    patchBuildStartedAtElapsedMs = patchBuildStartedAtElapsedMs,
+                    patchBuildFinishedAtElapsedMs = patchBuildFinishedAtElapsedMs,
+                    overlayApplyStartedAtElapsedMs = overlayApplyStartedAtElapsedMs,
+                    outputAppliedAtElapsedMs = outputAtElapsedMs
+                )
                 if (firstFramePassMs >= 0L && firstFrameStartedAtOffsetMs >= 0L) {
                     firstOutputPostFrameMs = (firstOutputAtMs - firstFrameStartedAtOffsetMs - firstFramePassMs).coerceAtLeast(0L)
                 }
@@ -311,6 +329,7 @@ object LiveSessionBenchmark {
         firstFrameOcrMs = -1L
         firstFrameEngineMs = -1L
         firstOutputPostFrameMs = -1L
+        firstOverlayStageTimes = null
         detectorSamples = 0L
         detectorTotalMs = 0L
         detectorMaxMs = 0L

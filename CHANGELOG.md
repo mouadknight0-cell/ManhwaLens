@@ -1,3 +1,8 @@
+## 0.12.25 — Live first-overlay timing and OCR batch trial
+- Split first visible overlay latency into main-thread queue wait, callback preparation, patch build, handoff, and overlay update timings.
+- Increase PaddleOCR recognition batch size from 4 to 8 as a measured device experiment, reducing the number of recognition batches on pages with up to eight candidates while keeping source crops, thresholds, and OCR model unchanged.
+- Keep diagnostics aggregate-only. No speed or accuracy improvement is claimed until same-device results are compared.
+
 ## 0.12.24 — unified Live experience benchmark
 - Remove the ML Kit batching, Bergamot-only, and engine-comparison benchmark controls from Settings; keep one opt-in Live ON→OFF session benchmark and the separate Live self-check.
 - Expand the report with first visible output and frame timing, OCR stage times/configuration and counts, translation attempts/results/cache/block counts, overlay outcomes, Live-state transitions, failure/empty/cancellation counts, frame dimensions, and device/app version.

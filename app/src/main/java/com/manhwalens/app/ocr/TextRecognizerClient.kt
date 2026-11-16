@@ -119,8 +119,9 @@ class TextRecognizerClient(context: Context) {
         private const val PADDLE_DET_BOX_THRESHOLD = 0.6f
         private const val PADDLE_DET_UNCLIP_RATIO = 1.5f
         private const val PADDLE_THREADS = 4
-        // Four recognition crops per ONNX call cuts per-crop invocation overhead on manga pages.
-        private const val PADDLE_REC_BATCH_SIZE = 4
+        // Trial: batch up to eight recognition crops to reduce sequential ONNX calls on dense pages.
+        // A real-device benchmark must confirm latency and recall before claiming a speedup.
+        private const val PADDLE_REC_BATCH_SIZE = 8
         // PaddleOCR's documented default drop_score is 0.5; filter uncertain lines before grouping.
         private const val PADDLE_MIN_REC_CONFIDENCE = 0.5f
         private val PADDLE_LOCK = Any()
