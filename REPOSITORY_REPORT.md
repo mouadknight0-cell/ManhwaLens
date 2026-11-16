@@ -1192,3 +1192,30 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 4. Build a labeled OCR screenshot corpus and evaluate PaddleOCR CER/WER, detection recall/precision, grouping and screen-edge/UI contamination.
 5. Keep ML Kit default and Bergamot experimental; no paired Bergamot semantic results were supplied.
 6. Do not request phone installation until a verified v0.12.10-or-later GitHub Release APK and signing/version continuity are confirmed.
+
+## Session continuation — 2026-11-16 (protocol activation and CI test repair)
+
+### Repository state verified
+- Repository: `mouadknight0-cell/ManhwaLens`.
+- Development branch: `feature/v0.12.4-bergamot-experiment`; PR #4 is open Draft and stacked on PR #3. PR #3 is open and targets `main`. Do not merge PR #4 directly into `main`.
+- Pre-repair PR #4 head: `934573156239a010e3e3f99d073a38b1433424cd` (documentation-only update to `PROJECT_STATE.md`).
+- Branch app metadata read from `app/build.gradle.kts`: `applicationId=com.manhwalens.app`, `versionName=0.12.11`, `versionCode=51`, `minSdk=26`, ABI filters `arm64-v8a` and `armeabi-v7a`.
+
+### CI failure and root cause
+- Workflow run #787 (`43818326700`) failed at `:app:testDebugUnitTest`; report summary: 810 tests completed, one failure. APK assembly and subsequent APK verification/upload/release steps were skipped.
+- Inspected the uploaded `test-reports` artifact (artifact ID `14202939122`). Sole failing entry: `BatchSplitterTestKt.initializationError`, JUnit 4 `InvalidTestClassError` because the two HASH strategy `@Test` functions were declared at file scope after the `BatchSplitterTest` class had already closed.
+- This is a test declaration/class-boundary issue. Existing class-based `BatchSplitterTest` cases all passed; do not modify production splitter behavior to address it.
+
+### Repair implemented
+- Moved the two HASH separator regression tests back inside `BatchSplitterTest` in `app/src/test/java/com/manhw alens/app/translate/BatchSplitterTest.kt` (canonical path: `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt`).
+- Commit: `b751a78e70ba4fcdb47543066d8968fde7cc1335` — `test: keep hash batching cases inside JUnit test class`.
+- Status: Implemented and pushed. CI verification for this new head is pending; no APK or Release is claimed.
+
+### Quality and validation constraints retained
+- ML Kit remains the default offline translator; Bergamot remains optional/experimental.
+- Keep raw engine quality reports separate from final post-processed visible output; token F1 is lexical overlap, not semantic accuracy.
+- OCR recognition, bubble detection/grouping, filtering and translation errors must be measured separately. Do not tune OCR thresholds from text-only translation logs.
+- No device-level validation is claimed. Physical device checks remain required for OCR quality/grouping, semantic Arabic output, offline model/JNI availability, latency/RAM and update installation.
+
+### Next engineering action
+- Inspect the push and PR Actions runs for `b751a78e70ba4fcdb47543066d8968fde7cc1335`. If green, inspect APK metadata and signer continuity and re-check actual GitHub Release assets; otherwise inspect the new test artifact and repair the precise failure.
