@@ -188,3 +188,9 @@ overlapping Arabic at patch edges, mangled Korean/Chinese names, and meaningless
 ### Verification status
 
 Unit tests were added for request batching, response parsing, endpoint validation, output validation, and fallbacks. This sandbox has no Java/JDK or Android SDK installed, so Gradle tests and APK builds could not be run here. Physical-device timing and real-server tests remain outstanding.
+
+
+## v0.12.15 (unreleased)
+- Add exact-source Arabic repairs for two OCR variants observed in the Solo Leveling chapter-4 phone report (duplicated “THE” in rank dialogue and “WOULO'VE” recognition error).
+- Keep ML Kit batching on parallel x6: joined ` | ` was fastest on the fixed 20-bubble benchmark, but its prior real-page mapping mismatch still disqualifies it as the saved default.
+- Verification and update-compatible prerelease build pending.
