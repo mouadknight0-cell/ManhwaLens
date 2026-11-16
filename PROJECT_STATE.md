@@ -1172,7 +1172,7 @@ Never use one label as evidence for another.
 - Fuzzy memo entries retain the source which populated their shape slot; exact/fuzzy hit details include `matched=...`.
 - Translation pair records now carry a process-unique page `requestId` across engine results, cache hits, failures and missing results. Old 9-field log records stay readable as `request=legacy`.
 - Tests verify both matched-source provenance and per-request grouping. The cache-hit propagation omission found in PR CI was fixed, then the full 812-test suite passed.
-- The evidence does **not** prove that an `AH` / `YEAH` false hit occurred; the existing test already rejects that direct pairing. The new report will disclose the matched source for other fuzzy hits and disambiguate pages that reuse numeric block IDs.
+- Historical device evidence from the 2026-11-15 Solo Leveling chapter-3 pair report **did show** distinct short sources such as `AH...` and `YEAH` served the same unrelated Arabic from `CACHE_HIT`. The prior fuzzy shape algorithm removed vowels/punctuation, making both collapse to the same weak shape. The source fix now requires a safe shape (at least 3 alphanumeric characters and 2 distinct characters), and tests verify `AH...` cannot fuzzy-hit `YEAH`. A separate hardening change prevents fuzzy results from being promoted into exact cache keys. The current `matched=...` detail and per-page `request=...` ID let the v0.12.12 phone report establish whether a similar result is still occurring and which exact source supplied it.
 
 ### v0.12.12 device-validation build
 - Bumped app metadata to `versionName=0.12.12`, `versionCode=52` so the diagnostic update can install over v0.12.11 (versionCode 51) without replacing/reusing the existing v0.12.11 tag.
