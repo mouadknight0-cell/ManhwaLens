@@ -689,3 +689,17 @@ Context limitation: the current Bergamot JNI bridge accepts independent text seg
 
 
 **Historical regression target:** the previous device report showed `AH...` and `YEAH` incorrectly served the same unrelated Arabic after fuzzy normalization collapsed both to a one-character shape. The current fuzzy policy must refuse ambiguous short shapes, and a fuzzy result must never be promoted under a different exact source key. The v0.12.12 report is intended to verify that behavior on the phone, not merely repeat the JVM tests.
+
+## v0.12.13 — repeated-page OCR memory stability
+
+**Purpose:** validate that PaddleOCR's OpenCV preprocessing and perspective-crop intermediates are released correctly across repeated recognition batches. This change must not alter OCR tensor geometry, BGR channel order, normalization, confidence filtering or reading order.
+
+1. Install **v0.12.13** directly over v0.12.12; do not uninstall or clear app data.
+2. Keep PaddleOCR selected for OCR and ML Kit for offline EN→AR translation. Turn **Debug mode ON** for captures.
+3. Capture one dense page containing many small dialogue lines, several multi-line bubbles and at least one rotated/vertical text crop. Repeat the same capture 5 times.
+4. Capture 5–10 additional pages with varied density and shapes. Keep the app running between captures; do not restart it during the sequence.
+5. **PASS:** no crash, native OpenCV error, blank OCR response caused by a preprocessing failure, or progressive slowdown that persists across equivalent captures. For the repeated identical page, compare raw OCR line count and boxes; large output differences need screenshot inspection rather than an automatic pass/fail based on count alone.
+6. Copy the Last capture / pipeline report after the final capture. Include Android version, device model, and whether the app remained responsive. Check Android system app-memory usage before and after the sequence when available.
+7. Turn **Debug mode OFF** after collection. Do not clear translation caches unless investigating an unrelated translation issue.
+
+**Scope:** this is a native-resource lifecycle check. CI verifies unit tests and APK packaging; only the phone can reveal device-specific OpenCV/ONNX memory pressure and long-session stability.
