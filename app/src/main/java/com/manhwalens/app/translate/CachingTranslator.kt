@@ -74,6 +74,7 @@ class CachingTranslator(
         // Keep the pre-correction cache value for diagnostics; finalArabic is the value
         // that will actually be painted after name/dialogue overrides and quality checks.
         val cachedCandidates = LinkedHashMap<Int, String>(blocks.size)
+        val cacheHitDetails = HashMap<Int, String>(blocks.size)
         val fuzzyCachedIds = HashSet<Int>()
         val misses = ArrayList<TranslationBlock>(blocks.size)
         var diskHits = 0
@@ -118,6 +119,15 @@ class CachingTranslator(
             if (dialogueRepairedHit != null && issue == null) {
                 cached[b.id] = dialogueRepairedHit
                 if (rawHit != null) cachedCandidates[b.id] = rawHit
+                if (rawHit != null) {
+                    cacheHitDetails[b.id] = when {
+                        memHit != null -> "served from in-memory exact cache"
+                        diskHit != null -> "served from persistent exact cache"
+                        fromExactMemo -> "served from exact translation memo"
+                        fromFuzzy -> "served from fuzzy translation memo"
+                        else -> "served from cache"
+                    }
+                }
                 when {
                     diskHit != null || fromExactMemo -> {
                         // Promote only source-exact disk/memo hits. A fuzzy near-match must
@@ -168,7 +178,7 @@ class CachingTranslator(
                     TranslationPairTrace(
                         id, source, arabic, candidate, engineId,
                         if (isFuzzy) "FUZZY_HIT" else "CACHE_HIT",
-                        if (isFuzzy) "served from fuzzy memo" else "served from exact cache",
+                        cacheHitDetails[id] ?: "served from translation cache",
                         0L
                     )
                 )
