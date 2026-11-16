@@ -82,6 +82,7 @@ object ShortDialogueOverrides {
         "IT CANT BE" to "مستحيل...",
         "MR SONG CHI YUL WHAT WAS THE FIRST COMMANDMENT" to "سيد سونغ تشي يول! ما الوصية الأولى؟",
         "COMMANDMENT" to "الوصية؟",
+        "COMMAND MENT" to "الوصية؟",
         "THE FIRST WOULD BE" to "الأولى هي...",
         "SIR THERES A RULE IN THIS DUNGEON" to "سيدي، هناك قاعدة في هذا الدهليز.",
         "IF IM CORRECT" to "إن لم أكن مخطئًا..."
