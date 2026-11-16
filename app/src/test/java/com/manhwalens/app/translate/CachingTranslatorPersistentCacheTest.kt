@@ -100,4 +100,48 @@ class CachingTranslatorPersistentCacheTest {
         }
     }
 
+
+    @Test
+    fun blankLegacyCacheEntryCannotBeResurrectedByNameOverride() {
+        val file = File.createTempFile("blank-translation-cache", ".json").apply { delete() }
+        try {
+            val source = "Eren"
+            val key = TranslationCache().key("ml_kit_en_ar", source)
+            val disk = PersistentTranslationCache(file)
+            disk.put(key, "الترجمة:")
+
+            var engineCalls = 0
+            var overrideCalls = 0
+            val engine = object : Translator {
+                override val engineId = "ml_kit_en_ar"
+
+                override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
+                    engineCalls++
+                    return PageTranslation.Success(
+                        blocks.map { TranslatedBlock(it.id, it.english, "إيرين") },
+                        engineId, 1L, 0, blocks.size
+                    )
+                }
+            }
+
+            val result = CachingTranslator(
+                delegate = engine,
+                cache = TranslationCache(),
+                persistent = disk,
+                pinnedOverride = { _, arabic ->
+                    overrideCalls++
+                    if (arabic.isBlank()) "نص غير مقصود" else arabic
+                }
+            ).translatePage(listOf(TranslationBlock(3, source)))
+
+            assertTrue(result is PageTranslation.Success)
+            assertEquals("إيرين", (result as PageTranslation.Success).blocks.single().arabic)
+            assertEquals("the empty legacy entry must be rejected and sent to the engine", 1, engineCalls)
+            assertEquals("name repair runs only for the non-empty fresh candidate", 1, overrideCalls)
+            assertEquals(null, disk.get(key))
+        } finally {
+            file.delete()
+        }
+    }
+
 }
