@@ -1276,3 +1276,15 @@ Never use one label as evidence for another.
 
 ### Protocol update
 - This interaction revalidated repository state and handoff. No app code, tests or release assets were changed. The next state update is recorded in this file and `REPOSITORY_REPORT.md`.
+
+
+## Current continuation state — Solo Leveling chapter 4 follow-up (2026-11-16)
+
+- Latest source/test changes are on `feature/v0.12.4-bergamot-experiment`; latest observed commit at this checkpoint: `deb5a382dec72c1ede59da67fb6bdc39a9073e7e`.
+- User-supplied Xiaomi 23106RN0DA / Android 14 benchmark confirms Joined ` | ` mapping 20/20 at median 573 ms (worst 576 ms), versus sequential 969 ms and parallel x2 979 ms. User reports this verdict is applied. Other joined separators tested that returned one segment are not acceptable.
+- 23-case quality report: raw/cleaned mean token F1 49.6%; final visible mean token F1 74.8%, exact 9/23. Visible score includes seven exact source repairs; token F1 is lexical overlap, not semantic accuracy.
+- 59 translation-pair records reveal accepted-but-weak Arabic outputs; Arabic guard is not a semantic evaluator. OCR source artifacts include `OLT`, `BLYING`, `QLICKLY`, and `STATLES`; avoid global OCR substitutions without checking source images.
+- A separate three-block request `ed782881-p17` took 20,430 ms; investigate only with its stage trace, not by changing batching based on this number alone.
+- Implemented exact-source chapter-4 repairs in `ShortDialogueOverrides.kt` and added JVM regression assertions in `ShortDialogueOverridesTest.kt`. Updated `MANUAL_TESTS.md` with a device recheck plan that preserves translation cache and clears only pair history.
+- CI/build for the latest branch tip is pending/unverified. No new APK, version bump, or GitHub Release has been created. Do not request device recheck until CI passes and an update-compatible prerelease APK is published.
+- Next engineering action: inspect the Actions run for `deb5a382dec72c1ede59da67fb6bdc39a9073e7e`; fix any unit-test/build failures, then bump the patch version and publish only after verifying CI and signer/package continuity.
