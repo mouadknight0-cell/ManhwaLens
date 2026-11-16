@@ -1528,3 +1528,10 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - عدّل v0.12.19 الحد الطويل للكاشف إلى 1600، فيقارب حجم الإدخال 704×1600؛ أي خفض بنحو 32% من بكسلات الكاشف مع الحفاظ على مستوى دقة المصدر الملتقط. هذا توقع حجم معالجة، وليس قياس سرعة فعليًا.
 - لم تتغير أداة OCR أو ML Kit أو batching أو عتبة الثقة. المطلوب قياس واحد على نفس الهاتف/الصفحة، مع فصل tap-to-first-Arabic عن tap-to-complete، ومقارنة detection input/inference وOCR وtranslation وoverlay في Pipeline trace. لا حاجة لإعادة اختبار مجموعة جودة الترجمة.
 - المرشح v0.12.19 / code 59. CI وتوقيع APK وتوافق التحديث والنشر مطلوبة قبل التثبيت؛ والسرعة وجودة النص الصغير لا تزالان غير متحققين على الهاتف.
+
+
+### تحقق إصدار v0.12.19 — 2026-11-16
+- نجح GitHub Actions Android build [#948](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43875364872) على commit `f61e3cce502145e777f42894bf033b82a806a045`: unit tests، APK build، التوقيع، توافق التحديث والنشر.
+- تحقق نشر prerelease [v0.12.19](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.19) وملف `ManhwaLens-v0.12.19-debug.apk` (71,393,770 bytes)، SHA-256 `a1bad4db83e638af63500b17119b9e38b7e5ba98737f33314ad54b878824dca0`.
+- ثبّت v0.12.19 فوق v0.12.18، وقِس مرة واحدة على نفس الصفحة tap-to-first-Arabic وtap-to-complete، ثم أرسل Pipeline trace وLast capture. لا إعادة لاختبار جودة الترجمة.
+- لا توجد بعد نتيجة هاتف تقيس نسبة التحسن الفعلية. هدف ≤1 ثانية للصفحة الكاملة لا يزال غير مضمون، لأن قياس ML Kit وحده على 20 فقاعة كان 1033 ms median.
