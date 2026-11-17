@@ -1,3 +1,9 @@
+## 0.12.28 — detector input-size experiment
+- Restore PaddleOCR ONNX intra-op threads to 4 and reduce both detector side limits to 960 (limit type remains min).
+- Keep recognition batch size 4, model, confidence thresholds, and source-frame recognition crops unchanged.
+- Correct the thread and recognition batch comments to match the configured values.
+- Live reports already derive detector input shape, cap, and thread count from OCR run stats. No speed or recall gain is claimed before three same-page sessions on the same phone.
+
 ## 0.12.27 — ONNX thread-count trial
 - Trial PaddleOCR ONNX intra-op threads at 2 instead of 4, keeping detector limits, recognition batch size, confidence threshold, models and crops unchanged.
 - This may reduce CPU contention with ML Kit translation and the app UI; it may also increase inference time. No speedup or OCR-quality claim until tested on the same phone and page against v0.12.26.
