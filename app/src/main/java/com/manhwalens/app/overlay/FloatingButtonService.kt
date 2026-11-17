@@ -4042,7 +4042,7 @@ class FloatingButtonService : Service() {
             liveForegroundAllowed = true
             ensureLiveLoopStarted("live enabled ($source)")
             setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
-            mainHandler.post { Toast.makeText(this, R.string.live_enabled_toast, Toast.LENGTH_LONG).show() }
+            // Live state is already shown by the lens caption; avoid a system toast that can enter screen capture.
             Log.i(TAG, "live mode enabled ($source)")
         } else {
             liveDriver.invalidateSamePage()

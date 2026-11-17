@@ -1,3 +1,9 @@
+## 0.12.29 — prevent ManhwaLens UI text from entering OCR
+- Remove the Live enabled system toast; the floating lens caption already indicates Live state and is excluded from OCR using its owned-window bounds.
+- Keep the existing capture flow that hides owned overlays before acquiring a clean frame and filters OCR blocks intersecting current/recent owned-window rectangles, including floating button and previous patch rectangles.
+- Add explicit JVM coverage for OCR text inside the floating-button bounds.
+- No hard-coded phrase filter added. No OCR settings or translation behavior changed.
+
 ## 0.12.28 — detector input-size experiment
 - Restore PaddleOCR ONNX intra-op threads to 4 and reduce both detector side limits to 960 (limit type remains min).
 - Keep recognition batch size 4, model, confidence thresholds, and source-frame recognition crops unchanged.
