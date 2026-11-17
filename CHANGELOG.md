@@ -1,3 +1,7 @@
+## 0.12.27 — ONNX thread-count trial
+- Trial PaddleOCR ONNX intra-op threads at 2 instead of 4, keeping detector limits, recognition batch size, confidence threshold, models and crops unchanged.
+- This may reduce CPU contention with ML Kit translation and the app UI; it may also increase inference time. No speedup or OCR-quality claim until tested on the same phone and page against v0.12.26.
+
 ## 0.12.26 — restore OCR batch size and keep patch rasterization off the UI thread
 - Revert PaddleOCR recognition batch size from 8 to 4 after the same-device comparison showed higher OCR and frame times on v0.12.25; preserve the original model, crops and thresholds.
 - Build Live patch bitmaps on the existing worker before posting overlay changes to the main thread. The v0.12.25 report measured about 2 seconds in patch build; this keeps that work from blocking UI interaction. End-to-end first-output latency still requires on-device verification.
