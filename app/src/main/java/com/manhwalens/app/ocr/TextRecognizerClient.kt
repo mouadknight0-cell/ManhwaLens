@@ -118,7 +118,7 @@ class TextRecognizerClient(context: Context) {
         private const val PADDLE_DET_THRESHOLD = 0.3f
         private const val PADDLE_DET_BOX_THRESHOLD = 0.6f
         private const val PADDLE_DET_UNCLIP_RATIO = 1.5f
-        private const val PADDLE_THREADS = 4
+        private const val PADDLE_THREADS = 2 // trial against 4 threads; device benchmark must confirm latency and OCR recall
         // Trial: batch up to eight recognition crops to reduce sequential ONNX calls on dense pages.
         // A real-device benchmark must confirm latency and recall before claiming a speedup.
         private const val PADDLE_REC_BATCH_SIZE = 4
