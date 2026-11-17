@@ -1,11 +1,11 @@
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.17  
-**تاريخ التحديث:** 2026-11-17 15:55  
+**الإصدار:** 5.18  
+**تاريخ التحديث:** 2026-11-17  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
 **الفرع:** `feature/v0.12.4-bergamot-experiment`  
 **طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
-**آخر حالة مؤكدة (2026-11-17):** قياس v0.12.26 يؤكد أن بناء الرقع صار 356 ms وأول ترجمة ظهرت بعد 5.299 s. أُعد الإصدار التجريبي v0.12.27 لتجربة ONNX intra-op بخيطين بدل أربعة مع إبقاء OCR thresholds والنماذج والأبعاد والدفعات كما هي؛ ينتظر CI. هذه تجربة CPU contention لا ادعاء تسريع؛ يتطلب اختيار الفائز قياس الهاتف نفسه ومقارنة تغطية النص.
-**CI الأحدث المتحقق:** push وPR validation نجحا على HEAD `016d8023ad66795804a90033eb619a48eb4416ba` بعد تحديث التقرير السابق. لم تتغير ملفات التطبيق بهذا التحديث.
+**آخر حالة مؤكدة (2026-11-17):** prerelease v0.12.27 / code 67 منشور مع APK بعد نجاح CI push #1005 وPR #1006 على HEAD d25bc32298d6678d763234fb5ca7ba67495f0f6d. التغيير يجرب ONNX بخيطين بدل أربعة؛ لم يثبت أثره على السرعة أو OCR حتى اختبار الهاتف.
+**CI الأحدث المتحقق:** [push #1005](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/44109390861) و[PR validation #1006](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/44109408516) نجحا على HEAD d25bc32298d6678d763234fb5ca7ba67495f0f6d. نُشر prerelease v0.12.27 مع APK.
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
 > هذا الملف هو التقرير الهندسي الرسمي الوحيد للمشروع. يستبدل النسخة السابقة من `REPOSITORY_REPORT.md` بالكامل. لا تُنشئ تقارير منفصلة لكل مرحلة أو إصلاح؛ أضف جميع الأعمال المستقبلية إلى هذا الملف مع الاحتفاظ بالتواريخ والأدلة والقرارات وسجل التغييرات.
@@ -1721,3 +1721,11 @@ Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up 
 - تم تعديل TextRecognizerClient.kt وapp/build.gradle.kts (versionCode 67/versionName 0.12.27) وCHANGELOG.md. commit المرشح HEAD 226a5b493cfa4952f11588141877f203d36986ed.
 - التحقق: CI push وPR لـ v0.12.27 بدأا؛ لا نعدّ الإصدار منشورًا حتى نجاح الاختبارات والبناء وفحوص التوقيع والتوافق وظهور APK في Releases. لم تُشغّل اختبارات محلية.
 - الخطوة التالية بعد CI الأخضر: تثبيت v0.12.27 كتحديث على الهاتف نفسه، إعادة الصفحة/جلسة مشابهة، وإرسال تقرير الأداء. نقارن OCR avg/max، detector/recognizer inference، أول ظهور، engine time، 24/24 coverage، وعدد المرشحين ورفض الثقة مع v0.12.26. إذا كان الأداء أو التغطية أسوأ نعيد 4 threads دون طلب مراجعة تقنية.
+
+## تحقق ونشر تجربة v0.12.27 — 2026-11-17
+
+- CI push #1005 [44109390861] وPR validation #1006 [44109408516] اكتمل بنجاح على commit d25bc32298d6678d763234fb5ca7ba67495f0f6d.
+- تحقق نشر GitHub Release التجريبي v0.12.27 / versionCode 67 مع ManhwaLens-v0.12.27-debug.apk (71,399,830 bytes): https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.27
+- التغيير الوحيد في سلوك الأداء عن v0.12.26 هو ONNX intra-op threads من 4 إلى 2. لا توجد دعوى بتسريع أو أثر OCR حتى الآن؛ يحتاج قياسًا على الهاتف نفسه، مع مقارنة زمن OCR والكشف والتعرف وأول ظهور وعدد المرشحين ورفض الثقة.
+- ملفات المشروع التي تغيرت في تجربة الإصدار: TextRecognizerClient.kt، app/build.gradle.kts، CHANGELOG.md، وREPOSITORY_REPORT.md.
+- الخطوة/نقطة التوقف: اختبار فعلي واحد على هاتف Xiaomi نفسه. رابط APK المباشر: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.27/ManhwaLens-v0.12.27-debug.apk. بعد ورود القياس أقرر إبقاء خيطين أو العودة إلى أربعة بناءً على الزمن والتغطية.
