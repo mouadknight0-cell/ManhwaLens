@@ -215,11 +215,11 @@
     <string name="benchmark_close">Close</string>
 
     <string name="safe_mode_title">Safe Mode</string>
-    <string name="safe_mode_body">The app crashed twice at startup, so it launched without the floating button, translation and Live mode. Your settings were left untouched. Tap below to retry normally.</string>
+    <string name="safe_mode_body">Safe Mode is active after three recorded fatal errors. The floating button and Live mode are paused. The last exception summary is shown below. Reset the crash guard to try normal startup again.</string>
     <string name="safe_mode_no_log">No crash log was recorded.</string>
     <string name="safe_mode_copy">Copy crash log</string>
     <string name="safe_mode_copied">Crash log copied</string>
-    <string name="safe_mode_exit">Exit Safe Mode</string>
+    <string name="safe_mode_exit">Reset crash guard</string>
     <string name="safe_mode_blocked_toast">Safe Mode is on — exit it from the red banner first</string>
 
     <!-- AI cleanup (Part D, experimental, cloud) -->
