@@ -208,11 +208,11 @@
     <string name="benchmark_close">إغلاق</string>
 
     <string name="safe_mode_title">الوضع الآمن</string>
-    <string name="safe_mode_body">تعطّل التطبيق مرتين عند الإقلاع، فتم تشغيله بدون الزر العائم والترجمة ووضع Live. إعداداتك لم تتغيّر. اضغط للمحاولة بشكل طبيعي.</string>
+    <string name="safe_mode_body">تم تفعيل الوضع الآمن بعد تسجيل ثلاثة أخطاء قاتلة. أُوقف الزر العائم ووضع Live مؤقتًا. يظهر ملخص آخر استثناء أدناه. أعد ضبط حارس الأعطال لمحاولة التشغيل العادي.</string>
     <string name="safe_mode_no_log">لم يُسجَّل أي سجل أعطال.</string>
     <string name="safe_mode_copy">نسخ سجل العطل</string>
     <string name="safe_mode_copied">تم نسخ سجل العطل</string>
-    <string name="safe_mode_exit">الخروج من الوضع الآمن</string>
+    <string name="safe_mode_exit">إعادة ضبط حارس الأعطال</string>
     <string name="safe_mode_blocked_toast">الوضع الآمن مفعّل — اخرجه من اللافتة الحمراء أولًا</string>
 
     <!-- تنظيف بالذكاء (الجزء D، تجريبي، سحابي) -->
