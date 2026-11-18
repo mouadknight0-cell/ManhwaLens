@@ -19,6 +19,29 @@ import java.io.File
  */
 class StartupGuard(private val counterFile: File) {
 
+    private val exceptionFile = File(counterFile.parentFile, counterFile.name + ".last_exception")
+
+    fun lastExceptionSummary(): String = try {
+        exceptionFile.takeIf { it.exists() }?.readText()?.trim().orEmpty()
+    } catch (_: Throwable) { "" }
+
+    fun recordExceptionSummary(throwable: Throwable) {
+        try {
+            val frames = throwable.stackTrace.take(4).joinToString(" <- ") { frame ->
+                "${frame.className}.${frame.methodName}(${frame.fileName ?: "?"}:${frame.lineNumber})"
+            }
+            val message = throwable.message.orEmpty().replace(Regex("\\s+"), " ").take(240)
+            exceptionFile.parentFile?.mkdirs()
+            exceptionFile.writeText("${throwable.javaClass.name}: $message | $frames")
+        } catch (_: Throwable) { }
+    }
+
+    fun reportLine(): String {
+        val count = currentCount()
+        val last = lastExceptionSummary().ifBlank { "none" }.replace(Regex("[\\r\\n]+"), " ").take(500)
+        return "consecutive=$count safe_mode=${isSafeMode(count)} last_exception=$last"
+    }
+
     fun currentCount(): Int = try {
         counterFile.takeIf { it.exists() }?.readText()?.trim()?.toIntOrNull() ?: 0
     } catch (_: Throwable) {

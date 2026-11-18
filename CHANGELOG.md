@@ -1,3 +1,9 @@
+## 0.12.30 — startup crash diagnostics
+- Persist uncaught exception class, message and full stack trace to an app-private startup crash log and fsync it before delegating to the previous process handler.
+- Record a compact class/message/first-frames summary beside the startup guard counter and include count, safe-mode state and last exception in startup and Live benchmark reports.
+- Add JVM coverage for summary persistence and crash-log-before-delegation behavior.
+- The reported root cause remains UNKNOWN without a crash trace. This diagnostic release does not claim a causal fix and does not change OCR, capture, translation or Android service configuration.
+
 ## 0.12.29 — prevent ManhwaLens UI text from entering OCR
 - Remove the Live enabled system toast; the floating lens caption already indicates Live state and is excluded from OCR using its owned-window bounds.
 - Keep the existing capture flow that hides owned overlays before acquiring a clean frame and filters OCR blocks intersecting current/recent owned-window rectangles, including floating button and previous patch rectangles.

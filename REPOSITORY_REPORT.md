@@ -1,3 +1,14 @@
+## v0.12.30 — تشخيص إعادة التشغيل عند بدء التطبيق (2026-11-18)
+
+- سجل الجهاز يثبت دخول Application.onCreate مرتين وارتفاع startup_guard إلى 2، لكنه لا يتضمن الاستثناء أو stack trace؛ السبب الجذري **مجهول وغير مؤكد**.
+- مقارنة v0.12.27→v0.12.28: تغيير الكود السلوكي يقتصر على PaddleOCR: الخيوط 2→4 وحدا detector 1280→960. لم تتغير Application أو StartupGuard أو الخدمات أو النوافذ أو MediaProjection أو manifest أو التخزين أو قواعد R8.
+- مقارنة v0.12.28→v0.12.29: التغيير السلوكي الوحيد إزالة Toast عند تفعيل Live؛ مع اختبار حدود زر وتحديثات إصدار/توثيق. لم تتغير الخدمات أو صلاحياتها أو إعداد capture أو التخزين أو R8.
+- فُحص manifest الحالي: FloatingButtonService معلن بالنوعين specialUse وmediaProjection، وتوجد أذونات FOREGROUND_SERVICE_SPECIAL_USE وFOREGROUND_SERVICE_MEDIA_PROJECTION وMEDIA_PROJECTION. لم تتغير هذه التعريفات في الإصدارات المقارنة. هذا الفحص لا يثبت سبب الانهيار ولا ينفي خطأ وقت التشغيل.
+- معالج uncaught كان موجوداً في attachBaseContext ويكتب تقريراً ثم يفوض للمعالج السابق. هذا الإصدار يعيد تثبيته قبل عمل onCreate، ويحفظ stack trace كاملاً في startup-crashes.log مع fsync قبل التفويض، ويخزن ملخص الصنف والرسالة وأول الإطارات مع عداد startup_guard.
+- تقرير Live وسجل بدء التطبيق يعرضان count/safe_mode/last_exception. Safe Mode كان يشرح تعطيل الالتقاط ويوفر زر خروج يعيد ضبط الحارس؛ لم يتغير.
+- الإصدار 0.12.30 / code 70 تشخيصي. لا يغير OCR أو الترجمة أو services/manifest. **لا ندعي إصلاح السبب** قبل الحصول على crash trace؛ كل ما لم يثبت على الجهاز معلّم كغير متحقق.
+
+---
 # ManhwaLens — التقرير الهندسي الموحد
 ## v0.12.29 — استبعاد رسالة Live من الالتقاط (2026-11-17)
 

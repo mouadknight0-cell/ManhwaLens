@@ -53,8 +53,9 @@ class ManhwaLensApp : Application() {
             val guard = StartupGuard(File(base.filesDir, StartupGuard.FILE_NAME))
             val consecutive = guard.registerStart()
             SafeMode.active = StartupGuard.isSafeMode(consecutive)
-            Log.i("ManhwaLens", "startup #$consecutive${if (SafeMode.active) " — SAFE MODE (no services/live)" else ""}")
-            ErrorLog.record(base, "startup", "startup_guard consecutive=$consecutive safe_mode=${SafeMode.active}")
+            val guardStatus = guard.reportLine()
+            Log.i("ManhwaLens", "startup #$consecutive $guardStatus${if (SafeMode.active) " — SAFE MODE (no services/live)" else ""}")
+            ErrorLog.record(base, "startup_guard", guardStatus)
         } catch (t: Throwable) {
             SafeMode.active = false
             ErrorLog.write(base, "startup.guard", t)
@@ -63,6 +64,8 @@ class ManhwaLensApp : Application() {
     }
 
     override fun onCreate() {
+        // Reassert crash logging before any onCreate initialization; attachBaseContext installs it earlier too.
+        try { ErrorLog.install(this) } catch (t: Throwable) { Log.e("ManhwaLens", "early crash handler install failed", t) }
         super.onCreate()
         ErrorLog.record(this, "startup", "Application.onCreate entered")
         com.manhwalens.app.util.PipelineTracer.eventSink = { source, detail ->

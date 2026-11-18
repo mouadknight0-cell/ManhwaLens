@@ -142,6 +142,7 @@ object LiveSessionBenchmark {
                 appendLine("Stop reason: ${reason.take(80)}")
                 appendLine("Live ON → OFF: $duration ms")
                 appendLine("Device/app: $device · Android ${android.os.Build.VERSION.SDK_INT} · ManhwaLens $appVersion")
+                appendLine("Startup guard: " + StartupGuard(File(app.filesDir, StartupGuard.FILE_NAME)).reportLine())
                 appendLine("Captured frame size: ${frameWidth}x${frameHeight}")
                 appendLine("Frame outcomes: black=$blackFrames · empty/no patches=$emptyOutputFrames · failed=$failedPasses · cancelled=$cancelledPasses")
                 appendLine("OCR output: lines=$ocrLines · detector candidates=$ocrCandidates · low-confidence drops=$lowConfidenceDrops · last engine=$lastOcrEngine")
