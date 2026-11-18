@@ -217,7 +217,10 @@ private fun HomeScreen(requestNotificationPermission: () -> Unit) {
         ) {
             if (safeMode) {
                 SafeModeBanner(
-                    errorText = remember { ErrorLog.read(context) },
+                    errorText = remember {
+                        val guard = StartupGuard(File(context.filesDir, StartupGuard.FILE_NAME))
+                        guard.lastExceptionSummary().ifBlank { ErrorLog.read(context).orEmpty() }
+                    },
                     onCopy = { text ->
                         try {
                             val clip = context.getSystemService(ClipboardManager::class.java)
