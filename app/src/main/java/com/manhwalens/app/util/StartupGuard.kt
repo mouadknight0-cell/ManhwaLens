@@ -21,11 +21,6 @@ class StartupGuard(private val counterFile: File) {
     private val exceptionFile = File(counterFile.parentFile, counterFile.name + ".last_exception")
     private val runStateFile = File(counterFile.parentFile, counterFile.name + ".run_state")
 
-    private companion object {
-        const val RUN_STATE_RUNNING = "v2:running"
-        const val RUN_STATE_FATAL = "v2:fatal"
-    }
-
     fun lastExceptionSummary(): String = try {
         exceptionFile.takeIf { it.exists() }?.readText()?.trim().orEmpty()
     } catch (_: Throwable) { "" }
@@ -94,6 +89,9 @@ class StartupGuard(private val counterFile: File) {
     }
 
     companion object {
+        private const val RUN_STATE_RUNNING = "v2:running"
+        private const val RUN_STATE_FATAL = "v2:fatal"
+
         const val FILE_NAME = "startup_crash_counter"
 
         /** Three recorded fatal runs → Safe Mode. */
