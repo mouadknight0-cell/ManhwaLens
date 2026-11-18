@@ -1,3 +1,10 @@
+## 0.12.31 — count recorded fatal crashes only
+- Change StartupGuard so ordinary short-lived process runs do not increment the crash streak; only the uncaught exception handler's recorded fatal exception counts, once per run.
+- Raise the Safe Mode threshold to three recorded fatal runs. Migrate away from the previous short-run counter on the first launch under the new state format.
+- Show the last exception summary in the Safe Mode banner and label its existing reset action clearly.
+- Add JVM tests for non-crashing short runs, three recorded fatal runs, duplicate fatal recording, and legacy counter migration.
+- Device behavior is unverified. No OCR, translation, or capture logic changed.
+
 ## 0.12.30 — startup crash diagnostics
 - Persist uncaught exception class, message and full stack trace to an app-private startup crash log and fsync it before delegating to the previous process handler.
 - Record a compact class/message/first-frames summary beside the startup guard counter and include count, safe-mode state and last exception in startup and Live benchmark reports.

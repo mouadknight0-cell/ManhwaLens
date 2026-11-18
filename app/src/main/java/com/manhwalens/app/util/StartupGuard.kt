@@ -5,14 +5,13 @@ import java.io.File
 /**
  * Crash-loop guard state machine (pure JVM — unit-testable with temp files).
  *
- * A tiny file in the app's private filesDir holds the number of CONSECUTIVE
- * startups that did not survive 5 seconds. [ManhwaLensApp] increments it at
- * process start; a posted callback clears it after 5 s of healthy runtime.
+ * A tiny file in the app's private filesDir holds consecutive runs with a
+ * recorded uncaught exception. Ordinary short-lived runs do not increment it.
+ * [ManhwaLensApp] registers each start; [ErrorLog]'s uncaught handler records
+ * the exception and increments the streak exactly once for that run.
  *
- * If the app died at startup twice in a row, the next launch starts in
- * Safe Mode: no floating-button service, no Live loop, default (safe)
- * behavior — Settings and the crash banner still work so the user can read
- * and copy the saved stack trace.
+ * After three recorded crashes, the next launch starts in Safe Mode. A healthy
+ * five-second run or the in-app reset clears the streak.
  *
  * All operations are best-effort and never throw — a broken counter file is
  * treated as 0.
@@ -20,11 +19,13 @@ import java.io.File
 class StartupGuard(private val counterFile: File) {
 
     private val exceptionFile = File(counterFile.parentFile, counterFile.name + ".last_exception")
+    private val runStateFile = File(counterFile.parentFile, counterFile.name + ".run_state")
 
     fun lastExceptionSummary(): String = try {
         exceptionFile.takeIf { it.exists() }?.readText()?.trim().orEmpty()
     } catch (_: Throwable) { "" }
 
+    @Synchronized
     fun recordExceptionSummary(throwable: Throwable) {
         try {
             val frames = throwable.stackTrace.take(4).joinToString(" <- ") { frame ->
@@ -33,6 +34,17 @@ class StartupGuard(private val counterFile: File) {
             val message = throwable.message.orEmpty().replace(Regex("\\s+"), " ").take(240)
             exceptionFile.parentFile?.mkdirs()
             exceptionFile.writeText("${throwable.javaClass.name}: $message | $frames")
+            // The handler calls this once for the process-fatal exception.
+            // Persist the count and fatal marker so the next launch can safely
+            // enter Safe Mode even if the process dies immediately afterward.
+            if (runStateFile.takeIf { it.exists() }?.readText()?.trim() != RUN_STATE_FATAL) {
+                val previousCount = if (runStateFile.takeIf { it.exists() }?.readText()?.trim() in
+                    setOf(RUN_STATE_RUNNING, RUN_STATE_FATAL)
+                ) currentCount() else 0 // discard counters written by the old 5-second policy
+                counterFile.parentFile?.mkdirs()
+                counterFile.writeText((previousCount + 1).toString())
+                runStateFile.writeText(RUN_STATE_FATAL)
+            }
         } catch (_: Throwable) { }
     }
 
@@ -48,40 +60,51 @@ class StartupGuard(private val counterFile: File) {
         0
     }
 
-    /** Register this process start; returns the consecutive unhealthy-start count (1-based). */
+    /** Register this process start without treating an ordinary exit as a crash. */
+    @Synchronized
     fun registerStart(): Int = try {
-        val next = currentCount() + 1
         counterFile.parentFile?.mkdirs()
-        counterFile.writeText(next.toString())
-        next
+        val state = runStateFile.takeIf { it.exists() }?.readText()?.trim()
+        if (state != RUN_STATE_RUNNING && state != RUN_STATE_FATAL) {
+            // Migrate away from counts produced by the old short-run policy.
+            runCatching { counterFile.delete() }
+        }
+        runStateFile.writeText(RUN_STATE_RUNNING)
+        currentCount()
     } catch (_: Throwable) {
-        // Filesystem trouble must never block launch; stay neutral.
-        1
+        // Filesystem trouble must never block launch or invent a crash.
+        currentCount()
     }
 
-    /** Called after 5 s of healthy running: the crash streak is over. */
+    /** Called after 5 s of healthy running or by the user's reset button. */
+    @Synchronized
     fun markHealthy() {
         try {
             if (counterFile.exists()) counterFile.delete()
+            runStateFile.parentFile?.mkdirs()
+            runStateFile.writeText(RUN_STATE_RUNNING)
         } catch (_: Throwable) {
             runCatching { counterFile.writeText("0") }
         }
     }
 
     companion object {
+        private const val RUN_STATE_RUNNING = "v2:running"
+        private const val RUN_STATE_FATAL = "v2:fatal"
+
         const val FILE_NAME = "startup_crash_counter"
 
-        /** Two unhealthy startups in a row → Safe Mode on the next launch. */
-        const val SAFE_MODE_THRESHOLD = 2
+        /** Three recorded fatal runs → Safe Mode. */
+        const val SAFE_MODE_THRESHOLD = 3
 
-        fun isSafeMode(consecutiveUnhealthyStarts: Int): Boolean =
-            consecutiveUnhealthyStarts >= SAFE_MODE_THRESHOLD
+        fun isSafeMode(consecutiveFatalRuns: Int): Boolean =
+            consecutiveFatalRuns >= SAFE_MODE_THRESHOLD
     }
 }
 
 /**
  * Process-global Safe Mode flag. Set at attach time by [com.manhwalens.app.ManhwaLensApp]
- * (two consecutive unhealthy starts); cleared by the Safe Mode banner button in MainActivity
+ * (three recorded fatal runs); cleared by the Safe Mode reset button in MainActivity
  * (which also resets the crash streak via [StartupGuard.markHealthy]).
  */
 object SafeMode {

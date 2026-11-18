@@ -47,8 +47,8 @@ class ManhwaLensApp : Application() {
                 Log.e("ManhwaLens", "StrictMode setup failed", t)
             }
         }
-        // Crash-loop guard: count consecutive startups that never reached 5 s of
-        // healthy runtime. Two in a row → Safe Mode (see SafeMode / MainActivity banner).
+        // Crash-loop guard: only recorded uncaught exceptions count. Ordinary short
+        // process runs do not increment the streak. Three fatal runs enter Safe Mode.
         try {
             val guard = StartupGuard(File(base.filesDir, StartupGuard.FILE_NAME))
             val consecutive = guard.registerStart()

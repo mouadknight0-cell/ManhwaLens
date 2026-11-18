@@ -1,10 +1,10 @@
 package com.manhwalens.app.util
 
+import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -18,50 +18,85 @@ class StartupGuardTest {
         StartupGuard(tmp.newFile(name).also { it.delete() })
 
     @Test
-    fun firstStartCountsOne() {
-        val g = guard()
-        assertEquals(1, g.registerStart())
-        assertEquals(1, g.currentCount())
+    fun shortRunsWithoutExceptionsDoNotIncrementOrEnterSafeMode() {
+        val guard = guard()
+
+        assertEquals(0, guard.registerStart())
+        assertEquals(0, guard.registerStart())
+        assertEquals(0, guard.currentCount())
+        assertFalse(StartupGuard.isSafeMode(guard.currentCount()))
     }
 
     @Test
-    fun secondConsecutiveUnhealthyStartTriggersSafeMode() {
-        val g = guard()
-        g.registerStart()                 // crashed before 5 s
-        val n = g.registerStart()         // app did not survive again
-        assertEquals(2, n)
-        assertTrue(StartupGuard.isSafeMode(n))
+    fun threeRecordedCrashesEnterSafeModeOnNextStart() {
+        val guard = guard()
+
+        repeat(3) { run ->
+            guard.registerStart()
+            guard.recordExceptionSummary(IllegalStateException("fatal run ${run + 1}"))
+        }
+
+        assertEquals(3, guard.registerStart())
+        assertTrue(StartupGuard.isSafeMode(guard.currentCount()))
     }
 
     @Test
-    fun healthyRunResetsTheStreak() {
-        val g = guard()
-        g.registerStart()
-        g.markHealthy()                   // 5 s of healthy running
-        assertEquals(0, g.currentCount())
-        assertEquals(1, g.registerStart()) // streak starts over
-        assertFalse(StartupGuard.isSafeMode(1))
+    fun oneFatalExceptionCountsOnlyOnceForThatRun() {
+        val guard = guard()
+        guard.registerStart()
+
+        guard.recordExceptionSummary(IllegalStateException("first"))
+        guard.recordExceptionSummary(IllegalArgumentException("duplicate callback"))
+
+        assertEquals(1, guard.currentCount())
+    }
+
+    @Test
+    fun healthyRunResetsCrashStreak() {
+        val guard = guard()
+        guard.registerStart()
+        guard.recordExceptionSummary(IllegalStateException("fatal"))
+        assertEquals(1, guard.currentCount())
+
+        guard.registerStart()
+        guard.markHealthy()
+
+        assertEquals(0, guard.currentCount())
+        assertFalse(StartupGuard.isSafeMode(guard.currentCount()))
+    }
+
+    @Test
+    fun legacyShortRunCounterIsDiscardedOnFirstStartWithNewPolicy() {
+        val counter = tmp.newFile("startup_crash_counter")
+        counter.writeText("2")
+        val guard = StartupGuard(counter)
+
+        assertEquals(0, guard.registerStart())
+        assertEquals(0, guard.currentCount())
     }
 
     @Test
     fun corruptCounterFileIsTreatedAsZero() {
-        val f = tmp.newFile("startup_crash_counter")
-        f.writeText("!!! not a number !!!")
-        val g = StartupGuard(f)
-        assertEquals(0, g.currentCount())
-        assertEquals(1, g.registerStart())
+        val counter = tmp.newFile("startup_crash_counter")
+        counter.writeText("not a number")
+        val guard = StartupGuard(counter)
+
+        assertEquals(0, guard.currentCount())
+        assertEquals(0, guard.registerStart())
     }
 
     @Test
     fun lastExceptionSummaryIncludesClassMessageAndFrames() {
-        val g = guard()
-        g.registerStart()
-        g.recordExceptionSummary(IllegalStateException("test crash"))
-        val summary = g.lastExceptionSummary()
+        val guard = guard()
+        guard.registerStart()
+        guard.recordExceptionSummary(IllegalStateException("test crash"))
+
+        val summary = guard.lastExceptionSummary()
         assertTrue(summary.contains("java.lang.IllegalStateException"))
         assertTrue(summary.contains("test crash"))
         assertTrue(summary.contains("lastExceptionSummaryIncludesClassMessageAndFrames"))
-        assertTrue(g.reportLine().contains("consecutive=1"))
+        assertTrue(guard.reportLine().contains("consecutive=1"))
+        assertTrue(guard.reportLine().contains("safe_mode=false"))
     }
 
     @Test
@@ -70,7 +105,9 @@ class StartupGuardTest {
         val delegated = AtomicBoolean(false)
         val previous = Thread.UncaughtExceptionHandler { _, _ -> delegated.set(true) }
         val handler = StartupExceptionHandler(log, previous)
+
         handler.uncaughtException(Thread.currentThread(), IllegalStateException("diagnostic marker"))
+
         val written = log.readText()
         assertTrue(written.contains("java.lang.IllegalStateException"))
         assertTrue(written.contains("diagnostic marker"))
@@ -79,10 +116,11 @@ class StartupGuardTest {
     }
 
     @Test
-    fun thresholdIsExactlyTwo() {
+    fun safeModeThresholdIsExactlyThree() {
         assertFalse(StartupGuard.isSafeMode(0))
         assertFalse(StartupGuard.isSafeMode(1))
-        assertTrue(StartupGuard.isSafeMode(2))
+        assertFalse(StartupGuard.isSafeMode(2))
         assertTrue(StartupGuard.isSafeMode(3))
+        assertTrue(StartupGuard.isSafeMode(4))
     }
 }
