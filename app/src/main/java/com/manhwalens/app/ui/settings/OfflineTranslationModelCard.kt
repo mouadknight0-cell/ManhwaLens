@@ -74,7 +74,7 @@ fun OfflineTranslationModelCard() {
             Text("الترجمة دون إنترنت", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.size(6.dp))
             Text(
-                "يعتمد التطبيق على نموذج ML Kit المحلي. نزّله مرة واحدة عبر Wi‑Fi، وبعدها تتم الترجمة على الهاتف دون إرسال النصوص إلى خادم.",
+                "يوفر التطبيق محرك ML Kit المحلي، ويمكنك اختيار Bergamot التجريبي أيضاً. نزّل نموذج المحرك الذي تختاره مرة واحدة، ثم تتم الترجمة على الهاتف دون إرسال النصوص إلى خادم.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -86,7 +86,7 @@ fun OfflineTranslationModelCard() {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
                     Text("فرض الترجمة دون إنترنت", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "عند التفعيل: ML Kit فقط، مع تعطيل Gemini وLibreTranslate والترقية السحابية.",
+                        "عند التفعيل: تُستخدم المحركات المحلية فقط (ML Kit أو Bergamot عند اختياره)، مع تعطيل Gemini والترقية السحابية.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -108,15 +108,15 @@ fun OfflineTranslationModelCard() {
                     onClick = {
                         scope.launch {
                             busy = true
-                            message = "جارٍ تنزيل نموذج الترجمة عبر Wi‑Fi…"
+                            message = "جارٍ تنزيل نموذج الترجمة عبر اتصال الإنترنت…"
                             val result = withContext(Dispatchers.IO) {
                                 runCatching {
                                     Tasks.await(
                                         manager.download(
                                             model,
-                                            DownloadConditions.Builder().requireWifi().build()
+                                            DownloadConditions.Builder().build()
                                         ),
-                                        10,
+                                        20,
                                         TimeUnit.MINUTES
                                     )
                                     Tasks.await(manager.isModelDownloaded(model), 30, TimeUnit.SECONDS)
@@ -126,7 +126,7 @@ fun OfflineTranslationModelCard() {
                             message = when {
                                 result.isFailure -> "فشل التنزيل أو لم يكتمل: ${result.exceptionOrNull()?.message ?: "خطأ غير معروف"}"
                                 ready == true -> "اكتمل تنزيل النموذج. الترجمة الإنجليزية ← العربية جاهزة دون إنترنت."
-                                else -> "لم يؤكد ML Kit اكتمال تنزيل النموذج. أعد المحاولة مع اتصال Wi‑Fi."
+                                else -> "لم يؤكد ML Kit اكتمال تنزيل النموذج. تحقق من اتصال الإنترنت والمساحة المتاحة ثم أعد المحاولة."
                             }
                             busy = false
                         }

@@ -1,3 +1,88 @@
+# v0.12.26 — restore OCR batch size and move Live patch building off UI
+
+1. Install v0.12.26 over v0.12.25 without clearing app data.
+2. Use the same Xiaomi device and manga page. Arm Live session benchmark while Live is OFF, run one session, and copy the report.
+3. Confirm the report names v0.12.26, recognition batch size is 4, and First overlay stages includes patch build/queue/apply timings.
+4. Check that the app remains responsive while the first patch is being rasterized, that overlay expected and painted counts match, and that OCR line coverage/low-confidence drops are not worse.
+
+**Gate:** one device session. Moving rasterization to the worker improves UI responsiveness by design; do not claim lower time-to-first-overlay unless the report confirms it.
+
+# v0.12.25 — first-overlay breakdown and Paddle batch-size trial
+
+1. Install the CI-built v0.12.25 APK over v0.12.24 without clearing app data.
+2. Use the same Xiaomi device and manga page as the v0.12.24 Live report. Arm the Live session benchmark while Live is OFF, turn Live ON, wait for the first Arabic overlay, scroll through a few changes, then turn Live OFF.
+3. Copy the report. Confirm **First overlay stages** reports main queue, callback prep, patch build, handoff, and overlay apply timings; confirm none is negative or missing after a visible first output.
+4. Compare OCR recognizer timing and recognition batch count with the prior run. Check low-confidence drops and visible text coverage; batch size 8 is only an experiment and must be reverted if latency or recall worsens.
+5. Confirm overlay expected/painted counts match for the observed output and that the local report contains no page text.
+
+**Gate:** one same-device/page session. This build changes only Paddle recognition batching and opt-in timing instrumentation; CI results do not prove on-device speed or OCR quality.
+
+# v0.12.8 — offline engine diagnostics
+
+The three Diagnostics actions are deliberately different. Do not treat their timings or reports as interchangeable.
+
+## ML Kit batching benchmark
+
+1. Download the ML Kit EN→AR model once, then open Settings → Diagnostics → ML Kit batching benchmark.
+2. **PASS:** the report identifies ML Kit explicitly, measures sequential/parallel/joined request strategies, and includes the separate ML Kit-only quality check.
+3. **PASS:** selecting Bergamot in the engine settings does not redirect this action to Bergamot. It always calls raw ML Kit.
+4. **PASS:** the benchmark may update only ML Kit's saved batching policy (parallel level and validated joined separator). It must not change the selected offline translation engine or Bergamot settings.
+5. Confirm the report labels the saved policy as ML Kit batching state. “map OK” means output mapping or non-blank per-bubble responses, not semantic translation correctness.
+
+## Bergamot-only benchmark
+
+1. Confirm the Bergamot EN→AR model is downloaded and the device supports its ARM64 native runtime. ML Kit model installation is not required for this action.
+2. Open Settings → Diagnostics → Benchmark Bergamot only. Run with Wi-Fi and mobile data disabled.
+3. **PASS:** the report states Bergamot only, uses the fixed 20-case corpus, reports the first pass separately from the three warm passes, and includes accepted/rejected, blank, English-echo, exact-match, lexical F1 and per-case outputs.
+4. **PASS:** no ML Kit request or ML Kit fallback occurs; the action does not change the selected engine, ML Kit batching policy, or saved preferences.
+5. Repeat after returning to Diagnostics. The same 20 prepared inputs and ordering must be used. The first pass may include fresh native service/model initialization; warm median/worst are the warmed native measurements.
+
+## Compare ML Kit vs Bergamot
+
+1. Download both offline models and confirm Bergamot native runtime is available.
+2. Run Compare ML Kit vs Bergamot on the same device.
+3. **PASS:** both engines receive the same prepared 20-case corpus, without app translation cache.
+4. **PASS:** ML Kit uses a snapshot of the device's saved page batching strategy (validated joined strategy when safe, otherwise saved parallel level). Bergamot uses one native multi-input request for this fixed corpus; a failed/malformed batch is isolated through per-case retries.
+5. **PASS:** the report identifies actual dispatch strategies, alternates engine order across paired passes, and does not change selected engine or saved batching policy.
+6. Treat first-pass startup time separately. Warm median/worst are page-batch wall times for the two dispatch paths, not isolated single-sentence model latency. Token F1 is lexical overlap only, not semantic accuracy; review the per-case Arabic outputs manually.
+
+
+# v0.12.5 — Bergamot offline quality fallback
+
+1. Select Bergamot, disable Wi-Fi/mobile data, and translate a page with short dialogue and long narration. **PASS:** no cloud request is made; accepted Bergamot bubbles remain visible.
+2. Use a page containing text that Bergamot previously mistranslated or left partly English. **PASS:** bubbles rejected by the shared Arabic quality guard are retried by ML Kit; accepted Bergamot bubbles are not retransmitted.
+3. Open Diagnostics → Pipeline trace. **PASS:** when recovery occurs, a `Bergamot -> ML Kit fallback` entry reports requested, filled and elapsed values.
+4. Compare the same page with ML Kit selected directly. **PASS:** ML Kit remains independently selectable and remains the default; fallback does not change the saved engine preference.
+5. Force or simulate a Bergamot native failure. **PASS:** the page is retried through offline ML Kit; if both engines fail, no English output is painted.
+6. Repeat a page where all Bergamot outputs pass validation. **PASS:** no fallback trace appears and no additional ML Kit translation pass is run.
+
+# v0.12.4 — Settings cleanup regression
+
+1. Open Settings. **PASS:** the page contains Appearance, Translation engines/models, Saved translations, Tap on the lens, Diagnostics, Last error, Pipeline trace and About. There is no Automation, Ignore list, Character names, Names & terms or Live mode settings section.
+2. Return to a manhwa page and tap the floating lens. **PASS:** the lens menu contains the Live ON/OFF control; toggling it updates the lens status and notification action. Long-press behavior remains unchanged.
+3. Settings → Saved translations → Reset saved translations. Confirm the dialog. **PASS:** cached translations are cleared and the count becomes zero; translation glossary/name-processing data and diagnostic pairs are not erased by this action.
+4. Settings → Diagnostics → translation pairs. Copy a report, then use **Reset log**. **PASS:** the pair count becomes zero and the next capture starts a fresh batch, so English/Arabic pairs from different engine runs do not mix.
+
+---
+
+# v0.12.4 — Bergamot offline translation experiment
+
+Run this section before judging Bergamot as an ML Kit replacement. Keep the same source page set for both engines.
+
+1. Install `ManhwaLens-v0.12.4-debug.apk` on an ARM64 Android 9+ phone. Confirm the app opens and ML Kit remains selected by default.
+2. In Settings → Offline translation, download the ML Kit EN→AR model. In the Bergamot card, download its model (~23.8 MB compressed, ~35.6 MB installed). Confirm both report ready.
+3. Select **Bergamot (experimental)**, enable **Offline mode**, then disable Wi-Fi and mobile data. Translate one page with Tap mode and one with Live mode.
+   - **PASS:** Arabic appears, the app stays responsive, no cloud request is attempted, and the same page can be translated again offline.
+   - **FAIL:** native crash, app freeze, empty page, missing bubbles, or network dependency after the model is installed.
+4. Repeat the exact same pages with **ML Kit / on-device**. Use at least 20 dialogue bubbles across 3–5 pages, including short answers, long narration, names, punctuation and mixed Latin/Arabic.
+5. Enable Settings → Diagnostics → Debug mode and collect the translation-pair report for each engine. Compare semantic accuracy, English echoes, omitted bubbles, consistency of names, total page time and time to first visible Arabic. Clear the translation-pair log between engine batches so the reports cannot mix.
+6. Repeat each engine once after a cold app restart. Record device model, Android version, free RAM if available, engine, model-ready state, page count, median page latency and any crash.
+7. **Decision rule:** keep ML Kit as default unless Bergamot completes all device checks without crashes and demonstrates a repeatable quality or speed advantage. Do not infer a winner from APK build success alone.
+
+**Known compatibility:** Bergamot's native runtime is ARM64 only and requires Android 9+. ARMv7 devices must stay on ML Kit. The Bergamot model is downloaded separately and is not included in the APK.
+
+---
+
 # v0.12.3 — PaddleOCR-only OCR and offline-first translation
 
 1. Install the v0.12.3 APK on an ARM64 or ARMv7 Android phone.
@@ -546,16 +631,25 @@ one from cache, and progressive painting is still visibly progressive (first bub
 - Manually verify tap and Live on a supported Android device. The sandbox cannot validate overlay timing or real-device OCR accuracy.
 
 
+## v0.12.11 — release update and cache/telemetry verification
+
+1. Install the v0.12.11 APK directly over v0.12.10; do not uninstall the app. **PASS:** Android treats it as an update and preserves app data/settings.
+2. Open Settings → Diagnostics, enable **Debug mode**, disable Live mode temporarily, then run a tap capture on a page with visible English dialogue.
+3. Copy **Settings → Last error** (or **Pipeline trace**). Use the P4-A checklist below to verify the OCR telemetry sections and compare raw OCR with the final overlay.
+4. Restart the app and capture the same page again. **PASS:** no stale blank/label-only cache entry becomes visible; cache-hit trace details identify the actual cache tier; exact/fuzzy memo hits also show `matched=...` with the source that populated the memo entry; corrected visible Arabic remains consistent after restart.
+5. Turn **Debug mode OFF** after collecting evidence. Share the report only if comfortable with the page text it contains.
+
 ## P4-A — collect an OCR/ML Kit evidence report (tap path)
 
 1. Open **Settings → Diagnostics** and turn **Debug mode ON**.
 2. Pause/turn off Live mode for this check, then open a manhwa page with visible English text and tap the floating lens once.
 3. Return to **Settings → Last error** (or **Pipeline trace**) and press **Copy**.
-4. Confirm the copied report contains these sections: `[RAW OCR LINES]`, `[GROUPED BLOCKS]`, `[KEPT FOR TRANSLATION]`, `[ML KIT RAW CALLS]`, and `[OVERLAY TEXT]`.
-5. For a failing bubble, compare its OCR source → prepared ML Kit input → raw ML Kit output → overlay text. A missing raw-call entry can mean a cache hit; check the report note before classifying it as a failure.
-6. Turn **Debug mode OFF** after collecting the evidence. The report remains in app-private storage until a later report replaces it; do not share it if the page contains private content.
+4. Confirm the copied report contains `[OCR ENGINE STATS] present=true`, `[RAW OCR LINES]`, `[GROUPED BLOCKS]`, `[KEPT FOR TRANSLATION]`, `[ML KIT RAW CALLS]`, and `[OVERLAY TEXT]`. The engine section should identify PaddleOCR and include stage/cold-load timings, tensor shapes, effective thresholds/resize/thread settings and low-confidence counts. Raw OCR lines should include `confidence=` and `box=left,top,right,bottom`.
+5. For every visible failure, trace the stage in order: raw OCR text/confidence/bounds → grouped block membership → kept-for-translation decision → prepared ML Kit input → raw ML Kit candidate → final overlay text. A bad source at the first stage is OCR recognition; a correct source assigned to the wrong group is OCR grouping; a correct prepared input with bad Arabic is translation/post-processing. A missing raw-call entry can mean a cache hit; check the pair log's `request`, `status` and `detail` before treating it as missing. All records sharing `request=...` belong to one `translatePage` call. Block numbers may restart at 1 in a different request/capture; do not interpret the same block number alone as a collision. `CACHE_HIT`/`FUZZY_HIT` details identify the cache tier; exact/fuzzy memo details also include `matched=...`, the original glossary-prepared source stored in the memo slot. Compare it with `EN:` to determine whether a near-match actually reused a different source. Compare that value with `EN:` to decide whether the result was exact reuse or a near-match from a different OCR string.
+6. Repeat on 3–5 representative pages, including short dialogue, long narration, sound effects and vertically stacked lines. Keep original screenshots where a bounding-box or grouping error needs visual comparison.
+7. Turn **Debug mode OFF** after collecting evidence. The report remains in app-private storage until a later report replaces it; do not share it if the page contains private content.
 
-**Expected:** normal captures with Debug mode OFF do not include page dialogue in the generic pipeline report. This check does not change translation behavior; use 3–5 representative pages before proposing OCR or translation-quality fixes. Live-mode per-frame raw text is not included in this P4-A pass.
+**Expected:** normal captures with Debug mode OFF do not include page dialogue in the generic pipeline report. These diagnostics do not score semantic correctness automatically; review Arabic meaning manually. Live-mode per-frame raw text is not included in this P4-A tap-path pass.
 
 
 ## P5-A — composite patch rendering (v0.11.5, device)
@@ -569,3 +663,207 @@ one from cache, and progressive painting is still visibly progressive (first bub
 7. Copy **Settings → Diagnostics → Last report** after the test. Confirm `[OVERLAY PATCHES]` contains `patch=`, `cover=`, and `members=` values. Keep the original and translated screenshots together with the report. Turn Debug mode OFF afterward.
 
 **Scope:** this test verifies rendering and patch aggregation only. It does not establish semantic translation quality, glossary coverage, or OCR accuracy. Those are evaluated separately.
+
+ 
+# v0.12.4 — Bergamot performance/lifecycle follow-up
+
+1. With the Bergamot model installed, open Settings and wait for model-card prewarming. Translate the same 20-bubble page three times; record cold and warm timings.
+2. Open Diagnostics → Pipeline trace. PASS: report includes Bergamot prepare, native batch and page total timings, plus input/unique/duplicate counts. An ordinary page should remain one native batch.
+3. Test a long page with many bubbles and long narration. PASS: it is processed in sequential bounded batches without a native crash, missing IDs or reordered bubbles.
+4. Test OCR text containing a word split by a hyphen across lines and text containing zero-width characters. PASS: wrapped words are healed, zero-width artifacts do not create visible spaces, and original OCR text remains available in translation-pair diagnostics.
+5. While Bergamot is selected, trigger Android memory pressure or stop the overlay service, then start it again and translate. PASS: native allocations are released safely and the engine reloads on demand.
+6. Repeat the same source page with ML Kit and Bergamot, clearing saved translation caches and translation-pair logs between runs. Compare semantic quality, rejected bubbles, median/P95 latency and memory use. Do not judge Bergamot by OK status alone.
+
+Context limitation: the current Bergamot JNI bridge accepts independent text segments and exposes no document/context input. Do not concatenate neighboring bubbles to simulate context because that can corrupt bubble-to-translation mapping. Existing per-series name consistency and shared Arabic quality/post-processing remain active.
+
+
+7. Run `BergamotTextPreparationTest`. PASS: OCR line joining, hyphenated line-break repair, zero-width cleanup and adaptive batching tests pass on the JVM.
+8. Inspect the `translation quality` trace. PASS: accepted/rejected/empty/missing counts are present and the percentage is labelled rule-based, not a semantic translation score.
+
+
+# v0.12.7 — isolated ML Kit vs Bergamot comparison
+
+1. Install the ML Kit EN→AR model and the Bergamot EN→AR model before starting. Keep Wi-Fi/mobile data off after both models are ready.
+2. Open Settings → Diagnostics → **Compare ML Kit vs Bergamot**. **PASS:** the comparison completes offline and shows all 20 stable case IDs for both engines.
+3. Confirm both engines receive identical glossary-prepared, single-line source text. **PASS:** the report shows the same categories and preserves each source/reference/output pair.
+4. Confirm each engine reports one first pass separately and three warm passes, with warm median/worst timings. The ML Kit model is pre-warmed; Bergamot's first pass may include native model loading.
+5. Confirm accepted/rejected, blank, English echo/fragment, exact-match and lexical token-F1 metrics are reported separately. **PASS:** the report explicitly says token F1 is not semantic accuracy; manually review the Arabic meaning case by case.
+6. Confirm a failed or malformed batch is retried per case and counted as a batch recovery; one bad case must not erase other outputs.
+7. Run the comparison while the app's ML Kit batching self-test would otherwise be eligible. **PASS:** the benchmark-only warm-up does not start a new self-test, and the shared diagnostic lock covers both warm-up and all measured passes so an existing or pending self-test cannot compete with the comparison.
+8. Record phone model, Android version, first/warm timings, screenshots of the report and any native errors. Do not promote Bergamot or change the default from this report alone; semantic review, OCR checks, memory observation and update-install validation remain required.
+
+## v0.12.12 — translation-cache provenance capture
+
+**Purpose:** determine whether an incorrect short-dialogue result came from an exact cache entry, a fuzzy memo entry from a different OCR source, or a fresh engine response. This build adds per-page request IDs and the original source that populated each exact/fuzzy memo hit.
+
+1. Install **v0.12.12** directly over v0.12.11; do not uninstall. Keep the existing translation cache and app data intact.
+2. Open Settings → Diagnostics. Turn **Debug mode ON**. Press **Clear** for the translation-pair log only; do **not** press the translation-cache reset action.
+3. Keep **ML Kit / on-device** selected and open the same Solo Leveling chapter-3 page from the earlier device report. Reproduce the two short OCR sources `AH...` and `YEAH` in the same reading session (and any other previously failing short reply). Capture the page/request containing both when possible. Do not change translation style while testing.
+4. Return to Settings → Diagnostics and press **Copy** beside the translation-pair count. Share the full report. Each record now displays `request=...` and `block #...`; records with the same request ID belong to the same page translation call.
+5. Specifically compare the `AH...` and `YEAH` entries. They must not receive the same cached Arabic merely because the lines are short. For `FUZZY_HIT`, inspect `detail=...matched=...`; compare `matched` with `EN:`. A different matched source proves which memo source supplied the Arabic candidate. `CACHE_HIT` identifies exact in-memory or persistent cache reuse; a fresh `OK` entry identifies a new engine result. Legacy entries without request IDs are shown as `request=legacy`.
+6. If the failure concerns OCR source text rather than cache reuse, also copy the Last capture / pipeline report so raw OCR text and bounding boxes can be compared with the translated pair.
+7. Turn **Debug mode OFF** after collecting the reports. Do not clear the translation cache before the reproduction, because preserving it is necessary to investigate stale cache entries.
+
+**Privacy:** Debug mode records page text in app-private storage and the copied report includes it. Review the report before sharing.
+
+
+**Historical regression target:** the previous device report showed `AH...` and `YEAH` incorrectly served the same unrelated Arabic after fuzzy normalization collapsed both to a one-character shape. The current fuzzy policy must refuse ambiguous short shapes, and a fuzzy result must never be promoted under a different exact source key. The v0.12.12 report is intended to verify that behavior on the phone, not merely repeat the JVM tests.
+
+## v0.12.13 — repeated-page OCR memory stability
+
+**Purpose:** validate that PaddleOCR's OpenCV preprocessing and perspective-crop intermediates are released correctly across repeated recognition batches. This change must not alter OCR tensor geometry, BGR channel order, normalization, confidence filtering or reading order.
+
+1. Install **v0.12.13** directly over v0.12.12; do not uninstall or clear app data.
+2. Keep PaddleOCR selected for OCR and ML Kit for offline EN→AR translation. Turn **Debug mode ON** for captures.
+3. Capture one dense page containing many small dialogue lines, several multi-line bubbles and at least one rotated/vertical text crop. Repeat the same capture 5 times.
+4. Capture 5–10 additional pages with varied density and shapes. Keep the app running between captures; do not restart it during the sequence.
+5. **PASS:** no crash, native OpenCV error, blank OCR response caused by a preprocessing failure, or progressive slowdown that persists across equivalent captures. For the repeated identical page, compare raw OCR line count and boxes; large output differences need screenshot inspection rather than an automatic pass/fail based on count alone.
+6. Copy the Last capture / pipeline report after the final capture. Include Android version, device model, and whether the app remained responsive. Check Android system app-memory usage before and after the sequence when available.
+7. Turn **Debug mode OFF** after collection. Do not clear translation caches unless investigating an unrelated translation issue.
+
+**Scope:** this is a native-resource lifecycle check. CI verifies unit tests and APK packaging; only the phone can reveal device-specific OpenCV/ONNX memory pressure and long-session stability.
+
+
+## Chapter 4 — ML Kit batching and translation-quality follow-up (2026-11-16)
+
+**Device report received:** Xiaomi 23106RN0DA / Android 14. This is a real-device report supplied by the user.
+
+### Batching evidence
+- 20 bubbles; five passes per method, first discarded; four measured passes.
+- Joined ` | `: median 573 ms, worst 576 ms, 20/20 mapped on every measured pass, one ML Kit request.
+- Sequential: median 969 ms; parallel x2: 979 ms; x3: 1357 ms; x4: 1096 ms; x6: 1005 ms.
+- Joined ` | ` is the fastest valid strategy in this sample (40.9% lower median than sequential). `@@@`, newline and double-newline strategies failed mapping and must not be selected for this sample.
+- User report says the verdict was applied. The selected offline translation engine did not change.
+
+### Translation quality evidence and limitations
+- Fixed 23-case EN→AR reference set: raw/cleaned mean token F1 49.6%, visible mean token F1 74.8%; visible exact 9/23. The visible score includes seven exact source corrections. Token F1 is lexical overlap only, not semantic accuracy.
+- The 59-entry chapter-4 pair trace shows many validly accepted but semantically weak ML Kit outputs (e.g. rank/dungeon phrasing, healer/raid lines, and awkward sentence structure). The Arabic guard is a script/echo/shape guard, not a semantic-quality evaluator.
+- OCR source strings also contain likely recognition errors/wrap artifacts (e.g. `OLT` for `OUT`, `BLYING` for `BUYING`, `QLICKLY` for `QUICKLY`, `STATLES` for `STATUES`). Do not silently treat these as translation-engine defects or introduce broad OCR substitutions without image-level evidence.
+- The high-latency page request `ed782881-p17` took 20,430 ms for three bubbles. This is a separate latency outlier from the 20-bubble batching benchmark and needs a focused follow-up with its stage trace before changing global timeouts/concurrency.
+
+### Source-exact repair follow-up
+- Added conservative exact-source repairs in `ShortDialogueOverrides` for observed chapter-4 strings (rank/dungeon terminology, raid/healer dialogue, hunter description, and final danger exchange).
+- Added JVM regression coverage for observed normalized OCR variants. These repairs are intentionally exact-source only; they are not a general language model and do not prove semantic quality for unseen sentences.
+- CI/build verification for these new changes is pending. Do not publish a new APK until the current branch build and all unit tests pass.
+
+### Device recheck after the next CI-verified APK
+1. Install the new APK as an update over v0.12.13; do not uninstall or clear app data.
+2. Keep ML Kit selected and Debug mode enabled. Clear only the translation-pair history, not the translation cache.
+3. Revisit the same chapter-4 page(s). Confirm the observed exact-source lines now show the repaired Arabic, and check that unrelated lines are unchanged.
+4. Copy the complete translation-pair report and Last capture / pipeline trace. Include any page-level delay over 3 seconds.
+5. Report any source OCR mismatch separately from a wrong Arabic translation.
+
+**Current gate:** source-level repairs committed; automated CI and device confirmation are not yet verified.
+
+
+## v0.12.14 — chapter 4 translation repair recheck (pending release)
+
+Do not install until GitHub Release v0.12.14 exists and CI confirms package/version/signer continuity against v0.12.13.
+
+1. Install v0.12.14 directly over v0.12.13; do not uninstall or clear app data.
+2. Keep ML Kit selected and Debug mode enabled. Clear only translation-pair history, not the translation cache.
+3. Revisit the same Solo Leveling chapter-4 pages. Verify repaired rank/dungeon, raid/healer, hunter-description and danger-dialogue lines; also confirm unrelated lines remain unchanged.
+4. Copy the complete translation-pair report and Last capture / pipeline trace. Include any page-level delay over 3 seconds.
+5. Distinguish OCR source errors from Arabic translation errors. Include the exact source text and visible output for each remaining defect.
+
+
+# v0.12.15 — chapter 4 OCR-variant recheck
+
+1. Install v0.12.15 over v0.12.14 without uninstalling or clearing app data. Keep ML Kit selected and Debug mode enabled.
+2. Clear translation-pair history only; preserve translation cache. Revisit the same Solo Leveling chapter-4 pages.
+3. Confirm “WHAT WAS RANK OF THE THE ONE WHO DIED JUST NOW?” renders as “ما رتبة الشخص الذي مات للتو؟” and the observed “WOULO'VE” sentence renders as “حتى لو كان ضعيفًا، لظل أقوى مني، فأنا من الرتبة E.”
+4. Confirm unrelated dialogue remains unchanged. Collect the complete pair report and Last capture / pipeline trace; distinguish source OCR errors from Arabic errors and include any page over 3 seconds.
+5. Keep the ML Kit batching preference at parallel x6 unless a real-page repeat validates mapping for all bubbles. The fixed benchmark alone is insufficient to remove the existing separator ban.
+
+**Gate:** release and signer/update compatibility must pass CI before installation; device confirmation is still required.
+
+
+# v0.12.16 — Solo Leveling chapter 5 translation recheck
+
+1. Install v0.12.16 over v0.12.15 without uninstalling or clearing app data. Keep ML Kit selected and Debug mode enabled.
+2. Clear translation-pair history only; preserve the translation cache. Revisit the same chapter-5 page.
+3. Check the tunnel/gate narration, hunter/rank explanation, healer dialogue, guard statue descriptions, first commandment lines and corrected short replies.
+4. Confirm corrected Arabic appears and neighboring lines remain unchanged. Collect the full pair report plus Last capture and pipeline trace. Include page latency above 3 seconds.
+5. Keep current parallel x2 unless a real-page run verifies full bubble mapping. Fixed-corpus speed alone does not remove the prior real-page separator ban.
+
+**Gate:** wait for CI, signature/update compatibility and a published APK before installing. Device verification remains required.
+
+
+# v0.12.17 — Solo Leveling chapter 5 dialogue follow-up
+
+1. Wait for the candidate to pass unit tests, APK build, signature verification and update-compatibility checks, then install v0.12.17 over v0.12.16 without uninstalling or clearing app data.
+2. Keep ML Kit selected and Debug mode enabled. Clear translation-pair history only; keep the translation cache.
+3. Revisit the same chapter-5 pages. Check the bowing/commandment lines, survival questions, “gut feeling” line and short reactions corrected in this build. Confirm neighboring text remains unchanged.
+4. Return the app version from Settings, the full pair report, Last capture and pipeline trace. Identify any page over 3 seconds and include both captured English and visible Arabic for remaining errors.
+5. Keep ML Kit parallel x4. Joined pipe remains banned unless a real-page run demonstrates complete mapping without mismatch.
+
+**Gate:** app version in the prior report was not stated. Do not label these source-specific corrections phone-verified until v0.12.17 is installed and the same-page report is returned.
+
+
+# v0.12.18 — capture latency check
+
+1. Install v0.12.18 over v0.12.17 without uninstalling or clearing app data. Keep ML Kit and Debug mode enabled.
+2. Use the same device and the same page used for the previous approximately 4-second capture. Clear pair history only; preserve the translation cache.
+3. Capture the page once and note tap-to-first-Arabic and tap-to-complete-overlay time. This is a speed check, not a translation-quality retest.
+4. Copy Pipeline trace and Last capture. Compare capture frame wait, OCR, translation and overlay durations with the previous trace; confirm no ManhwaLens UI was included in OCR.
+5. Report any page still taking over 3 seconds.
+
+**Gate:** CI build, APK signer and update compatibility must pass before installation. The shorter wait is not confirmed faster until measured on-device.
+
+
+# v0.12.19 — OCR detector speed check
+
+1. Install v0.12.19 over v0.12.18 without uninstalling or clearing app data. Keep ML Kit and Debug mode enabled.
+2. Use the same page and device as the previous speed capture. Clear pair history only; preserve translation cache.
+3. Measure tap-to-first-Arabic and tap-to-complete-overlay separately. This is one performance check; do not repeat the translation quality corpus.
+4. Copy Pipeline trace and Last capture. Compare detector inference/input shape, OCR total, ML Kit translation and overlay timings against the previous capture.
+5. Confirm small text is still detected. Report any page over 3 seconds and whether the app UI appears in OCR.
+
+**Target:** reduce OCR work while preserving captured resolution. A full-page ≤1 s result is not claimed until measured, and may exceed one second for pages with many bubbles because the previous 20-bubble ML Kit batch itself measured about 1.03 s.
+
+
+# v0.12.20 — benchmark and one-page speed check
+
+1. Install v0.12.20 over v0.12.19 without uninstalling or clearing app data.
+2. Run Settings → Diagnostics → ML Kit batching benchmark once. Save the complete table, including per-round runs and range; it now interleaves strategies. Do not run the 23-case quality benchmark.
+3. Translate one ordinary page once with Debug mode on and copy Pipeline trace plus Last capture. Record tap-to-first-Arabic and tap-to-complete if shown.
+4. Compare capture, OCR, ML Kit and overlay stages separately. The batching table measures only the translation-engine request strategies and cannot stand in for the full page time.
+5. Include the app version shown in Settings. One run is sufficient; do not repeat unless it reports an error.
+
+
+# v0.12.21 — Live OCR interruption recovery
+
+1. Install v0.12.21 over v0.12.20. Keep Live mode enabled and ML Kit selected.
+2. Start Live on a page after a fresh service start so PaddleOCR initialization is exercised. Let the first stable frame finish, then scroll normally through several small page changes.
+3. Confirm Live returns to Waiting after translating and resumes on each stable frame. A shutdown/cancel interruption must not leave a false ERROR status or an unhandled crash report; genuine OCR failures should still appear as ERROR.
+4. If the app is stopped while OCR is initializing, confirm it does not record that expected cancellation as a Live crash. Send Live diagnostics/Last error only if the error repeats.
+
+
+# v0.12.22 — Live session benchmark
+
+1. Install v0.12.22 over v0.12.21 without clearing app data.
+2. In Settings → Diagnostics, arm **Live session benchmark** while Live is OFF.
+3. Turn Live ON on a manga page, wait for the first Arabic overlay, scroll through a few changes, then turn Live OFF.
+4. Return to Diagnostics and copy the Live report. It should show ON→OFF duration, first overlay latency, frame count, mean/max pass time, OCR time, engine time and visible outputs. It must not contain recognized or translated page text.
+5. If the first translation appears late, compare first-overlay latency with OCR, engine and frame times to locate the delay. The existing ML Kit batching benchmark remains a separate engine-only diagnostic.
+
+**Gate:** one Live session is enough. CI verifies build/tests; this on-device capture verifies the end-to-end timing boundaries and first-overlay measurement.
+
+
+# v0.12.23 — Live OCR detector timing and speed check
+
+1. Install v0.12.23 over v0.12.22 without clearing app data. Use the same device and manga page used for the previous Live session measurement.
+2. Arm Live session benchmark while Live is OFF, switch Live ON, wait for the first Arabic overlay, scroll through a few page changes, then switch Live OFF.
+3. Copy the Live report once. Compare detector and recognizer total/inference times with OCR total, and inspect the first-frame entry, first-frame work and delay outside it.
+4. Confirm that small text remains detected. Do not rerun the ML Kit batching or translation-quality corpora.
+
+**Gate:** detector input is capped at 1280 px on the long side, expected to reduce detector pixels by about 36% versus the previous 1600 px cap for a 720×1600 frame. This estimates detector workload only; it is not a claimed end-to-end speedup. Check small-text recall in the same Live session.
+
+
+## v0.12.24 — unified Live benchmark
+1. Install the CI-built v0.12.24 APK. On the Diagnostics page, confirm the ML Kit batching, Bergamot-only and ML Kit-vs-Bergamot benchmark controls are gone; the Live self-check remains.
+2. With Live OFF, arm the single Live session benchmark. Turn Live ON, view a page and scroll through a few changes, then turn Live OFF.
+3. Copy the report. Confirm it contains session/first-output/frame timings, OCR detector and recognizer timings plus counts/configuration, translation and cache counts, overlay counts, state transitions and device/app details.
+4. Confirm no page text appears in the report. Use the report to identify the dominant measured stage; this is measurement only and does not claim a speedup.
+
+**Expected:** one completed Live report with counts and timings only. Do not rerun the translation corpus benchmarks.

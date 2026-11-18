@@ -54,6 +54,27 @@ class ArabicValidatorTest {
     }
 
     @Test
+    fun detectsCommonEnglishWordsHiddenByOcrApostrophes() {
+        assertEquals(
+            ArabicValidator.Issue.PARTIAL_TRANSLATION,
+            ArabicValidator.issue(
+                "I barely pay my sick mother's medical bills with what the hunter guild pays me.",
+                "أنا أدفع فواتير والدتي المريضة مع s'What the hunter guild يدفع لي"
+            )
+        )
+    }
+
+    @Test
+    fun acceptsArabicWithAnApostropheInAnUnfamiliarProperName() {
+        assertNull(
+            ArabicValidator.issue(
+                "Come here, O'Neil!",
+                "تعال إلى هنا يا O'Neil!"
+            )
+        )
+    }
+
+    @Test
     fun acceptsPreservedNamesAndSoundEffectsInsideArabic() {
         assertNull(ArabicValidator.issue("Come here, Eren!", "تعال إلى هنا يا Eren!"))
         assertNull(

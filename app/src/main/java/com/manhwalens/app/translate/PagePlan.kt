@@ -71,21 +71,33 @@ object PagePlan {
         val byKey = LinkedHashMap<String, Item>()
         val dropped = ArrayList<Pair<Int, com.manhwalens.app.ocr.MeaninglessText.Reason>>()
         for (b in blocks) {
-            val prepared = runCatching { preprocess(b.english) }.getOrDefault(b.english)
-            val verdict = com.manhwalens.app.ocr.MeaninglessText.classify(prepared, ownStrings)
-            if (!verdict.keep && prepared.isNotBlank()) {
+            // Classify the actual OCR text before glossary substitution. A known English
+            // name/term may become Arabic during preprocessing; that must not make it look
+            // like already-burned Arabic from a previous overlay.
+            val source = b.english.trim()
+            val verdict = com.manhwalens.app.ocr.MeaninglessText.classify(source, ownStrings)
+            if (!verdict.keep && source.isNotBlank()) {
                 dropped += b.id to verdict.reason
                 continue
             }
-            if (prepared.isBlank()) {
+            if (source.isBlank()) {
                 dropped += b.id to MeaninglessReason.OCR_FRAGMENT
                 continue
             }
-            val key = keyOf(prepared)
+
+            // The prepared value is used ONLY as the stable dedupe/cache key. Preserve the
+            // original OCR text in Item.text so NameSession/SceneNames can still identify
+            // unknown proper nouns before the translator applies the glossary.
+            val preparedKeyText = runCatching { preprocess(source) }.getOrDefault(source)
+            if (preparedKeyText.isBlank()) {
+                dropped += b.id to MeaninglessReason.OCR_FRAGMENT
+                continue
+            }
+            val key = keyOf(preparedKeyText)
             idToKey[b.id] = key
             val existing = byKey[key]
             byKey[key] = if (existing == null) {
-                Item(key, prepared.trim(), listOf(b.id))
+                Item(key, source, listOf(b.id))
             } else {
                 existing.copy(ids = existing.ids + b.id)
             }

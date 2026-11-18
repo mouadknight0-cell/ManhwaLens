@@ -105,6 +105,8 @@ class OCREngine(
         val allResults = mutableListOf<OCRResult>()
         val recInputShapes = mutableListOf<List<Int>>()
         val perLineRecMs = mutableListOf<Long>()
+        var recognizedCandidateCount = 0
+        var lowConfidenceDroppedCount = 0
         val batchSize = config.recBatchSize.coerceAtLeast(1)
 
         var i = 0
@@ -112,18 +114,20 @@ class OCREngine(
             val batchCrops = mutableListOf<org.opencv.core.Mat>()
             val batchBoxIndices = mutableListOf<Int>()
             var next = i
-            while (next < sortedBoxes.size && batchCrops.size < batchSize) {
-                val crop = QuadTextCrop.crop(srcMat, sortedBoxes[next])
-                if (crop.rows() > 0 && crop.cols() > 0) {
-                    batchCrops.add(crop)
-                    batchBoxIndices.add(next)
-                } else {
-                    crop.release()
-                }
-                next++
-            }
-
             try {
+                // Crop creation is inside the same ownership scope as recognition. If a
+                // later perspective crop fails, every earlier crop in this batch is released.
+                while (next < sortedBoxes.size && batchCrops.size < batchSize) {
+                    val crop = QuadTextCrop.crop(srcMat, sortedBoxes[next])
+                    if (crop.rows() > 0 && crop.cols() > 0) {
+                        batchCrops.add(crop)
+                        batchBoxIndices.add(next)
+                    } else {
+                        crop.release()
+                    }
+                    next++
+                }
+
                 if (batchCrops.isNotEmpty()) {
                     val batchResult = recognitionEngine.recognize(batchCrops)
                     totalRecPreMs += batchResult.preprocessMs
@@ -135,10 +139,11 @@ class OCREngine(
                         perLineRecMs.add(batchResult.timeMs)
                     }
 
+                    recognizedCandidateCount += batchResult.texts.size
                     for (j in batchResult.texts.indices) {
                         val boxIdx = batchBoxIndices[j]
                         val (text, confidence) = batchResult.texts[j]
-                        if (confidence >= config.recScoreThresh) {
+                        if (confidence.isFinite() && confidence >= config.recScoreThresh && text.isNotBlank()) {
                             allResults.add(
                                 OCRResult(
                                     box = sortedBoxes[boxIdx],
@@ -146,11 +151,13 @@ class OCREngine(
                                     confidence = confidence,
                                 )
                             )
+                        } else {
+                            lowConfidenceDroppedCount++
                         }
                     }
                 }
             } finally {
-                batchCrops.forEach { it.release() }
+                batchCrops.forEach { runCatching { it.release() } }
             }
             i = next
         }
@@ -175,6 +182,8 @@ class OCREngine(
             detInputShape = detResult.inputShape,
             recInputShapes = recInputShapes,
             perLineRecMs = perLineRecMs,
+            recognizedCandidateCount = recognizedCandidateCount,
+            lowConfidenceDroppedCount = lowConfidenceDroppedCount,
         )
     }
 

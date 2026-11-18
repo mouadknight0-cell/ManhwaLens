@@ -3,6 +3,7 @@ package com.manhwalens.app.overlay
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
@@ -104,9 +105,9 @@ class FloatingButtonService : Service() {
         /** Tap path: how long to wait for the mirror's first/next frame when nothing is buffered. */
         private const val FRAME_WAIT_MS = 1_500L
         /** Tap path: how long to wait for the frame that follows hiding our own windows. */
-        private const val CLEAN_CAPTURE_TIMEOUT_MS = 800L
+        private const val CLEAN_CAPTURE_TIMEOUT_MS = 300L
         /** Tap path: extra settle time after the first post-hide frame (lets the compositor finish). */
-        private const val CLEAN_CAPTURE_SETTLE_MS = 120L
+        private const val CLEAN_CAPTURE_SETTLE_MS = 32L
         /** A menu closed less than this long ago may still be in the newest buffered frame. */
         private const val MENU_RECENT_MS = 500L
         /** How long a closed menu's rect still vetoes OCR text in a live frame. */
@@ -287,6 +288,7 @@ class FloatingButtonService : Service() {
     @Volatile private var activeCaptureDiagnostics: com.manhwalens.app.util.CaptureDiagnostics? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val captureInFlight = AtomicBoolean(false)
+    @Volatile private var serviceDestroying = false
     private var mediaProjection: android.media.projection.MediaProjection? = null
     private val projectionCallbackHandler = Handler(Looper.getMainLooper())
     private var projectionCallback: android.media.projection.MediaProjection.Callback? = null
@@ -503,17 +505,62 @@ class FloatingButtonService : Service() {
         }
     }
 
+    private val paddleReleaseScheduled = AtomicBoolean(false)
+
+    /** ONNX teardown waits for any active recognition; keep it off Android's main callback. */
+    private fun releasePaddleAsync() {
+        if (!paddleReleaseScheduled.compareAndSet(false, true)) return
+        Thread({
+            try {
+                TextRecognizerClient.releaseShared()
+            } finally {
+                paddleReleaseScheduled.set(false)
+            }
+        }, "ManhwaLens-PaddleRelease").apply {
+            isDaemon = true
+            start()
+        }
+    }
+
+    private val bergamotReleaseScheduled = AtomicBoolean(false)
+
+    /** Native release can wait for an in-flight translation; never block Android's main callback. */
+    private fun releaseBergamotAsync() {
+        if (!bergamotReleaseScheduled.compareAndSet(false, true)) return
+        Thread({
+            try {
+                com.manhwalens.app.translate.TranslatorFactory.releaseBergamot()
+            } finally {
+                bergamotReleaseScheduled.set(false)
+            }
+        }, "ManhwaLens-BergamotRelease").apply {
+            isDaemon = true
+            start()
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            // Release both sizeable native runtimes; each is re-created lazily on the next use.
+            releasePaddleAsync()
+            releaseBergamotAsync()
+        }
+    }
+
     override fun onDestroy() {
+        serviceDestroying = true
+        com.manhwalens.app.util.LiveSessionBenchmark.onLiveDisabled(applicationContext, "service stopped")
         if (instance === this) instance = null
         // Stop the live loop FIRST — no callbacks may fire once views start going away.
         liveLoopActive = false
         liveHandler.removeCallbacks(liveTickRunnable)
         statusPill?.hide()
         statusPill = null
-        runCatching { ioExecutor.shutdown() }
-        runCatching { remoteExecutor.shutdown() }
+        runCatching { ioExecutor.shutdownNow() }
+        runCatching { remoteExecutor.shutdownNow() }
         patchOverlay?.detach()
         patchOverlay = null
         reviewWindow?.hide()
@@ -534,7 +581,10 @@ class FloatingButtonService : Service() {
         button = null
         liveThread.quitSafely()
         captureThread.quitSafely()
-        captureExecutor.shutdown()
+        captureExecutor.shutdownNow()
+        // Stop capture producers first, then release both native inference runtimes off-main.
+        releasePaddleAsync()
+        releaseBergamotAsync()
         super.onDestroy()
     }
 
@@ -943,6 +993,7 @@ class FloatingButtonService : Service() {
         liveHandler.post(liveTickRunnable)
         val s = com.manhwalens.app.data.SettingsPrefs(applicationContext)
         if (com.manhwalens.app.live.LiveAutoStart.shouldRestoreLiveSetting(mediaProjection != null, s.liveMode, s.liveOptOut)) {
+            com.manhwalens.app.util.LiveSessionBenchmark.onLiveEnabled(applicationContext)
             setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
             Log.i(TAG, "live loop started ($reason) — restored liveMode=true")
         } else {
@@ -1450,6 +1501,7 @@ class FloatingButtonService : Service() {
         liveHandler.removeCallbacks(liveTickRunnable)
         try {
             com.manhwalens.app.data.SettingsPrefs(applicationContext).apply { liveMode = false }
+            com.manhwalens.app.util.LiveSessionBenchmark.onLiveDisabled(applicationContext, "Live stopped after error")
         } catch (t: Throwable) {
             Log.e("ManhwaLens", "could not persist liveMode=false after live error", t)
         }
@@ -2229,6 +2281,7 @@ class FloatingButtonService : Service() {
         statusCoalescer.submit(status) { s ->
             if (liveStatus == s) return@submit
             liveStatus = s
+            com.manhwalens.app.util.LiveSessionBenchmark.recordLiveStatus(s.wire)
             // Coalesced delivery lands on the main thread; the view call is doubly safe.
             button?.setLiveState(
                 s.dot,
@@ -2249,6 +2302,7 @@ class FloatingButtonService : Service() {
         val settings = com.manhwalens.app.data.SettingsPrefs(applicationContext)
         if (settings.liveMode || settings.liveOptOut) return
         settings.liveMode = true
+        com.manhwalens.app.util.LiveSessionBenchmark.onLiveEnabled(applicationContext)
         liveStandby = false
         liveScreenOff = false
         liveNeedsConsentToastShown = false
@@ -2438,6 +2492,7 @@ class FloatingButtonService : Service() {
             if (plan.enableLive) {
                 pendingLiveEnable = false
                 st.liveMode = true
+                com.manhwalens.app.util.LiveSessionBenchmark.onLiveEnabled(applicationContext)
                 st.liveOptOut = false
                 liveStandby = false
                 liveStandbyEnteredAtMs = 0L
@@ -2737,68 +2792,13 @@ class FloatingButtonService : Service() {
                 }.onFailure { Log.e("ManhwaLens", "failed to save debug capture", it) }
             }
 
-            // --- Filter (sound effects / watermarks / ignore-list) ----------
+            // OCR filtering (BlockFilter + garbage/owned-window guard) is completed
+            // exactly once inside CaptureOcrProcessor; do not apply the same rules again.
             stage = "filter"
-            if (ocrError == null) {
-                val fStart = SystemClock.elapsedRealtime()
-                val edgePrefs = com.manhwalens.app.data.SettingsPrefs(applicationContext)
-                val density = resources.displayMetrics.density
-                val filterResult = BlockFilter.apply(
-                    ocrBlocks, bitmap.height,
-                    edgePrefs.ignoreTopPct, edgePrefs.ignoreBottomPct, edgePrefs.ignorePhraseList(),
-                    minHeightPx = 16f * density, minWordCount = 1,
-                    frameWidth = bitmap.width
-                )
-                if (filterResult.edgeWarnings.isNotEmpty()) {
-                    PipelineTracer.span("horizontal edge OCR", 0, filterResult.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240))
-                }
-                val removed = filterResult.removed.joinToString(", ") { "#${it.id}:${it.reason}" }.take(300)
-                PipelineTracer.record(
-                    PipelineTracer.Stage.FILTER, StageTrace.Status.OK,
-                    SystemClock.elapsedRealtime() - fStart,
-                    "kept ${filterResult.kept.size}/${ocrBlocks.size}" +
-                        if (removed.isNotEmpty()) " · removed: $removed" else " · removed: none"
-                )
-                ocrBlocks = filterResult.kept
-
-                // ---- Part 1 defense-in-depth: drop anything that is OUR windows ----
-                // (blocks intersecting our rects, matching our UI strings, or looking
-                // like OCR garbage from burned-in Arabic). Runs AFTER BlockFilter so the
-                // trace shows both reasons.
-                if (ocrBlocks.isNotEmpty()) {
-                    val gStart = SystemClock.elapsedRealtime()
-                    val classifier = com.manhwalens.app.ocr.OcrGarbageClassifier(
-                        com.manhwalens.app.util.OwnedWindows.UI_STRINGS
-                    ) { SystemClock.elapsedRealtime() }
-                    // v0.9.8: the frame is captured with our windows hidden, so stale patch /
-                    // menu rects must NOT veto real page text (they used to drop every bubble
-                    // that sat where an old patch or the menu had been).
-                    val patchRects = emptyList<com.manhwalens.app.ocr.geometry.Rect2D>()
-                    val ownedRects = tapOwnedRects
-                    val before = ocrBlocks.size
-                    ocrBlocks = ocrBlocks.filterNot { block ->
-                        val v = classifier.classify(
-                            block.text.replace('\n', ' ').trim(),
-                            block.bounds,
-                            patchRects = patchRects,
-                            ownedRects = ownedRects
-                        )
-                        if (!v.keep) {
-                            PipelineTracer.span("ocr drop", 0, "#${block.id}=${v.reason}")
-                            true
-                        } else false
-                    }
-                    val dropped = before - ocrBlocks.size
-                    PipelineTracer.record(
-                        PipelineTracer.Stage.FILTER, StageTrace.Status.OK,
-                        SystemClock.elapsedRealtime() - gStart,
-                        "kept ${ocrBlocks.size}/$before (garbage+own-window drops: $dropped)"
-                    )
-                }
-            } else {
+            if (ocrError != null) {
                 PipelineTracer.record(
                     PipelineTracer.Stage.FILTER, StageTrace.Status.SKIPPED, 0L,
-                    "skipped — OCR produced no usable blocks"
+                    "skipped — OCR failed before filtering"
                 )
             }
 
@@ -2810,6 +2810,9 @@ class FloatingButtonService : Service() {
             var cacheMisses = 0
             var translateError: String? = null
             var translations: List<com.manhwalens.app.translate.TranslatedBlock> = emptyList()
+            // Keep page-planning keys in sync with the user's current glossary even
+            // before the translator factory is constructed for this capture.
+            com.manhwalens.app.data.TranslationPrefs(applicationContext).refreshGlossary()
             val pageBlocks = ocrBlocks
                 .map { com.manhwalens.app.translate.TranslationBlock(it.id, it.text) }
                 .filter { it.english.isNotBlank() }
@@ -2818,7 +2821,8 @@ class FloatingButtonService : Service() {
             // identical bubble strings are sent ONCE and fanned back out (Part B).
             val dedupePlan = com.manhwalens.app.translate.PagePlan.prepare(
                 pageBlocks,
-                ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS
+                ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS,
+                preprocess = { com.manhwalens.app.translate.Glossary.prepare(it) }
             )
             if (pageBlocks.size != dedupePlan.uniqueCount) {
                 com.manhwalens.app.util.PipelineTracer.span(
@@ -2911,8 +2915,9 @@ class FloatingButtonService : Service() {
                     // and PageTranslation.Failure carries no elapsedMs of its own.
                     val tapTranslateStartedAt = android.os.SystemClock.elapsedRealtime()
                     var tr: com.manhwalens.app.translate.PageTranslation
-                    if (painter != null) {
-                        // Tap path always paints progressively (ML Kit, priority order).
+                    val selectedTranslationEngine = com.manhwalens.app.data.TranslationPrefs(applicationContext).engine
+                    if (painter != null && selectedTranslationEngine != com.manhwalens.app.translate.TranslationEngine.BERGAMOT) {
+                        // Tap path paints progressively with ML Kit except when Bergamot is explicitly selected.
                         val mlkit = com.manhwalens.app.translate.TranslatorFactory.createProgressive(
                             applicationContext,
                             painter::onBlockReady,
@@ -3211,12 +3216,17 @@ class FloatingButtonService : Service() {
         var frame = inputFrame
         var gray = initialGray
         val t0 = SystemClock.elapsedRealtime()
+        com.manhwalens.app.util.LiveSessionBenchmark.recordFrameStarted(t0)
+        var ocrMs = -1L
+        var engineMs = -1L
         // Remote request started alongside the ML Kit draft (null = single engine).
         var pendingUpgrade: LiveUpgrade? = null
         // Black frames (FLAG_SECURE) carry no page content — skip OCR, draw nothing.
         if (isNearlyBlack(frame)) {
             Log.w(TAG, "live: black frame — OCR skipped, overlay untouched")
             com.manhwalens.app.util.PipelineTracer.span("live black frame", 0, "black=true — skipped OCR")
+            com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("black")
+            com.manhwalens.app.util.LiveSessionBenchmark.recordFrame(SystemClock.elapsedRealtime() - t0, -1L, -1L)
             runCatching { if (!frame.isRecycled) frame.recycle() }
             setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
             return
@@ -3228,6 +3238,7 @@ class FloatingButtonService : Service() {
             // code called acquireLiveBitmap() immediately after hiding the overlay, i.e. before
             // any new frame existed, and then OCR'd a frame with our own Arabic burned in.
             noteFrameSize(frame)
+            com.manhwalens.app.util.LiveSessionBenchmark.recordFrameSize(frame.width, frame.height)
 
             // ---------- 1) vertical shift estimate + region reuse ----------
             val prevGray = liveLastTranslatedThumb
@@ -3272,10 +3283,8 @@ class FloatingButtonService : Service() {
 
             // ---------- 2) OCR (new band only, or full frame) ----------
             val newBoxes: ArrayList<com.manhwalens.app.render.BubbleRenderBox> = ArrayList()
-            var ocrMs = -1L
             var newBlockCount = 0
             var engineLabel: String? = null
-            var engineMs = -1L
             var hits = 0
             var misses = 0
             var translatedExpanded: List<com.manhwalens.app.translate.TranslatedBlock> = emptyList()
@@ -3292,6 +3301,7 @@ class FloatingButtonService : Service() {
                 try {
                     val recognized = ocrClient.recognize(ocrBitmap)
                     ocrMs = recognized.elapsedMs
+                    com.manhwalens.app.util.LiveSessionBenchmark.recordOcrStats(recognized.engineStats, recognized.lines.size)
                     recordOcrResult(recognized.lines.size, ocrMs)
                     val lines = if (ocrBitmap !== frame) {
                         recognized.lines.map {
@@ -3315,16 +3325,41 @@ class FloatingButtonService : Service() {
                     if (filtered.edgeWarnings.isNotEmpty()) {
                         com.manhwalens.app.util.PipelineTracer.span("live horizontal edge OCR", 0, filtered.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240))
                     }
-                    // v0.9.12: text sitting on our own UI (lens, caption, menu) is not page text.
+                    // Keep tap and Live OCR quality gates aligned: reject the same obvious
+                    // consonant-only recognition debris before it can be translated.
+                    // Geometric own-UI overlap keeps its dedicated 30% threshold below.
+                    val liveGarbageClassifier = com.manhwalens.app.ocr.OcrGarbageClassifier(
+                        com.manhwalens.app.util.OwnedWindows.UI_STRINGS
+                    ) { android.os.SystemClock.elapsedRealtime() }
+                    val noPatchRects = emptyList<com.manhwalens.app.ocr.geometry.Rect2D>()
+                    val noOwnedRects = emptyList<com.manhwalens.app.ocr.geometry.Rect2D>()
+                    val garbageDrops = LinkedHashMap<String, Int>()
                     val ownRects = liveOwnedRects(frame.width)
-                    val pageBlocks = filtered.kept.filterNot {
-                        com.manhwalens.app.live.OwnUiFilter.isOwnUi(it.bounds, ownRects)
+                    val pageBlocks = filtered.kept.filterNot { block ->
+                        val verdict = liveGarbageClassifier.classify(
+                            block.text.replace('\n', ' ').trim(),
+                            block.bounds,
+                            patchRects = noPatchRects,
+                            ownedRects = noOwnedRects
+                        )
+                        if (!verdict.keep) {
+                            garbageDrops[verdict.reason.name] = (garbageDrops[verdict.reason.name] ?: 0) + 1
+                        }
+                        !verdict.keep || com.manhwalens.app.live.OwnUiFilter.isOwnUi(block.bounds, ownRects)
+                    }
+                    if (garbageDrops.isNotEmpty()) {
+                        com.manhwalens.app.util.PipelineTracer.span(
+                            "live OCR quality drops", 0, garbageDrops.entries.joinToString { "${it.key}=${it.value}" }
+                        )
                     }
                     if (pageBlocks.size != filtered.kept.size) {
                         com.manhwalens.app.util.PipelineTracer.span(
-                            "live own-ui drop", 0, "${filtered.kept.size - pageBlocks.size} block(s) over the lens/menu"
+                            "live own-ui/garbage drop", 0, "${filtered.kept.size - pageBlocks.size} block(s)"
                         )
                     }
+                    // Use the same persisted glossary for planning and for the engine
+                    // on the first Live frame after process/service startup.
+                    com.manhwalens.app.data.TranslationPrefs(applicationContext).refreshGlossary()
                     val newBlocks = pageBlocks
                         .map { com.manhwalens.app.translate.TranslationBlock(it.id, it.text) }
                         .filter { it.english.isNotBlank() }
@@ -3336,7 +3371,8 @@ class FloatingButtonService : Service() {
                     // and are never painted; it also dedupes on the glossary-prepared text.
                     val pagePlan = com.manhwalens.app.translate.PagePlan.prepare(
                         newBlocks,
-                        ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS
+                        ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS,
+                        preprocess = { com.manhwalens.app.translate.Glossary.prepare(it) }
                     )
                     if (pagePlan.droppedCount > 0 || pagePlan.uniqueCount != pagePlan.originalCount) {
                         com.manhwalens.app.util.PipelineTracer.span(
@@ -3363,6 +3399,7 @@ class FloatingButtonService : Service() {
                         val remoteEngineId = when (prefsL.engine) {
                             com.manhwalens.app.translate.TranslationEngine.GEMINI -> "gemini"
                             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
+                            com.manhwalens.app.translate.TranslationEngine.BERGAMOT -> "bergamot_en_ar"
                         }
                         val tr: com.manhwalens.app.translate.PageTranslation = if (dual) {
                             val up = LiveUpgrade()
@@ -3417,16 +3454,19 @@ class FloatingButtonService : Service() {
                                 misses = tr.cacheMisses
                                 translatedExpanded = com.manhwalens.app.translate.PagePlan.expand(pagePlan, tr.blocks, newBlocks.associate { it.id to it.english })
                                 recordTranslateResult(tr.engineId, tr.elapsedMs, null)
+                                com.manhwalens.app.util.LiveSessionBenchmark.recordTranslation(true, tr.engineId, unique.size, tr.cacheHits, tr.cacheMisses)
                             }
                             is com.manhwalens.app.translate.PageTranslation.Failure -> {
                                 if (tr.engineId == "gemini") {
                                     openGeminiCircuit(tr.reason, tr.message)
                                 }
+                                engineMs = android.os.SystemClock.elapsedRealtime() - trStartedAt
                                 recordTranslateResult(
                                     tr.engineId,
-                                    android.os.SystemClock.elapsedRealtime() - trStartedAt,
+                                    engineMs,
                                     "${tr.reason}: ${tr.message}"
                                 )
+                                com.manhwalens.app.util.LiveSessionBenchmark.recordTranslation(false, tr.engineId, unique.size, 0, 0)
                                 com.manhwalens.app.util.LiveLog.e(
                                     TAG, "live translation failed (${tr.reason}): ${tr.message}"
                                 )
@@ -3445,6 +3485,7 @@ class FloatingButtonService : Service() {
                                         misses = fb.cacheMisses
                                         translatedExpanded = com.manhwalens.app.translate.PagePlan.expand(pagePlan, fb.blocks, newBlocks.associate { it.id to it.english })
                                         recordTranslateResult(engineLabel, fb.elapsedMs, null)
+                                        com.manhwalens.app.util.LiveSessionBenchmark.recordTranslation(true, engineLabel, unique.size, fb.cacheHits, fb.cacheMisses)
                                         recovered = true
                                     }
                                 }
@@ -3514,18 +3555,26 @@ class FloatingButtonService : Service() {
                         true
                     }
                 }
+            val frameWidth = frameToShow.width
+            val frameHeight = frameToShow.height
+            val patchBuildStartedAtElapsedMs = SystemClock.elapsedRealtime()
+            val patches = if (finalBoxes.isNotEmpty()) buildPatches(frameToShow, finalBoxes) else emptyList()
+            val patchBuildFinishedAtElapsedMs = SystemClock.elapsedRealtime()
+            // PatchSurface is worker-thread safe; rasterize before posting to the UI thread.
+            if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
+            val overlayQueuedAtElapsedMs = SystemClock.elapsedRealtime()
             mainHandler.post {
+                val overlayCallbackStartedAtElapsedMs = SystemClock.elapsedRealtime()
                 statusPill?.hide()
                 if (finalBoxes.isEmpty()) {
-                    // Nothing to translate on this page — drop stale patches, keep the raw reader visible.
+                    com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("empty")
                     patchOverlay?.clearPatches("page change")
-                    if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
                     setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
                     return@post
                 }
                 val meta = CaptureMeta(
-                    width = frameToShow.width,
-                    height = frameToShow.height,
+                    width = frameWidth,
+                    height = frameHeight,
                     totalMs = ms,
                     firstFrameWaitMs = -1L,
                     savedPath = null,
@@ -3544,15 +3593,19 @@ class FloatingButtonService : Service() {
                     tapToOverlayMs = -1L,
                     liveMode = true
                 )
-                val patches = buildPatches(frameToShow, finalBoxes)
-                // The overlay shows patches ONLY — the captured frame is never displayed,
-                // never retained by Live. Recycle it now that the patches own their pixels
-                // (unless a pending remote upgrade took it over — it recycles it itself).
-                if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
                 recordPaintResult(patches.size, finalBoxes.size)
+                com.manhwalens.app.util.LiveSessionBenchmark.recordOverlay(patches.size, finalBoxes.size, patches.isEmpty())
                 if (patches.isNotEmpty()) {
+                    val overlayApplyStartedAtElapsedMs = SystemClock.elapsedRealtime()
                     val po = patchOverlayEnsure()
                     po.replaceAll(patches, meta.width, meta.height)
+                    com.manhwalens.app.util.LiveSessionBenchmark.recordOutput(
+                        queuedAtElapsedMs = overlayQueuedAtElapsedMs,
+                        callbackStartedAtElapsedMs = overlayCallbackStartedAtElapsedMs,
+                        patchBuildStartedAtElapsedMs = patchBuildStartedAtElapsedMs,
+                        patchBuildFinishedAtElapsedMs = patchBuildFinishedAtElapsedMs,
+                        overlayApplyStartedAtElapsedMs = overlayApplyStartedAtElapsedMs
+                    )
                     // Runs on the main thread, so replaceAll has already been applied.
                     if (upgradeOwnsFrame) upgrade?.epoch = po.contentEpoch()
                 } else {
@@ -3564,22 +3617,57 @@ class FloatingButtonService : Service() {
                 PipelineTracer.span("live overlay shown", 0, "patches painted = ${patches.size} of ${finalBoxes.size} · engine=$shownEngine")
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "live translate failed — ${e.javaClass.name}: ${e.message}", e)
-            ErrorLog.write(this, "live", e)
+            val cancelled = isLiveCancellation(e)
+            if (cancelled) {
+                com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("cancelled")
+                PipelineTracer.span(
+                    "live pass cancelled", 0,
+                    if (serviceDestroying) "service stopping" else "interrupted/cancelled worker"
+                )
+                com.manhwalens.app.util.LiveLog.i(TAG, "live pass cancelled during OCR/translation")
+            } else {
+                com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("failed")
+                Log.e(TAG, "live translate failed — ${e.javaClass.name}: ${e.message}", e)
+                ErrorLog.write(this, "live", e)
+            }
             // The frame is recycled here only if no pending upgrade has taken it over
-            // (ownership is handed over right before the paint is queued, after which
-            // nothing in this pass can throw).
+            // (ownership is handed over right before the paint is queued).
             val up = pendingUpgrade
             val owned = up != null && synchronized(up) { up.frame != null }
             if (!owned) {
                 up?.let { synchronized(it) { it.consumed = true } }
                 runCatching { if (!frame.isRecycled) frame.recycle() }
             }
-            setLiveStatus(com.manhwalens.app.live.LiveStatus.ERROR)
+            if (!serviceDestroying) {
+                setLiveStatus(
+                    if (cancelled) com.manhwalens.app.live.LiveStatus.WAITING
+                    else com.manhwalens.app.live.LiveStatus.ERROR
+                )
+            }
         } finally {
+            com.manhwalens.app.util.LiveSessionBenchmark.recordFrame(
+                SystemClock.elapsedRealtime() - t0,
+                ocrMs,
+                engineMs
+            )
             // Phase 1 is queued (or this pass is over): the remote upgrade may now paint.
             pendingUpgrade?.phase1Latch?.countDown()
         }
+    }
+
+    private fun isLiveCancellation(error: Throwable): Boolean {
+        if (serviceDestroying || Thread.currentThread().isInterrupted) return true
+        val seen = java.util.Collections.newSetFromMap(
+            java.util.IdentityHashMap<Throwable, Boolean>()
+        )
+        var current: Throwable? = error
+        while (current != null && seen.add(current)) {
+            if (current is InterruptedException ||
+                current is java.util.concurrent.CancellationException
+            ) return true
+            current = current.cause
+        }
+        return false
     }
 
     /** Hand-over between one Live pass (ML Kit draft) and its optional remote upgrade. */
@@ -3612,6 +3700,7 @@ class FloatingButtonService : Service() {
         val expectedEngine = when (com.manhwalens.app.data.TranslationPrefs(applicationContext).engine) {
             com.manhwalens.app.translate.TranslationEngine.GEMINI -> "gemini"
             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
+            com.manhwalens.app.translate.TranslationEngine.BERGAMOT -> "bergamot_en_ar"
         }
         val task = Runnable {
             val t0 = SystemClock.elapsedRealtime()
@@ -3943,6 +4032,8 @@ class FloatingButtonService : Service() {
         val settings = com.manhwalens.app.data.SettingsPrefs(applicationContext)
         settings.liveMode = enable
         settings.liveOptOut = !enable
+        if (enable) com.manhwalens.app.util.LiveSessionBenchmark.onLiveEnabled(applicationContext)
+        else com.manhwalens.app.util.LiveSessionBenchmark.onLiveDisabled(applicationContext, "Live turned off")
         if (enable) {
             liveStandby = false
             liveScreenOff = false
@@ -3951,7 +4042,7 @@ class FloatingButtonService : Service() {
             liveForegroundAllowed = true
             ensureLiveLoopStarted("live enabled ($source)")
             setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
-            mainHandler.post { Toast.makeText(this, R.string.live_enabled_toast, Toast.LENGTH_LONG).show() }
+            // Live state is already shown by the lens caption; avoid a system toast that can enter screen capture.
             Log.i(TAG, "live mode enabled ($source)")
         } else {
             liveDriver.invalidateSamePage()

@@ -30,6 +30,43 @@ class PagePlanWiringTest {
     }
 
     @Test
+    fun glossaryPreparedKeysDedupeLineWrapsButKeepOriginalEngineText() {
+        val previous = Glossary.config
+        try {
+            val original = listOf(
+                block(1, "Wei Lin\nis here"),
+                block(2, "Wei Lin is here")
+            )
+            val plan = PagePlan.prepare(
+                original,
+                preprocess = { Glossary.prepare(it, mergeLines = true) }
+            )
+
+            assertEquals(1, plan.uniqueCount)
+            assertEquals(listOf(1, 2), plan.items.single().ids)
+            assertEquals("Wei Lin\nis here", PagePlan.engineBlocks(plan).single().english)
+        } finally {
+            Glossary.refresh(previous.userText, previous.mergeLines)
+        }
+    }
+
+    @Test
+    fun glossaryArabicSubstitutionDoesNotCauseRawDialogueToBeDropped() {
+        val previous = Glossary.config
+        try {
+            val plan = PagePlan.prepare(
+                listOf(block(1, "sect")),
+                preprocess = { Glossary.prepare(it, mergeLines = true) }
+            )
+
+            assertEquals(1, plan.uniqueCount)
+            assertEquals("sect", PagePlan.engineBlocks(plan).single().english)
+        } finally {
+            Glossary.refresh(previous.userText, previous.mergeLines)
+        }
+    }
+
+    @Test
     fun expansionRestoresEveryBubbleAndDropsTheMeaninglessOnes() {
         val blocks = listOf(
             block(1, "Who are you?"),

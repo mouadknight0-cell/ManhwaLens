@@ -12,6 +12,11 @@ class OwnUiGuardsTest {
         assertTrue(OwnUiFilter.isOwnUi(Rect2D(250f, 690f, 320f, 710f), menu))
     }
 
+    @Test fun `text inside floating lens button bounds is own ui`() {
+        val floatingButton = listOf(Rect2D(24f, 740f, 112f, 828f))
+        assertTrue(OwnUiFilter.isOwnUi(Rect2D(42f, 766f, 96f, 792f), floatingButton))
+    }
+
     @Test fun `bubble far from the menu is page text`() {
         assertFalse(OwnUiFilter.isOwnUi(Rect2D(150f, 200f, 450f, 330f), menu))
     }

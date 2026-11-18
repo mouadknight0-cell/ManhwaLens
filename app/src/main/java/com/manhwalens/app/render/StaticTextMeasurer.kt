@@ -29,6 +29,7 @@ class StaticTextMeasurer(context: Context) : TextMeasurer {
             this.textSize = fontSizePx
         }
         val layout = StaticLayout.Builder.obtain(text, 0, text.length, paint, maxWidthPx)
+            .setTextDirection(android.text.TextDirectionHeuristics.RTL)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setIncludePad(false)
             .setLineSpacing(0f, 1.15f)

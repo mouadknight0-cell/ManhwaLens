@@ -2,6 +2,7 @@ package com.manhwalens.app.util
 
 import com.manhwalens.app.ocr.BubbleBlock
 import com.manhwalens.app.ocr.DetectedLine
+import com.manhwalens.app.ocr.OcrRunStats
 import com.manhwalens.app.ocr.geometry.Rect2D
 import com.manhwalens.app.translate.mlkit.MlKitTranslationTrace
 import org.junit.Assert.assertFalse
@@ -20,6 +21,55 @@ class CaptureDiagnosticsTest {
         assertTrue(report.contains("box=10.0,20.0,180.0,52.0"))
         assertTrue(report.contains("WHY ARE YOU HERE?"))
         assertTrue(report.contains("ocrMs=42"))
+    }
+
+    @Test
+    fun reportIncludesPaddleEngineTimingsInputShapesAndConfidenceDrops() {
+        val line = DetectedLine("A TEXT LINE", Rect2D(10f, 20f, 180f, 52f), 0.91f)
+        val block = BubbleBlock(1, listOf(line))
+        val diagnostics = CaptureDiagnostics(720, 1600)
+        diagnostics.recordOcr(
+            lines = listOf(line),
+            grouped = listOf(block),
+            kept = listOf(block),
+            elapsedMs = 420L,
+            engineStats = OcrRunStats(
+                engine = "PaddleOCR",
+                detectionTimeMs = 110L,
+                recognitionTimeMs = 180L,
+                totalTimeMs = 310L,
+                detectionPreprocessMs = 20L,
+                detectionInferenceMs = 70L,
+                detectionPostprocessMs = 20L,
+                recognitionPreprocessMs = 30L,
+                recognitionInferenceMs = 130L,
+                recognitionPostprocessMs = 20L,
+                pipelineOverheadMs = 10L,
+                coldLoadTimeMs = 900L,
+                detectionInputShape = listOf(1, 3, 1920, 864),
+                recognitionInputShapes = listOf(listOf(1, 3, 48, 320)),
+                recognizedCandidateCount = 9,
+                lowConfidenceDroppedCount = 2,
+                confidenceThreshold = 0.5f,
+                detectionThreshold = 0.3f,
+                detectionBoxThreshold = 0.6f,
+                detectionUnclipRatio = 1.5f,
+                detectorLimitSideLen = 1280,
+                detectorMaxSideLimit = 1920,
+                detectorLimitType = "min",
+                engineThreads = 4
+            )
+        )
+
+        val report = diagnostics.report()
+
+        assertTrue(report.contains("[OCR ENGINE STATS] present=true"))
+        assertTrue(report.contains("engine=PaddleOCR detectionMs=110 recognitionMs=180 totalEngineMs=310 wrapperMs=420"))
+        assertTrue(report.contains("candidates=9 lowConfidenceDropped=2 recThreshold=0.500"))
+        assertTrue(report.contains("detThresh=0.300 detBoxThresh=0.600 unclipRatio=1.50 resize=min:1280:max=1920 threads=4"))
+        assertTrue(report.contains("input=1x3x1920x864"))
+        assertTrue(report.contains("recognitionInputShapes=1x3x48x320"))
+        assertTrue(report.contains("coldLoadMs=900"))
     }
 
     @Test

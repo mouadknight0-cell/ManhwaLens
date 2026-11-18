@@ -10,6 +10,8 @@ import com.manhwalens.app.translate.gemini.GeminiTranslator
 import com.manhwalens.app.translate.gemini.HttpUrlConnectionGeminiApi
 import com.manhwalens.app.translate.mlkit.MlKitTranslator
 import com.manhwalens.app.translate.mlkit.MlKitTranslationTrace
+import com.manhwalens.app.translate.bergamot.BergamotPageTranslator
+import com.manhwalens.app.translate.bergamot.BergamotEnArModel
 import java.io.File
 
 /** Translator used when Gemini is selected but no key has been saved. */
@@ -34,6 +36,10 @@ object TranslatorFactory {
 
     @Volatile
     private var diskCache: PersistentTranslationCache? = null
+
+    /** One native Bergamot service/model per process; recreating it per capture leaks native RAM. */
+    @Volatile
+    private var bergamotDelegate: BergamotPageTranslator? = null
 
     /**
      * P1 — one name session per translator instance (i.e. per captured page).
@@ -125,7 +131,9 @@ object TranslatorFactory {
         val style = prefs.translationStyle
         val disk = disk(context)
         // Explicit offline mode is authoritative: never construct or call a cloud translator.
-        if (OfflineTranslationPolicy.mustUseLocal(prefs.offlineMode)) return createOffline(context)
+        if (OfflineTranslationPolicy.mustUseLocal(prefs.offlineMode)) {
+            return if (prefs.engine == TranslationEngine.BERGAMOT) createBergamot(context) else createOffline(context)
+        }
         return when (prefs.engine) {
             TranslationEngine.ML_KIT -> {
                 val session = names(context)
@@ -136,6 +144,7 @@ object TranslatorFactory {
             onTranslationPair = pairRecorder(context)
                 )
             }
+            TranslationEngine.BERGAMOT -> createBergamot(context)
             TranslationEngine.GEMINI ->
                 if (prefs.geminiCircuit.isOpen()) {
                     // Circuit open: do NOT gamble 3+6 s per tap — go straight offline.
@@ -155,6 +164,66 @@ object TranslatorFactory {
                 } else {
                     MissingKeyTranslator()
                 }
+        }
+    }
+
+
+    /**
+     * Preload the process-wide Bergamot model and warm its native translation path.
+     * Settings invokes this on Dispatchers.Default after confirming the model exists.
+     */
+    fun prewarmBergamot(context: Context) {
+        if (!BergamotEnArModel.isInstalled(context)) return
+        val delegate = bergamotDelegate ?: synchronized(this) {
+            bergamotDelegate ?: BergamotPageTranslator(context).also { bergamotDelegate = it }
+        }
+        delegate.warmUp()
+    }
+
+    /** Release the process-scoped native model/service; next use will lazily reload it. */
+    fun releaseBergamot() {
+        synchronized(this) {
+            bergamotDelegate?.release()
+            bergamotDelegate = null
+        }
+    }
+
+    /** Experimental Mozilla Bergamot EN→AR; never falls back silently when explicitly selected. */
+    private fun createBergamot(context: Context): Translator {
+        val style = styleOf(context)
+        if (!BergamotEnArModel.isInstalled(context)) {
+            return object : Translator {
+                override val engineId = "bergamot_en_ar"
+                override fun translatePage(blocks: List<TranslationBlock>) = PageTranslation.Failure(
+                    FailureReason.MODEL_DOWNLOAD_FAILED,
+                    "Bergamot model is not downloaded. Open Settings → Offline translation and download it first.",
+                    engineId
+                )
+            }
+        }
+        val session = names(context)
+        val delegate = bergamotDelegate ?: synchronized(this) {
+            bergamotDelegate ?: BergamotPageTranslator(context).also { bergamotDelegate = it }
+        }
+        val bergamot = CachingTranslator(
+            delegate,
+            sharedCache, disk(context), style,
+            memo = memo("bergamot_en_ar", style),
+            pinnedOverride = session::rewrite,
+            onTranslationPair = pairRecorder(context)
+        )
+        // Keep Bergamot as the primary engine, but recover bubbles withheld by the shared
+        // Arabic quality guard with the already-installed offline ML Kit engine. The fallback
+        // receives only blank/rejected bubbles; accepted Bergamot output is never retranslated.
+        return QualityFallbackTranslator(
+            primary = bergamot,
+            fallback = createOffline(context)
+        ) { requested, elapsedMs, filled ->
+            com.manhwalens.app.util.PipelineTracer.span(
+                "Bergamot -> ML Kit fallback",
+                elapsedMs,
+                "requested=$requested filled=$filled"
+            )
         }
     }
 
@@ -192,16 +261,25 @@ object TranslatorFactory {
         TranslationPrefs(context).refreshGlossary()
         val style = styleOf(context)
         val session = names(context)
+        // The delegate emits raw ML Kit output as soon as each task completes. Run that
+        // early callback through the exact same output sanitation, series-name correction,
+        // and Arabic guard used by CachingTranslator's final page result. Cache hits use the
+        // same callback, so early and final patches cannot disagree about visible text.
+        val deliverProgressive: (TranslatedBlock) -> Unit = { raw ->
+            TranslationOutputSanitizer.prepare(raw, session::rewrite)?.let { safe ->
+                runCatching { onBlockReady(safe) }
+            }
+        }
         return CachingTranslator(
             MlKitTranslator(
-                onBlockReady,
+                deliverProgressive,
                 nameTableProvider = { texts -> session.tableFor(texts).table },
                 onRawTranslation = onRawTranslation
             ),
             sharedCache,
             disk(context),
             style,
-            onBlockReady = onBlockReady,
+            onBlockReady = deliverProgressive,
             memo = memo("ml_kit_en_ar", style),
             pinnedOverride = session::rewrite,
             onTranslationPair = pairRecorder(context)

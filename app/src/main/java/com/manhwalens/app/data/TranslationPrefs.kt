@@ -46,7 +46,8 @@ class TranslationPrefs(context: Context) {
             val stored = getString(KEY_ENGINE, "").trim()
             val explicitlySet = prefs?.contains(KEY_ENGINE) == true && stored.isNotBlank()
             val engine = when {
-                stored.isEmpty() || stored == "LIBRE_TRANSLATE" -> TranslationEngine.ML_KIT
+                stored.isEmpty() || stored == "LIBRE_TRANSLATE" || stored == "BERGAMOT" ->
+                    TranslationEngine.ML_KIT // Bergamot JNI is diagnostic-only until non-empty output is verified.
                 else -> TranslationEngine.valueOf(stored)
             }
             // Part 6: default engine = Gemini when a key exists, unless the user

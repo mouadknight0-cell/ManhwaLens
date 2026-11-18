@@ -51,13 +51,14 @@ object DBPostProcessor {
         val scaleY = originalH.toDouble() / pH
         val normalizedScoreMode = scoreMode.lowercase()
 
-        val rawProb = Mat(pH, pW, CvType.CV_32FC1)
-        val mask = Mat(pH, pW, CvType.CV_8UC1)
+        val ownedMats = mutableListOf<Mat>()
         val contours = mutableListOf<MatOfPoint>()
-        val hierarchy = Mat()
-        var contourMask = mask
 
         return try {
+            val rawProb = Mat(pH, pW, CvType.CV_32FC1).also { ownedMats += it }
+            val mask = Mat(pH, pW, CvType.CV_8UC1).also { ownedMats += it }
+            val hierarchy = Mat().also { ownedMats += it }
+
             rawProb.put(0, 0, pred)
             val threshMat = Mat()
             try {
@@ -67,12 +68,20 @@ object DBPostProcessor {
                 threshMat.release()
             }
 
-            contourMask = if (useDilation) {
+            val contourMask = if (useDilation) {
                 val kernel = Mat.ones(2, 2, CvType.CV_8UC1)
+                var dilated: Mat? = null
+                var transferred = false
                 try {
-                    Mat().also { Imgproc.dilate(mask, it, kernel) }
+                    val destination = Mat().also { dilated = it }
+                    Imgproc.dilate(mask, destination, kernel)
+                    ownedMats += destination
+                    transferred = true
+                    destination
                 } finally {
                     kernel.release()
+                    // A failed dilate never transfers ownership to the common cleanup list.
+                    if (!transferred) dilated?.release()
                 }
             } else {
                 mask
@@ -138,13 +147,8 @@ object DBPostProcessor {
             }
             boxes
         } finally {
-            hierarchy.release()
-            if (contourMask !== mask) {
-                contourMask.release()
-            }
-            contours.forEach { it.release() }
-            mask.release()
-            rawProb.release()
+            contours.forEach { runCatching { it.release() } }
+            ownedMats.asReversed().forEach { runCatching { it.release() } }
         }
     }
 
@@ -171,19 +175,29 @@ object DBPostProcessor {
         val ymin = points.minOf { kotlin.math.floor(it.y).toInt() }.coerceIn(0, h - 1)
         val ymax = points.maxOf { kotlin.math.ceil(it.y).toInt() }.coerceIn(0, h - 1)
 
-        val mask = Mat(ymax - ymin + 1, xmax - xmin + 1, CvType.CV_8UC1, Scalar(0.0))
-        val pts = MatOfPoint().apply {
-            fromList(
+        var mask: Mat? = null
+        var polygon: MatOfPoint? = null
+        var roi: Mat? = null
+        try {
+            val scoreMask = Mat(
+                ymax - ymin + 1,
+                xmax - xmin + 1,
+                CvType.CV_8UC1,
+                Scalar(0.0)
+            ).also { mask = it }
+            val pointsMat = MatOfPoint().also { polygon = it }
+            pointsMat.fromList(
                 points.map { Point((it.x - xmin).toInt().toDouble(), (it.y - ymin).toInt().toDouble()) }
             )
-        }
-        Imgproc.fillPoly(mask, mutableListOf(pts), Scalar(1.0))
+            Imgproc.fillPoly(scoreMask, mutableListOf(pointsMat), Scalar(1.0))
 
-        val roi = probMap.submat(ymin, ymax + 1, xmin, xmax + 1)
-        val mean = Core.mean(roi, mask)
-        roi.release()
-        mask.release()
-        pts.release()
-        return mean.`val`[0].toFloat()
+            val region = probMap.submat(ymin, ymax + 1, xmin, xmax + 1).also { roi = it }
+            val mean = Core.mean(region, scoreMask)
+            return mean.`val`[0].toFloat()
+        } finally {
+            roi?.release()
+            polygon?.release()
+            mask?.release()
+        }
     }
 }

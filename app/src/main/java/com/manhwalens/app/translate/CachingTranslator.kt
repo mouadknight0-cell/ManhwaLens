@@ -27,7 +27,7 @@ class CachingTranslator(
     private val cache: TranslationCache,
     private val persistent: PersistentTranslationCache? = null,
     private val style: String = "default",
-    /** Progressive display hook — fired for every CACHE HIT (misses flow through the engine). */
+    /** Progressive display hook — fired for exact/fuzzy memo hits (engine misses emit separately). */
     private val onBlockReady: ((TranslatedBlock) -> Unit)? = null,
     /**
      * Optional fuzzy tier (short strings only). OFF by default so a decorator instance is
@@ -57,7 +57,7 @@ class CachingTranslator(
      * and re-served for the rest of the chapter.
      */
     private val requiresArabicGuard: Boolean
-        get() = engineId == "gemini" || engineId == "ml_kit_en_ar"
+        get() = engineId == "gemini" || engineId == "ml_kit_en_ar" || engineId == "bergamot_en_ar"
 
     override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
         if (blocks.isEmpty()) {
@@ -68,9 +68,15 @@ class CachingTranslator(
             )
         }
         val start = System.currentTimeMillis()
+        val traceRequestId = nextTraceRequestId()
 
         // 1) Serve what we can from cache (engine+style namespaced, normalized).
         val cached = LinkedHashMap<Int, String>(blocks.size)
+        // Keep the pre-correction cache value for diagnostics; finalArabic is the value
+        // that will actually be painted after name/dialogue overrides and quality checks.
+        val cachedCandidates = LinkedHashMap<Int, String>(blocks.size)
+        val cacheHitDetails = HashMap<Int, String>(blocks.size)
+        val fuzzyCachedIds = HashSet<Int>()
         val misses = ArrayList<TranslationBlock>(blocks.size)
         var diskHits = 0
         var fuzzyHits = 0
@@ -80,40 +86,72 @@ class CachingTranslator(
             val diskHit = if (memHit == null) persistent?.get(cache.key(engineId, b.english, style)) else null
             var hit = memHit ?: diskHit
             var fromFuzzy = false
+            var fromExactMemo = false
+            var memoMatchedSource: String? = null
             if (hit == null) {
-                val fuzzy = memo?.get(cachePrepared(b.english))?.arabic
-                if (fuzzy != null) {
-                    hit = fuzzy
-                    fromFuzzy = true
-                    fuzzyHits++
+                val memoHit = memo?.get(cachePrepared(b.english))
+                if (memoHit != null) {
+                    hit = memoHit.arabic
+                    memoMatchedSource = memoHit.matchedSource
+                    fromFuzzy = !memoHit.exact
+                    fromExactMemo = memoHit.exact
+                    if (fromFuzzy) {
+                        fuzzyHits++
+                        fuzzyCachedIds.add(b.id)
+                    }
                 }
             }
             // P1: a cached translation may pre-date a name correction — repair it BEFORE the
             // quality guard sees it, so the guard judges the text we would actually paint.
             val rawHit = hit
+            // Cache entries can outlive output-sanitizer changes across app upgrades.
+            // Apply the same deterministic sanitation used for fresh engine candidates
+            // before name/source corrections and the Arabic quality guard.
+            val cleanedHit = rawHit?.let(TranslationOutputSanitizer::clean)
             val nameOverride = pinnedOverride
-            val repairedHit: String? = if (rawHit != null && nameOverride != null) {
-                runCatching { nameOverride.invoke(b.english, rawHit) }.getOrDefault(rawHit)
+            val repairedHit: String? = if (!cleanedHit.isNullOrBlank() && nameOverride != null) {
+                runCatching { nameOverride.invoke(b.english, cleanedHit) }.getOrDefault(cleanedHit)
             } else {
-                rawHit
+                cleanedHit
             }
             hit = repairedHit
-            val issue = if (repairedHit != null && requiresArabicGuard) {
-                ArabicValidator.issue(b.english, repairedHit)
+            val dialogueRepairedHit = repairedHit?.let { ShortDialogueOverrides.apply(b.english, it) }
+            val issue = if (dialogueRepairedHit != null && requiresArabicGuard) {
+                ArabicValidator.issue(b.english, dialogueRepairedHit)
             } else null
-            if (repairedHit != null && issue == null) {
-                cached[b.id] = repairedHit
-                when {
-                    diskHit != null -> {
-                        // Promote the (possibly name-repaired) disk hit, so the correction sticks.
-                        cache.put(engineId, b.english, repairedHit ?: diskHit, style)
-                        diskHits++
+            if (dialogueRepairedHit != null && issue == null) {
+                cached[b.id] = dialogueRepairedHit
+                if (rawHit != null) cachedCandidates[b.id] = rawHit
+                if (rawHit != null) {
+                    cacheHitDetails[b.id] = when {
+                        memHit != null -> "served from in-memory exact cache"
+                        diskHit != null -> "served from persistent exact cache"
+                        fromExactMemo -> memoHitDetail("exact", memoMatchedSource)
+                        fromFuzzy -> memoHitDetail("fuzzy", memoMatchedSource)
+                        else -> "served from cache"
                     }
-                    fromFuzzy && repairedHit != null -> cache.put(engineId, b.english, repairedHit, style)
                 }
-                // A repaired plain memory hit must be written back too, otherwise every capture
-                // re-repairs the same stale entry.
-                if (repairedHit != rawHit) cache.put(engineId, b.english, repairedHit, style)
+                when {
+                    diskHit != null || fromExactMemo -> {
+                        // Promote only source-exact disk/memo hits. A fuzzy near-match must
+                        // never become an exact key for a different OCR string.
+                        cache.put(engineId, b.english, dialogueRepairedHit, style)
+                        if (diskHit != null) diskHits++
+                    }
+                }
+                // Persist corrections only for source-exact cache entries. A fuzzy result
+                // remains in the fuzzy tier and must be re-evaluated for each new OCR variant.
+                // Never promote an approximate decision into an exact key for different text.
+                if (!fromFuzzy && dialogueRepairedHit != rawHit) {
+                    cache.put(engineId, b.english, dialogueRepairedHit, style)
+                    // Keep the persistent exact tier in sync with the source-exact repair.
+                    // Without this write-back, an old disk candidate is reloaded on every
+                    // process start and has to be corrected again on every cache hit.
+                    persistent?.put(
+                        cache.key(engineId, b.english, style),
+                        dialogueRepairedHit
+                    )
+                }
             } else {
                 if (hit != null && issue != null) {
                     val key = cache.key(engineId, b.english, style)
@@ -137,7 +175,17 @@ class CachingTranslator(
         cached.forEach { (id, arabic) ->
             val source = blocks.firstOrNull { it.id == id }?.english.orEmpty()
             runCatching {
-                onTranslationPair?.invoke(TranslationPairTrace(id, source, arabic, arabic, engineId, "CACHE_HIT", "served from cache", 0L))
+                val isFuzzy = id in fuzzyCachedIds
+                val candidate = cachedCandidates[id] ?: arabic
+                onTranslationPair?.invoke(
+                    TranslationPairTrace(
+                        id, source, arabic, candidate, engineId,
+                        if (isFuzzy) "FUZZY_HIT" else "CACHE_HIT",
+                        cacheHitDetails[id] ?: "served from translation cache",
+                        0L,
+                        requestId = traceRequestId
+                    )
+                )
             }
         }
         if (diskHits > 0) {
@@ -156,23 +204,29 @@ class CachingTranslator(
                 is PageTranslation.Failure -> {
                     misses.forEach { block ->
                         runCatching {
-                            onTranslationPair?.invoke(TranslationPairTrace(block.id, block.english, "", "", engineId, "ENGINE_FAILURE", result.reason.name, 0L))
+                            onTranslationPair?.invoke(TranslationPairTrace(block.id, block.english, "", "", engineId, "ENGINE_FAILURE", result.reason.name, 0L, traceRequestId))
                         }
                     }
                     return PageTranslation.Failure(result.reason, result.message, engineId)
                 }
                 is PageTranslation.Success -> {
+                    // Preserve the delegate's untouched candidate separately from the
+                    // sanitized/name-repaired/source-corrected value used by the quality guard.
+                    val rawCandidatesById = result.blocks.associate { it.id to it.arabic }
                     val polished = result.blocks.map { raw ->
                         // Apply authoritative series-name corrections BEFORE the quality guard,
                         // matching the cache-hit path. A preserved name such as "Will" must not
                         // be mistaken for an untranslated common English word.
-                        val cleaned = postProcess(raw.arabic)
+                        val cleaned = TranslationOutputSanitizer.clean(raw.arabic)
                         val nameOverride = pinnedOverride
-                        val corrected = if (cleaned.isNotBlank() && nameOverride != null) {
+                        val nameRepaired = if (cleaned.isNotBlank() && nameOverride != null) {
                             runCatching { nameOverride.invoke(raw.english, cleaned) }.getOrDefault(cleaned)
                         } else {
                             cleaned
                         }
+                        // Source-exact dialogue repairs run last so they agree with cache hits
+                        // and cannot be undone by a character-name callback.
+                        val corrected = ShortDialogueOverrides.apply(raw.english, nameRepaired)
                         raw.copy(arabic = corrected)
                     }
                     // Per-bubble triage: a rejected bubble becomes EMPTY (never an English
@@ -191,20 +245,30 @@ class CachingTranslator(
                         val issue = rejectedById[tb.id]
                         runCatching {
                             onTranslationPair?.invoke(TranslationPairTrace(
-                                tb.id, tb.english, if (issue == null) tb.arabic else "", tb.arabic,
+                                tb.id, tb.english, if (issue == null) tb.arabic else "",
+                                rawCandidatesById[tb.id] ?: tb.arabic,
                                 engineId,
                                 if (issue == null && tb.arabic.isNotBlank()) "OK" else if (issue != null) "QUALITY_REJECTED" else "EMPTY",
                                 issue?.name ?: if (tb.arabic.isBlank()) "empty translation" else "",
-                                result.elapsedMs
+                                result.elapsedMs,
+                                traceRequestId
                             ))
                         }
                     }
                     val returnedIds = polished.map { it.id }.toHashSet()
+                    val emptyCount = polished.count { it.arabic.isBlank() }
+                    val missingCount = misses.size - returnedIds.size
+                    val acceptancePercent = if (misses.isEmpty()) 100 else (usable * 100 / misses.size)
+                    com.manhwalens.app.util.PipelineTracer.span(
+                        "translation quality",
+                        0,
+                        "accepted=$usable rejected=${rejectedIds.size} empty=$emptyCount missing=$missingCount acceptance=${acceptancePercent}% (rule-based; not semantic score)"
+                    )
                     misses.filterNot { it.id in returnedIds }.forEach { block ->
                         runCatching {
                             onTranslationPair?.invoke(TranslationPairTrace(
                                 block.id, block.english, "", "", engineId, "MISSING_RESULT",
-                                "engine returned no block for this id", result.elapsedMs
+                                "engine returned no block for this id", result.elapsedMs, traceRequestId
                             ))
                         }
                     }
@@ -258,15 +322,18 @@ class CachingTranslator(
         )
     }
 
+    /** Source provenance for exact/fuzzy memo hits; keep the detail short enough for the bounded pair log. */
+    private fun memoHitDetail(tier: String, matchedSource: String?): String {
+        val source = matchedSource.orEmpty()
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .take(52)
+        return "served from $tier translation memo; matched=$source"
+    }
+
     /** Exact text the engine is shown (glossary-prepared) — same string the caches key on. */
     private fun cachePrepared(source: String): String =
         runCatching { Glossary.cacheText(source) }.getOrDefault(source)
-
-    /** Shared output hygiene: noise, punctuation, duplicated words. */
-    private fun postProcess(arabic: String): String {
-        if (arabic.isBlank()) return arabic
-        return BubbleTextRules.tidyDialogue(BubbleTextRules.polishArabic(ArabicValidator.clean(arabic)))
-    }
 
     companion object {
         /**
@@ -274,6 +341,10 @@ class CachingTranslator(
          * can never be served where a cloud translation was requested (and vice versa).
          */
         private val memos = java.util.concurrent.ConcurrentHashMap<String, TranslationMemo>()
+        private val traceProcessId = java.util.UUID.randomUUID().toString().take(8)
+        private val traceRequestSequence = java.util.concurrent.atomic.AtomicLong(0L)
+
+        private fun nextTraceRequestId(): String = "$traceProcessId-p${traceRequestSequence.incrementAndGet()}"
 
         fun memoFor(engineId: String, style: String): TranslationMemo =
             memos.getOrPut("$engineId|$style") { TranslationMemo() }

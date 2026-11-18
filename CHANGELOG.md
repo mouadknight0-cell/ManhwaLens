@@ -1,4 +1,149 @@
+## 0.12.30 — startup crash diagnostics
+- Persist uncaught exception class, message and full stack trace to an app-private startup crash log and fsync it before delegating to the previous process handler.
+- Record a compact class/message/first-frames summary beside the startup guard counter and include count, safe-mode state and last exception in startup and Live benchmark reports.
+- Add JVM coverage for summary persistence and crash-log-before-delegation behavior.
+- The reported root cause remains UNKNOWN without a crash trace. This diagnostic release does not claim a causal fix and does not change OCR, capture, translation or Android service configuration.
+
+## 0.12.29 — prevent ManhwaLens UI text from entering OCR
+- Remove the Live enabled system toast; the floating lens caption already indicates Live state and is excluded from OCR using its owned-window bounds.
+- Keep the existing capture flow that hides owned overlays before acquiring a clean frame and filters OCR blocks intersecting current/recent owned-window rectangles, including floating button and previous patch rectangles.
+- Add explicit JVM coverage for OCR text inside the floating-button bounds.
+- No hard-coded phrase filter added. No OCR settings or translation behavior changed.
+
+## 0.12.28 — detector input-size experiment
+- Restore PaddleOCR ONNX intra-op threads to 4 and reduce both detector side limits to 960 (limit type remains min).
+- Keep recognition batch size 4, model, confidence thresholds, and source-frame recognition crops unchanged.
+- Correct the thread and recognition batch comments to match the configured values.
+- Live reports already derive detector input shape, cap, and thread count from OCR run stats. No speed or recall gain is claimed before three same-page sessions on the same phone.
+
+## 0.12.27 — ONNX thread-count trial
+- Trial PaddleOCR ONNX intra-op threads at 2 instead of 4, keeping detector limits, recognition batch size, confidence threshold, models and crops unchanged.
+- This may reduce CPU contention with ML Kit translation and the app UI; it may also increase inference time. No speedup or OCR-quality claim until tested on the same phone and page against v0.12.26.
+
+## 0.12.26 — restore OCR batch size and keep patch rasterization off the UI thread
+- Revert PaddleOCR recognition batch size from 8 to 4 after the same-device comparison showed higher OCR and frame times on v0.12.25; preserve the original model, crops and thresholds.
+- Build Live patch bitmaps on the existing worker before posting overlay changes to the main thread. The v0.12.25 report measured about 2 seconds in patch build; this keeps that work from blocking UI interaction. End-to-end first-output latency still requires on-device verification.
+- Keep the expanded first-overlay stage timings to distinguish patch build, queue wait and overlay update. No speedup is claimed before a comparable device rerun.
+
+## 0.12.25 — Live first-overlay timing and OCR batch trial
+- Split first visible overlay latency into main-thread queue wait, callback preparation, patch build, handoff, and overlay update timings.
+- Increase PaddleOCR recognition batch size from 4 to 8 as a measured device experiment, reducing the number of recognition batches on pages with up to eight candidates while keeping source crops, thresholds, and OCR model unchanged.
+- Keep diagnostics aggregate-only. No speed or accuracy improvement is claimed until same-device results are compared.
+
+## 0.12.24 — unified Live experience benchmark
+- Remove the ML Kit batching, Bergamot-only, and engine-comparison benchmark controls from Settings; keep one opt-in Live ON→OFF session benchmark and the separate Live self-check.
+- Expand the report with first visible output and frame timing, OCR stage times/configuration and counts, translation attempts/results/cache/block counts, overlay outcomes, Live-state transitions, failure/empty/cancellation counts, frame dimensions, and device/app version.
+- Keep the report local and privacy-safe: aggregate timing and counts only, with no OCR or translation text. No performance improvement is claimed by instrumentation alone.
+
+## 0.12.21 — Live cancellation handling
+- Treat InterruptedException/CancellationException during Live OCR/translation as a cancelled frame, not an OCR crash.
+- Recycle the unowned frame, release the live pass, and return the status to Waiting so the next stable frame can be processed. Suppress shutdown-time error logging while the service is stopping.
+- Preserve real OCR/translation errors as ERROR with diagnostics. OCR engine, model settings and ML Kit batching are unchanged.
+
+## 0.12.20 — more stable batching benchmark
+- Interleave each strategy across measured rounds, rotating the start order and alternating direction to reduce fixed-order thermal and background-load bias.
+- Keep the same request count and warm-up count; add per-strategy sample times and max-minus-min range beside median and worst.
+- Label this as an ML Kit engine batching benchmark, not tap-to-overlay latency. It does not change dispatch policy or engine selection.
+- No runtime translation speed claim is made from this benchmark-only change. The new report should be compared with a single real-page Pipeline trace.
+
+## 0.12.19 — avoid detector upscaling
+- Reduce PaddleOCR detector max side from 1920 px to 1600 px. Captures capped to 720 px wide no longer get enlarged beyond their original tall-screen resolution before detection.
+- For a 720×1600 capture, this reduces detector input from about 864×1920 to 704×1600 after alignment (about 32% fewer detector pixels); this is a model-input estimate, not a measured end-to-end speedup.
+- Preserve captured source pixels and recognition crops; translation engine, ML Kit batching and text thresholds are unchanged.
+- The requested ≤1 s scan-to-page target is not guaranteed: the prior 20-bubble ML Kit batch alone took about 1.03 s. Measure first visible text and full-page completion separately.
+
+## 0.12.18 — faster clean-frame capture
+- Reduce the post-overlay fresh-frame wait ceiling from 800 ms to 300 ms and the compositor settle delay from 120 ms to 32 ms.
+- Preserve dirty-frame marking and owned-window OCR exclusions when no clean frame arrives before the shorter deadline.
+- This targets capture latency only; OCR models, translation engine, batching policy and translation output are unchanged.
+- Benchmark and compare full tap-to-overlay timing on the same device/page after installation; the expected saving is bounded by the reduced wait and is not yet device-measured.
+
+## 0.12.17 — chapter-5 dialogue follow-up
+- Add exact-source Arabic repairs for clear dialogue failures in the latest Solo Leveling chapter-5 device trace, including the “gut feeling” idiom, the bowing exchange, survival questions and short reactions.
+- Tie every repair to the complete observed OCR block; leave heavily scrambled source blocks untouched.
+- Keep ML Kit parallel x4: it mapped 20/20 with a 1033 ms median in the latest fixed benchmark. The faster joined pipe remains disqualified by a prior real-page mapping mismatch.
+- Device app version was not included in the report. CI #944 passed and v0.12.17 was published as a prerelease; phone verification remains pending.
+
+## 0.12.11 — cache integrity and PaddleOCR capture telemetry
+- Sanitize legacy memory, persistent-disk and memo cache hits through the same deterministic output cleaner used for fresh engine results before character-name repair, source-exact corrections and the Arabic quality guard.
+- Persist corrected source-exact cache results back to the persistent cache so old mistranslations and unclean labels do not reappear after an app restart.
+- Treat blank/label-only legacy cache values as invalid misses; remove the stale entry and allow a fresh nonblank translation to replace it. A blank cache value cannot be turned into text by a character-name override.
+- Keep the original cached candidate separate from final visible Arabic, and report the actual source tier for cache hits (in-memory exact, persistent exact, exact memo or fuzzy memo) without changing existing trace status codes.
+- Add regression coverage for corrected disk-cache values surviving process recreation, legacy cached output sanitation, blank-entry recovery and trace provenance. The user-visible translation-quality diagnostic continues to show raw, cleaned and final-visible results separately.
+- Include opt-in PaddleOCR capture telemetry: detector/recognizer stage timings, cold model-load time, tensor shapes, candidate/low-confidence counts, effective configuration, and per-line OCR confidence plus bounding boxes alongside grouped and kept blocks.
+- Keep ML Kit as the default offline translator; Bergamot remains optional and experimental. OCR thresholds and bubble-grouping geometry are unchanged pending labeled screenshot evidence.
+
+## 0.12.10 — offline model reliability and Arabic dialogue corrections
+- Allow the ML Kit English→Arabic model to download over Wi-Fi or mobile data during both first-use translation and service warm-up; remove the hidden Wi-Fi-only restriction.
+- Add conservative source-exact Arabic corrections for observed short dialogue/SFX failures: “No.” → “لا.”, “Run!” → “اهرب!”, and “KRAK” → “طَق!”.
+- Apply source-aware corrections consistently after character-name repair across fresh engine results, cache hits and progressive overlay output.
+- Persist the final corrected cache value so older wrong short-line translations are not repeatedly served.
+- Keep ML Kit as the default offline translator; Bergamot remains optional and experimental.
+
+## 0.12.9 — Arabic rendering and native OCR memory lifecycle
+- Preserve complete Arabic RTL bubble text: force RTL paragraph layout, remove the four-line rendering cap, and retain the original artwork rather than drawing a truncated translation when the complete text cannot fit.
+- Serialize PaddleOCR inference and ONNX session teardown; release shared OCR sessions safely under memory pressure and service shutdown.
+- Establish the stable future APK signing baseline with the pinned CI key and enforce package, versionCode and signer checks before publishing updates.
+- Publish the v0.12.9 APK as a GitHub prerelease. The one-time historical signing transition from v0.12.8 is documented; later releases must retain the v0.12.9 signer.
+
+## 0.12.8 — isolate and clarify offline engine diagnostics
+- Rename the original diagnostic to **ML Kit batching benchmark** and state explicitly that it runs ML Kit regardless of the selected offline engine.
+- Make its side effect explicit: it may update ML Kit's saved batching policy, but never changes the selected offline translator or Bergamot settings.
+- Add a **Bergamot-only benchmark** using the same fixed 20-case EN→AR corpus. It invokes the native Bergamot adapter only, without ML Kit calls, fallback, app translation cache or preference changes; reports first-pass startup separately from warm passes and includes per-case quality results.
+- Correct the warm-up reason labels so an ML Kit batching benchmark cannot be mistaken for an engine comparison.
+- Make the paired comparison use the saved ML Kit page dispatch strategy (validated joined request when safe, otherwise the saved parallel level), with targeted retry of only missing ML Kit bubbles.
+- Report actual ML Kit dispatch, raw-engine/no-fallback semantics, per-case output, and the distinction between page-batch latency and isolated sentence latency.
+- Add JVM coverage for Bergamot-only isolation, joined/parallel dispatch, map validation, concurrency limits and selective retry. Keep ML Kit as the default and Bergamot experimental.
+
+## 0.12.7 — isolate engine comparison timing
+- Prevent the ML Kit background separator self-test from running concurrently with the explicit ML Kit vs Bergamot diagnostic, which shares the process-wide translator and would distort measured latency.
+- Add a benchmark-only ML Kit warm-up that verifies/downloads the model and loads the translator without scheduling a new batching self-test.
+- Hold the same process-wide diagnostic lock across ML Kit benchmark warm-up and all measured passes, preventing pending or running batching self-tests from contaminating timing.
+- Keep the comparator cache-free and read-only with respect to the selected translation engine and batching preferences.
+- ML Kit remains the default; Bergamot remains optional and experimental.
+
+## 0.12.6 — offline translation quality benchmark
+- Extend Settings → Diagnostics with a fixed 20-case English→Arabic reference corpus spanning dialogue, narration, short replies, names and sound effects.
+- Report Arabic quality-guard acceptance/rejection, exact normalized reference matches, elapsed time and mean Arabic token-overlap F1; explicitly label token overlap as a lexical diagnostic, not semantic accuracy.
+- Keep quality evaluation separate from runtime batching policy: reference scores never change engine selection or translation behavior.
+- Add JVM tests for corpus integrity, exact matches, English echoes, empty/failing output and lexical scoring.
+- ML Kit remains the default engine; Bergamot remains experimental and its offline fallback is unchanged.
+
 # Changelog
+
+## 0.12.5 — offline quality fallback for Bergamot
+- Keep Bergamot as the selected primary engine, but route only bubbles rejected by the shared Arabic quality guard to the already-installed on-device ML Kit translator.
+- If Bergamot fails for the whole page, retry the page with offline ML Kit; never invoke a cloud engine for this recovery path.
+- Preserve accepted Bergamot bubbles and their order; merge fallback translations by stable bubble ID.
+- Record fallback request count, number of recovered bubbles and fallback latency in Pipeline Trace.
+- Add JVM tests for selective fallback, no-fallback success, whole-page engine failure and fallback failure.
+- ML Kit remains the default engine; Bergamot remains experimental.
+
+## 0.12.4 — Bergamot performance and lifecycle follow-up
+- Add adaptive sequential native batching: ordinary pages remain one JNI batch; unusually large pages are split by bubble count and total characters to bound temporary buffers.
+- Add timings for text preparation, each JNI batch, total translation time, duplicate reduction and native batch sizes in Pipeline Trace.
+- Add a per-page rule-based acceptance summary (accepted/rejected/empty/missing); explicitly label it as a non-semantic score.
+- Extract OCR normalization and adaptive batching into pure Kotlin helpers with JVM tests for wrapped lines, hyphenation, zero-width artifacts, ordering and batch bounds.
+- Cancel queued overlay work before releasing Bergamot native resources on service teardown.
+- Improve OCR cleanup for zero-width artifacts and words split across visual lines by a hyphen.
+- Release the process-scoped Bergamot native model/service on low-memory callbacks and overlay-service teardown; the next use reloads it lazily.
+- Retain shared Arabic output cleanup, quality guard and per-series name consistency; ML Kit remains the default.
+
+
+## 0.12.4 — 2026-11-15 (experimental)
+
+### Optional offline Bergamot translation
+- Add Mozilla Firefox Translations (Bergamot) as an optional English→Arabic on-device engine; ML Kit remains the default.
+- Download the model on demand (~23.8 MB compressed, ~35.6 MB installed) and verify SHA-256 for both compressed and unpacked files.
+- Fetch the ARM64 JNI runtime from a pinned upstream commit during CI; runtime use is limited to Android 9+ 64-bit devices.
+- Package the pinned native runtime for ARM64 only; keep the language model on-demand and out of the APK. Include MPL-2.0 and third-party notices.
+- Add a Settings model downloader/status card and an explicit engine selector. The Live/tap pipelines route explicit Bergamot selection through the non-progressive page translator while preserving ML Kit's progressive path for its default engine.
+- Keep one native service/model per process to avoid repeated model loading and native-memory leaks.
+- Simplify Settings: remove the Automation, Ignore list, Character names and Names & terms sections; keep Live mode control in the floating lens menu; add a clearly labelled translation-pair log reset action.
+
+### Verification
+- CI unit tests and debug APK assembly passed on the prototype branch.
+- Real-device JNI loading, translation quality, latency, RAM consumption and full offline behavior still require validation before merging or making Bergamot a recommended default.
 
 ## 0.12.3 — 2026-11-15 (experimental)
 
@@ -7,7 +152,7 @@
 - Keep ML Kit English→Arabic as the on-device translation engine and Gemini as the optional cloud engine.
 - Remove the LibreTranslate/Argos option, endpoint/API-key settings, factory path, implementation and tests. Existing saved LibreTranslate selection safely falls back to ML Kit.
 - Remove the separate OCR engine settings section so users no longer confuse OCR selection with translation selection.
-- Simplify Settings: remove Automation, Ignore list, Character names, and Names & terms sections; move the Live mode controls directly below the offline translation model card.
+- Simplify Settings: remove Automation, Ignore list, Character names, and Names & terms sections; Live mode is controlled from the floating lens menu.
 
 ### Verification
 - CI build and unit tests pending for this branch; real-device PaddleOCR accuracy and translation latency still require measurement.
@@ -109,3 +254,15 @@ overlapping Arabic at patch edges, mangled Korean/Chinese names, and meaningless
 ### Verification status
 
 Unit tests were added for request batching, response parsing, endpoint validation, output validation, and fallbacks. This sandbox has no Java/JDK or Android SDK installed, so Gradle tests and APK builds could not be run here. Physical-device timing and real-server tests remain outstanding.
+
+
+## v0.12.15 (unreleased)
+- Add exact-source Arabic repairs for two OCR variants observed in the Solo Leveling chapter-4 phone report (duplicated “THE” in rank dialogue and “WOULO'VE” recognition error).
+- Keep ML Kit batching on parallel x6: joined ` | ` was fastest on the fixed 20-bubble benchmark, but its prior real-page mapping mismatch still disqualifies it as the saved default.
+- Verification and update-compatible prerelease build pending.
+
+
+## v0.12.16 (unreleased)
+- Add exact-source Arabic repairs for Solo Leveling chapter-5 lines reported on-device: tunnel/gate narration, rank explanation, healers, statue dialogue and short responses.
+- Keep ML Kit batching at parallel x2. The chapter-5 fixed benchmark mapped all 20 bubbles under parallel x2/x3/x4, but joined pipe remains banned after a real-page mismatch.
+- Unit tests and update-compatible prerelease build pending.

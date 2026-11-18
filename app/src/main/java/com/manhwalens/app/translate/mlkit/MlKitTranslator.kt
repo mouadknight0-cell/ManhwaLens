@@ -8,6 +8,7 @@ import com.google.mlkit.nl.translate.TranslatorOptions
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.common.model.DownloadConditions
 import com.manhwalens.app.translate.FailureReason
+import com.manhwalens.app.translate.DiagnosticExecutionGate
 import com.manhwalens.app.translate.BatchAutoSelect
 import com.manhwalens.app.translate.BatchPolicyHolder
 import com.manhwalens.app.translate.BatchSplitter
@@ -95,7 +96,11 @@ class MlKitTranslator(
 
     private val client get() = SHARED_CLIENT
 
-    override fun translatePage(blocks: List<TranslationBlock>): PageTranslation {
+    override fun translatePage(blocks: List<TranslationBlock>): PageTranslation =
+        DiagnosticExecutionGate.shared { translatePageInternal(blocks) }
+
+    /** Entire page holds a shared lease so an exclusive engine diagnostic cannot overlap it. */
+    private fun translatePageInternal(blocks: List<TranslationBlock>): PageTranslation {
         val start = System.currentTimeMillis()
         if (blocks.isEmpty()) {
             return PageTranslation.Failure(FailureReason.EMPTY_INPUT, "No blocks to translate", engineId)
@@ -108,7 +113,7 @@ class MlKitTranslator(
             try {
                 Log.i(TAG, "en->ar model not present yet; requesting download (one-time, ~30 MB)")
                 Tasks.await(
-                    client.downloadModelIfNeeded(DownloadConditions.Builder().requireWifi().build()),
+                    client.downloadModelIfNeeded(DownloadConditions.Builder().build()),
                     MODEL_TIMEOUT_SEC,
                     TimeUnit.SECONDS
                 )
@@ -333,7 +338,9 @@ class MlKitTranslator(
     private fun translateJoined(blocks: List<TranslationBlock>, strategy: SplitStrategy): JoinedOutcome {
         val sources = blocks.map { src(it.english) } // same text the engine is shown, so the mapping holds
         val out = try {
-            Tasks.await(client.translate(BatchSplitter.join(strategy, sources)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            withTranslationReadLock {
+                Tasks.await(client.translate(BatchSplitter.join(strategy, sources)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "mlkit joined request failed — ${e.javaClass.name}: ${e.message}", e)
             return JoinedOutcome(null, true, "error: ${e.javaClass.simpleName}")
@@ -379,7 +386,9 @@ class MlKitTranslator(
         val observer = onRawTranslation
         val started = if (observer != null) SystemClock.elapsedRealtime() else 0L
         val raw = try {
-            Tasks.await(client.translate(prepared), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            withTranslationReadLock {
+                Tasks.await(client.translate(prepared), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+            }
         } catch (e: Exception) {
             if (observer != null) runCatching {
                 observer.invoke(MlKitTranslationTrace(
@@ -512,17 +521,27 @@ class MlKitTranslator(
          * Returns true when ready. Bounded to 30 s; safe to call from a background thread.
          */
         @JvmStatic
-        fun warmUp(): Boolean = try {
+        fun warmUp(): Boolean = warmUpInternal(reason = "service start", runBatchSelfTest = true)
+
+        /**
+         * Prepares the shared ML Kit model for a controlled diagnostic without launching
+         * the background batching self-test. The caller supplies the diagnostic name so
+         * warmth reports cannot confuse the batching benchmark with the engine comparison.
+         */
+        @JvmStatic
+        fun warmUpForBenchmark(reason: String): Boolean =
+            warmUpInternal(reason = reason, runBatchSelfTest = false)
+
+        private fun warmUpInternal(reason: String, runBatchSelfTest: Boolean): Boolean = try {
             Tasks.await(
-                SHARED_CLIENT.downloadModelIfNeeded(DownloadConditions.Builder().requireWifi().build()),
+                SHARED_CLIENT.downloadModelIfNeeded(DownloadConditions.Builder().build()),
                 30L,
                 TimeUnit.SECONDS
             )
             sharedModelReady = true
-            // v0.9.9: the model FILE being present is not "warm" — the first translate call
-            // still loads it into memory. Pay that here, not on the user's first page.
-            keepWarm("service start")
-            maybeStartSelfTest()
+            // Load the model into memory before measuring the warm ML Kit passes.
+            keepWarm(reason)
+            if (runBatchSelfTest) maybeStartSelfTest()
             true
         } catch (e: Exception) {
             Log.w(TAG, "warmUp: EN→AR model not ready (${e.javaClass.simpleName})")
@@ -531,8 +550,23 @@ class MlKitTranslator(
 
         /** Raw engine call on the shared client (benchmark, self-test, warm-up). Throws on failure. */
         @JvmStatic
-        fun translateRaw(text: String): String =
+        fun translateRaw(text: String): String = withTranslationReadLock {
+            translateRawDuringExclusiveDiagnostic(text)
+        }
+
+        /**
+         * Used only by BatchAutoSelect while its caller owns the exclusive diagnostic gate.
+         * Its parallel timing trial invokes this callback from worker threads; those workers
+         * are part of the exclusive diagnostic and must not try to acquire the read lock held
+         * out by the parent thread.
+         */
+        private fun translateRawDuringExclusiveDiagnostic(text: String): String =
             Tasks.await(SHARED_CLIENT.translate(text), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS)
+
+        /** Raw request callback for parallel benchmark workers while the caller owns the exclusive gate. */
+        @JvmStatic
+        internal fun translateRawForExclusiveDiagnostic(text: String): String =
+            translateRawDuringExclusiveDiagnostic(text)
 
         /**
          * Dummy "hello" call that keeps the engine loaded. Called at service start and on
@@ -556,6 +590,14 @@ class MlKitTranslator(
             }
         }
 
+        // Diagnostics run exclusively; normal page requests share the client concurrently.
+        @JvmStatic
+        fun <T> withDiagnosticLock(block: () -> T): T =
+            DiagnosticExecutionGate.exclusive(block)
+
+        private fun <T> withTranslationReadLock(block: () -> T): T =
+            DiagnosticExecutionGate.shared(block)
+
         private val selfTestRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
         /**
@@ -571,16 +613,24 @@ class MlKitTranslator(
             Thread({
                 try {
                     val t0 = System.currentTimeMillis()
-                    val choice = BatchAutoSelect.run(
-                        ::translateRaw,
-                        strategies = policy.allowedStrategies(),
-                        parallelLimit = policy.parallelLevel()
-                    )
-                    policy.recordChoice(choice.strategy, choice.why)
-                    lastSelfTestSummary = choice.trials.joinToString(" · ") {
-                        "${it.strategy.label}=${if (it.ok) "${it.elapsedMs}ms" else "FAIL(${it.mismatched})"}"
-                    } + " · parallel=${choice.parallelMs}ms"
-                    Log.i(TAG, "batch self-test in ${System.currentTimeMillis() - t0} ms → ${policy.describe()} [$lastSelfTestSummary]")
+                    withDiagnosticLock {
+                        // A manual diagnostic may have stored a fresh choice while this
+                        // self-test waited for the exclusive gate. Do not overwrite that newer result.
+                        if (!policy.needsSelfTest()) {
+                            Log.i(TAG, "batch self-test skipped: policy was updated while waiting for diagnostic lock")
+                            return@withDiagnosticLock
+                        }
+                        val choice = BatchAutoSelect.run(
+                            ::translateRawDuringExclusiveDiagnostic,
+                            strategies = policy.allowedStrategies(),
+                            parallelLimit = policy.parallelLevel()
+                        )
+                        policy.recordChoice(choice.strategy, choice.why)
+                        lastSelfTestSummary = choice.trials.joinToString(" · ") {
+                            "${it.strategy.label}=${if (it.ok) "${it.elapsedMs}ms" else "FAIL(${it.mismatched})"}"
+                        } + " · parallel=${choice.parallelMs}ms"
+                        Log.i(TAG, "batch self-test in ${System.currentTimeMillis() - t0} ms → ${policy.describe()} [$lastSelfTestSummary]")
+                    }
                 } catch (t: Throwable) {
                     Log.w(TAG, "batch self-test failed — staying parallel (${t.javaClass.simpleName})")
                 } finally {

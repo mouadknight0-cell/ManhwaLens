@@ -3,6 +3,7 @@ package com.manhwalens.app.util
 import android.content.Context
 import android.util.Log
 import java.io.File
+import java.io.FileOutputStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.text.SimpleDateFormat
@@ -32,15 +33,18 @@ object ErrorLog {
             if (installed) return
             val appContext = context.applicationContext
             val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
-            Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-                try {
-                    Log.e("ManhwaLens", "uncaught:${thread.name} — ${throwable.javaClass.name}: ${throwable.message}", throwable)
-                    write(appContext, "uncaught:${thread.name}", throwable)
-                } catch (_: Throwable) {
-                    // Never recurse into a failing logger.
+            Thread.setDefaultUncaughtExceptionHandler(
+                StartupExceptionHandler(File(appContext.filesDir, "startup-crashes.log"), defaultHandler) { thread, throwable ->
+                    try {
+                        Log.e("ManhwaLens", "uncaught:${thread.name} — ${throwable.javaClass.name}: ${throwable.message}", throwable)
+                        write(appContext, "uncaught:${thread.name}", throwable)
+                        StartupGuard(File(appContext.filesDir, StartupGuard.FILE_NAME)).recordExceptionSummary(throwable)
+                        record(appContext, "startup_guard", "uncaught exception recorded; ${throwable.javaClass.name}: ${throwable.message.orEmpty().take(180)}")
+                    } catch (_: Throwable) {
+                        // Never recurse into a failing logger.
+                    }
                 }
-                defaultHandler?.uncaughtException(thread, throwable)
-            }
+            )
             installed = true
             record(appContext, "diagnostics", "uncaught-exception handler installed")
         }
@@ -135,4 +139,30 @@ object ErrorLog {
     private fun sanitize(value: String): String =
         value.replace(Regex("AIza[0-9A-Za-z_-]{10,}"), "[redacted]")
             .replace(Regex("(?i)(api[-_ ]?key|key)\\s*[=:]\\s*\\S+"), "api_key=[redacted]")
+}
+
+
+/**
+ * Durable crash recorder installed before Application.onCreate work. Persists and fsyncs the
+ * complete exception before the previous process handler is invoked. Logging failures never
+ * mask the original crash or prevent delegation.
+ */
+internal class StartupExceptionHandler(
+    private val logFile: File,
+    private val delegate: Thread.UncaughtExceptionHandler?,
+    private val onRecorded: (Thread, Throwable) -> Unit = { _, _ -> }
+) : Thread.UncaughtExceptionHandler {
+    override fun uncaughtException(thread: Thread, throwable: Throwable) {
+        runCatching {
+            val stack = StringWriter().also { throwable.printStackTrace(PrintWriter(it)) }.toString()
+            val record = "===== UNCAUGHT EXCEPTION =====\nthread=${thread.name}\nexception=${throwable.javaClass.name}\nmessage=${throwable.message.orEmpty()}\n$stack\n"
+            logFile.parentFile?.mkdirs()
+            FileOutputStream(logFile, true).use { stream ->
+                stream.write(record.toByteArray(Charsets.UTF_8))
+                stream.fd.sync()
+            }
+        }
+        runCatching { onRecorded(thread, throwable) }
+        delegate?.uncaughtException(thread, throwable)
+    }
 }

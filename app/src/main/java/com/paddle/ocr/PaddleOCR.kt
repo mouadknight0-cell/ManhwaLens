@@ -106,6 +106,8 @@ class PaddleOCR private constructor(
                 detInputShape = result.detInputShape,
                 recInputShapes = result.recInputShapes,
                 perLineRecMs = result.perLineRecMs,
+                recognizedCandidateCount = result.recognizedCandidateCount,
+                lowConfidenceDroppedCount = result.lowConfidenceDroppedCount,
             )
         }
     }

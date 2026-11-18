@@ -3,6 +3,8 @@ package com.manhwalens.app.util
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -48,6 +50,32 @@ class StartupGuardTest {
         val g = StartupGuard(f)
         assertEquals(0, g.currentCount())
         assertEquals(1, g.registerStart())
+    }
+
+    @Test
+    fun lastExceptionSummaryIncludesClassMessageAndFrames() {
+        val g = guard()
+        g.registerStart()
+        g.recordExceptionSummary(IllegalStateException("test crash"))
+        val summary = g.lastExceptionSummary()
+        assertTrue(summary.contains("java.lang.IllegalStateException"))
+        assertTrue(summary.contains("test crash"))
+        assertTrue(summary.contains("lastExceptionSummaryIncludesClassMessageAndFrames"))
+        assertTrue(g.reportLine().contains("consecutive=1"))
+    }
+
+    @Test
+    fun uncaughtHandlerWritesFullStackBeforeDelegating() {
+        val log = File(tmp.root, "startup-crashes.log")
+        val delegated = AtomicBoolean(false)
+        val previous = Thread.UncaughtExceptionHandler { _, _ -> delegated.set(true) }
+        val handler = StartupExceptionHandler(log, previous)
+        handler.uncaughtException(Thread.currentThread(), IllegalStateException("diagnostic marker"))
+        val written = log.readText()
+        assertTrue(written.contains("java.lang.IllegalStateException"))
+        assertTrue(written.contains("diagnostic marker"))
+        assertTrue(written.contains("uncaughtHandlerWritesFullStackBeforeDelegating"))
+        assertTrue(delegated.get())
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.manhwalens.app.translate
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Fake engine: records every call, replies with "AR:" + input (or fails on demand). */
@@ -67,6 +68,9 @@ class CachingTranslatorTest {
         assertEquals("Where are you?", traces.first().sourceEnglish)
         assertEquals("AR:Where are you?", traces.first().finalArabic)
         assertEquals("AR:Where are you?", traces.last().finalArabic)
+        assertTrue(traces.first().requestId.isNotBlank())
+        assertTrue(traces.last().requestId.isNotBlank())
+        assertTrue("separate translatePage calls must have different IDs", traces.first().requestId != traces.last().requestId)
     }
 
     @Test
@@ -249,6 +253,48 @@ class CachingTranslatorTest {
     }
 
     @Test
+    fun sourceAwareDialogueRepairWinsOverNameOverrideAndIsPersistedAcrossCacheHits() {
+        var engineCalls = 0
+        val engine = object : Translator {
+            override val engineId = "ml_kit_en_ar"
+            override fun translatePage(blocks: List<TranslationBlock>): PageTranslation.Success {
+                engineCalls++
+                return PageTranslation.Success(
+                    blocks = blocks.map { TranslatedBlock(it.id, it.english, "رقم") },
+                    engineId = engineId,
+                    elapsedMs = 1,
+                    cacheHits = 0,
+                    cacheMisses = blocks.size
+                )
+            }
+        }
+        val cache = TranslationCache()
+        val traces = ArrayList<TranslationPairTrace>()
+        val caching = CachingTranslator(
+            delegate = engine,
+            cache = cache,
+            pinnedOverride = { _, arabic -> "$arabic شخصية" },
+            onTranslationPair = { traces += it }
+        )
+
+        val first = caching.translatePage(blocks(1 to "No.")) as PageTranslation.Success
+        assertEquals("لا.", first.blocks.single().arabic)
+        assertEquals("لا.", cache.get("ml_kit_en_ar", "No."))
+        assertEquals("OK", traces[0].status)
+        assertEquals("رقم", traces[0].candidateArabic)
+        assertEquals("لا.", traces[0].finalArabic)
+
+        val second = caching.translatePage(blocks(1 to "No.")) as PageTranslation.Success
+        assertEquals("لا.", second.blocks.single().arabic)
+        assertEquals(1, engineCalls)
+        assertEquals("CACHE_HIT", traces[1].status)
+        // Cache stores the previous accepted result. Its candidate is distinct from
+        // the fresh raw model candidate above, which proves the two trace paths are honest.
+        assertEquals("لا.", traces[1].candidateArabic)
+        assertEquals("لا.", traces[1].finalArabic)
+    }
+
+    @Test
     fun rejectedIncompleteBubbleStaysEmptyWhileValidSiblingIsKept() {
         val source = "I remember the night when you came to this village and told everyone that the old king had returned from the northern mountains after many years away."
         val remote = object : Translator {
@@ -295,4 +341,18 @@ class CachingTranslatorTest {
         val result = caching.translatePage(input) as PageTranslation.Success
         assertEquals(listOf(3, 1, 2), result.blocks.map { it.id })
     }
+
+    @Test
+    fun allPairEventsFromOnePageShareARequestId() {
+        val fake = FakeTranslator()
+        val traces = ArrayList<TranslationPairTrace>()
+        val caching = CachingTranslator(fake, TranslationCache(), onTranslationPair = { traces += it })
+
+        caching.translatePage(blocks(1 to "Hello", 2 to "World"))
+
+        assertEquals(2, traces.size)
+        assertEquals(1, traces.map { it.requestId }.toSet().size)
+        assertTrue(traces.first().requestId.isNotBlank())
+    }
+
 }

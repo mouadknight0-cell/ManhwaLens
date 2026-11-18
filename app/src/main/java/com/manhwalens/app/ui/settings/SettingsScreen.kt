@@ -1,7 +1,5 @@
 package com.manhwalens.app.ui.settings
 
-import android.content.Intent
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,8 +51,7 @@ import com.manhwalens.app.ui.theme.PanelAmber
 
 /**
  * Settings screen — single scrolling page:
- *  Appearance (Arabic font size) · Translation (engine + key) · Live mode
- *  controls · Diagnostics · About (version, privacy policy).
+ *  Appearance · Translation engines and saved translations · Diagnostics · About.
  */
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -107,30 +104,9 @@ fun SettingsScreen(onBack: () -> Unit) {
     var fontScale by remember { mutableStateOf(prefs.fontScale) }
     var debugMode by remember { mutableStateOf(prefs.debugMode) }
     var pairLogCount by remember { mutableStateOf(TranslationPairLog.count(context)) }
-    var liveMode by remember { mutableStateOf(prefs.liveMode) }
-    var liveApps by remember { mutableStateOf(prefs.liveAllowedApps) }
-    var ignoreTop by remember { mutableStateOf(prefs.ignoreTopPct) }
-    var ignoreBottom by remember { mutableStateOf(prefs.ignoreBottomPct) }
-    var liveStableMs by remember { mutableStateOf(prefs.liveStableWindowMs) }
-    var liveSensitivity by remember { mutableStateOf(prefs.liveSensitivity) }
     var lensTapMode by remember { mutableStateOf(prefs.lensTapMode) }
     val translationPrefs = remember { com.manhwalens.app.data.TranslationPrefs(context) }
-    var benchmarkRunning by remember { mutableStateOf(false) }
-    var benchmarkResult by remember { mutableStateOf<String?>(null) }
-    val benchmarkReport = benchmarkResult
-    if (benchmarkReport != null) {
-        BenchmarkDialog(
-            report = benchmarkReport,
-            onCopy = {
-                runCatching {
-                    val clip = context.getSystemService(android.content.ClipboardManager::class.java)
-                    clip?.setPrimaryClip(android.content.ClipData.newPlainText("benchmark", benchmarkReport))
-                    Toast.makeText(context, R.string.benchmark_copied, Toast.LENGTH_SHORT).show()
-                }
-            },
-            onDismiss = { benchmarkResult = null }
-        )
-    }
+    var liveBenchmarkArmed by remember { mutableStateOf(com.manhwalens.app.util.LiveSessionBenchmark.isArmed(context)) }
 
     Column(
         modifier = Modifier
@@ -185,6 +161,8 @@ fun SettingsScreen(onBack: () -> Unit) {
         // Prepare the EN→AR model before going offline.
         OfflineTranslationModelCard()
         Spacer(Modifier.size(12.dp))
+        BergamotModelCard()
+        Spacer(Modifier.size(12.dp))
 
         // Translation result cache — separate from glossary, name memory and diagnostics.
         Section(stringResource(R.string.translation_cache_section)) {
@@ -203,130 +181,6 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
         Spacer(Modifier.size(12.dp))
 
-        // ---------- Live mode (Part C) ----------
-        Section(stringResource(R.string.live_mode_title)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = stringResource(R.string.live_mode_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.live_mode_summary),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                Switch(
-                    checked = liveMode,
-                    onCheckedChange = { checked ->
-                        liveMode = checked
-                        prefs.liveMode = checked
-                        prefs.liveOptOut = !checked
-                        Toast.makeText(
-                            context,
-                            if (checked) R.string.live_enabled_toast else R.string.live_disabled_toast,
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                )
-            }
-            Spacer(Modifier.size(10.dp))
-            Text(
-                text = stringResource(R.string.live_apps_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = stringResource(R.string.live_apps_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            androidx.compose.material3.OutlinedTextField(
-                value = liveApps,
-                onValueChange = { value ->
-                    liveApps = value
-                    prefs.liveAllowedApps = value
-                },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.live_apps_hint)) },
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-            )
-            Spacer(Modifier.size(6.dp))
-            OutlinedButton(onClick = {
-                runCatching { context.startActivity(Intent("android.settings.USAGE_ACCESS_SETTINGS")) }
-                    .onFailure { Toast.makeText(context, R.string.toast_capture_failed, Toast.LENGTH_SHORT).show() }
-            }) {
-                Text(stringResource(R.string.live_apps_grant))
-            }
-            Spacer(Modifier.size(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.live_stability_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(R.string.live_stability_value, liveStableMs),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = LensVioletSoft
-                )
-            }
-            Text(
-                text = stringResource(R.string.live_stability_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            androidx.compose.material3.Slider(
-                value = liveStableMs.toFloat(),
-                onValueChange = {
-                    val v = it.toInt().coerceIn(200, 1000)
-                    liveStableMs = v
-                    prefs.liveStableWindowMs = v
-                },
-                valueRange = 200f..1000f,
-                steps = 15
-            )
-            Spacer(Modifier.size(8.dp))
-            Text(
-                text = stringResource(R.string.live_sensitivity_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = stringResource(R.string.live_sensitivity_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            Spacer(Modifier.size(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SensitivityChip(stringResource(R.string.live_sensitivity_low), liveSensitivity == SettingsPrefs.SENS_LOW) {
-                    liveSensitivity = SettingsPrefs.SENS_LOW; prefs.liveSensitivity = SettingsPrefs.SENS_LOW
-                }
-                SensitivityChip(stringResource(R.string.live_sensitivity_medium), liveSensitivity == SettingsPrefs.SENS_MEDIUM) {
-                    liveSensitivity = SettingsPrefs.SENS_MEDIUM; prefs.liveSensitivity = SettingsPrefs.SENS_MEDIUM
-                }
-                SensitivityChip(stringResource(R.string.live_sensitivity_high), liveSensitivity == SettingsPrefs.SENS_HIGH) {
-                    liveSensitivity = SettingsPrefs.SENS_HIGH; prefs.liveSensitivity = SettingsPrefs.SENS_HIGH
-                }
-            }
-        }
-        Spacer(Modifier.size(12.dp))
-
-
         // ---------- Tap on the lens (v0.9.4 Part C) ----------
         Section(stringResource(R.string.lens_tap_title)) {
             Text(
@@ -343,46 +197,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                     lensTapMode = SettingsPrefs.TAP_TRANSLATE; prefs.lensTapMode = SettingsPrefs.TAP_TRANSLATE
                 }
             }
-        }
-        Spacer(Modifier.size(12.dp))
-
-        // ---------- Frame edges (Part D) ----------
-        Section(stringResource(R.string.edge_ignore_title)) {
-            Text(
-                text = stringResource(R.string.edge_ignore_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.size(10.dp))
-            Text(
-                text = stringResource(R.string.edge_ignore_top, ignoreTop.toInt()),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            androidx.compose.material3.Slider(
-                value = ignoreTop,
-                onValueChange = {
-                    ignoreTop = it
-                    prefs.ignoreTopPct = it
-                },
-                valueRange = 0f..30f,
-                steps = 29
-            )
-            Spacer(Modifier.size(6.dp))
-            Text(
-                text = stringResource(R.string.edge_ignore_bottom, ignoreBottom.toInt()),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            androidx.compose.material3.Slider(
-                value = ignoreBottom,
-                onValueChange = {
-                    ignoreBottom = it
-                    prefs.ignoreBottomPct = it
-                },
-                valueRange = 0f..30f,
-                steps = 29
-            )
         }
         Spacer(Modifier.size(12.dp))
 
@@ -462,76 +276,47 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
             Spacer(Modifier.size(14.dp))
             Text(
-                text = stringResource(R.string.benchmark_summary),
+                text = stringResource(R.string.live_benchmark_summary),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.size(6.dp))
-            OutlinedButton(
-                enabled = !benchmarkRunning,
-                onClick = {
-                    benchmarkRunning = true
-                    Thread {
-                        val report = try {
-                            // v0.9.9: same shared, pre-warmed client the pipeline uses (no
-                            // second engine instance); warmUp() makes sure the model is there.
-                            val policy = com.manhwalens.app.translate.TranslatorFactory.ensureBatchPolicy(context)
-                            val mlkit = com.manhwalens.app.translate.mlkit.MlKitTranslator
-                            if (!mlkit.isModelReady() && !mlkit.warmUp()) {
-                                throw IllegalStateException("EN→AR model is not downloaded yet (needs internet once)")
-                            }
-                            val result = com.manhwalens.app.translate.BenchmarkRunner.run(
-                                translateOne = { text -> mlkit.translateRaw(text) }
-                            )
-                            // The benchmark is the strongest proof available on this device:
-                            // adopt its verdict, unless joined mode is serving a failure ban.
-                            val verdict = result.recommend()
-                            policy.recordParallelLevel(result.bestPerBlockLevel())
-                            val current = policy.current()
-                            val currentRow = result.strategies.firstOrNull { it.strategy != null && it.strategy == current }
-                            val adopted = when {
-                                currentRow != null && !currentRow.mappedOk -> {
-                                    policy.noteJoinedFailure(currentRow.strategy!!, "benchmark: ${currentRow.detail}")
-                                    "runtime separator ${currentRow.strategy.label} FAILED here → that separator is banned for 7 days"
-                                }
-                                policy.isJoinedBlocked() -> "joined stays disabled (earlier mismatches) — verdict not applied"
-                                verdict.strategy != null && policy.isBanned(verdict.strategy) -> {
-                                    policy.recordChoice(null, "benchmark: best separator is banned after a real-page mismatch")
-                                    "best separator ${verdict.strategy.label} is banned (failed on a real page) → parallel"
-                                }
-                                else -> {
-                                    policy.recordChoice(verdict.strategy, "benchmark: " + verdict.why)
-                                    "verdict applied"
-                                }
-                            }
-                            result.toText(
-                                listOf(
-                                    "Runtime now: " + policy.describe(),
-                                    "($adopted)",
-                                    "Warm state: " + com.manhwalens.app.translate.MlKitWarmth.describe(System.currentTimeMillis()),
-                                    "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
-                                )
-                            )
-                        } catch (e: Exception) {
-                            "Benchmark could not run: ${e.javaClass.simpleName} — ${e.message}"
-                        }
-                        // Kept for the self-check "Copy report" (survives the dialog being closed).
-                        runCatching {
-                            java.io.File(
-                                context.filesDir,
-                                com.manhwalens.app.overlay.FloatingButtonService.BENCHMARK_REPORT_FILE
-                            ).writeText(report)
-                        }
-                        runCatching { com.manhwalens.app.util.ErrorLog.writeRaw(context, "benchmark", report) }
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            benchmarkRunning = false
-                            benchmarkResult = report
-                        }
-                    }.start()
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    if (liveBenchmarkArmed) {
+                        com.manhwalens.app.util.LiveSessionBenchmark.disarm(context)
+                        liveBenchmarkArmed = false
+                        Toast.makeText(context, R.string.live_benchmark_cancelled, Toast.LENGTH_SHORT).show()
+                    } else {
+                        val armed = com.manhwalens.app.util.LiveSessionBenchmark.arm(context)
+                        liveBenchmarkArmed = armed
+                        Toast.makeText(
+                            context,
+                            if (armed) R.string.live_benchmark_armed else R.string.live_benchmark_turn_off_first,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }) {
+                    Text(stringResource(if (liveBenchmarkArmed) R.string.live_benchmark_cancel else R.string.live_benchmark_arm))
                 }
-            ) {
-                Text(if (benchmarkRunning) stringResource(R.string.benchmark_running) else stringResource(R.string.benchmark_button))
+                OutlinedButton(onClick = {
+                    liveBenchmarkArmed = com.manhwalens.app.util.LiveSessionBenchmark.isArmed(context)
+                    val report = com.manhwalens.app.util.LiveSessionBenchmark.readReport(context)
+                    if (report.isNullOrBlank()) {
+                        Toast.makeText(context, R.string.live_benchmark_no_report, Toast.LENGTH_SHORT).show()
+                    } else {
+                        runCatching {
+                            val clip = context.getSystemService(android.content.ClipboardManager::class.java)
+                            clip?.setPrimaryClip(android.content.ClipData.newPlainText("Live session benchmark", report))
+                        }.onSuccess {
+                            Toast.makeText(context, R.string.benchmark_copied, Toast.LENGTH_SHORT).show()
+                        }.onFailure {
+                            Toast.makeText(context, R.string.toast_capture_failed, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }) { Text(stringResource(R.string.live_benchmark_copy)) }
             }
+            Spacer(Modifier.size(14.dp))
             Spacer(Modifier.size(10.dp))
             val captureFile = remember { java.io.File(context.filesDir, "manhwalens-last-capture.jpg") }
             if (captureFile.exists()) {
@@ -650,40 +435,6 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
         }
         Spacer(Modifier.size(28.dp))
-    }
-}
-
-@Composable
-private fun BenchmarkDialog(report: String, onCopy: () -> Unit, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            modifier = Modifier
-                .padding(10.dp)
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                .background(Color(0xEE14141D))
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.benchmark_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFFFC45E)
-            )
-            Spacer(Modifier.size(8.dp))
-            Text(
-                text = report,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFE8E6F5),
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-            )
-            Spacer(Modifier.size(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onCopy) { Text(stringResource(R.string.benchmark_copy)) }
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.benchmark_close), color = LensVioletSoft)
-                }
-            }
-        }
     }
 }
 

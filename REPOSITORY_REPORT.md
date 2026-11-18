@@ -1,14 +1,55 @@
+## v0.12.30 — تشخيص إعادة التشغيل عند بدء التطبيق (2026-11-18)
+
+- سجل الجهاز يثبت دخول Application.onCreate مرتين وارتفاع startup_guard إلى 2، لكنه لا يتضمن الاستثناء أو stack trace؛ السبب الجذري **مجهول وغير مؤكد**.
+- مقارنة v0.12.27→v0.12.28: تغيير الكود السلوكي يقتصر على PaddleOCR: الخيوط 2→4 وحدا detector 1280→960. لم تتغير Application أو StartupGuard أو الخدمات أو النوافذ أو MediaProjection أو manifest أو التخزين أو قواعد R8.
+- مقارنة v0.12.28→v0.12.29: التغيير السلوكي الوحيد إزالة Toast عند تفعيل Live؛ مع اختبار حدود زر وتحديثات إصدار/توثيق. لم تتغير الخدمات أو صلاحياتها أو إعداد capture أو التخزين أو R8.
+- فُحص manifest الحالي: FloatingButtonService معلن بالنوعين specialUse وmediaProjection، وتوجد أذونات FOREGROUND_SERVICE_SPECIAL_USE وFOREGROUND_SERVICE_MEDIA_PROJECTION وMEDIA_PROJECTION. لم تتغير هذه التعريفات في الإصدارات المقارنة. هذا الفحص لا يثبت سبب الانهيار ولا ينفي خطأ وقت التشغيل.
+- معالج uncaught كان موجوداً في attachBaseContext ويكتب تقريراً ثم يفوض للمعالج السابق. هذا الإصدار يعيد تثبيته قبل عمل onCreate، ويحفظ stack trace كاملاً في startup-crashes.log مع fsync قبل التفويض، ويخزن ملخص الصنف والرسالة وأول الإطارات مع عداد startup_guard.
+- تقرير Live وسجل بدء التطبيق يعرضان count/safe_mode/last_exception. Safe Mode كان يشرح تعطيل الالتقاط ويوفر زر خروج يعيد ضبط الحارس؛ لم يتغير.
+- الإصدار 0.12.30 / code 70 تشخيصي. لا يغير OCR أو الترجمة أو services/manifest. **لا ندعي إصلاح السبب** قبل الحصول على crash trace؛ كل ما لم يثبت على الجهاز معلّم كغير متحقق.
+
+---
 # ManhwaLens — التقرير الهندسي الموحد
-**الإصدار:** 5.3  
-**تاريخ التحديث:** 2026-11-14  
+## v0.12.29 — استبعاد رسالة Live من الالتقاط (2026-11-17)
+
+- أزيل Toast الخاص بتفعيل Live؛ حالة Live ظاهرة بالفعل في تسمية زر العدسة العائم، وتستبعد آلية OwnUiFilter النص المتداخل مع حدود النوافذ المملوكة.
+- مسار الالتقاط يخفي زر العدسة والقائمة ومؤشر الحالة والرقع قبل التقاط إطار نظيف، ثم يستبعد OCR المتداخل مع نوافذنا الحالية أو الحديثة، بما فيها مستطيلات رقع الترجمة السابقة. أضيف اختبار JVM لنص داخل حدود الزر العائم.
+- لم نضف تصفية نصية ثابتة. إعدادات OCR والترجمة دون تغيير. CI والتحقق على الهاتف قيد الانتظار.
+
+---
+
+**أحدث حالة (2026-11-17):** v0.12.28 / code 68 تجربة غير متحققة على الهاتف: إعادة PaddleOCR إلى 4 خيوط وخفض حدّي مدخل الكاشف إلى 960. بقي نوع الحد min ودفعة التعرف 4 والنموذج والثقة دون تغيير. تقرير Live يأخذ شكل الإدخال والحد الأقصى والخيوط من إحصاءات OCR؛ لا توجد دعوى تسريع قبل ثلاث جلسات على الهاتف والصفحة نفسيهما.
+
+## تجربة v0.12.28 — حجم مدخل الكاشف (2026-11-17)
+
+- التغيير السلوكي: PADDLE_THREADS=4 وPADDLE_DET_LIMIT_SIDE=960 وPADDLE_DET_MAX_SIDE=960، مع PADDLE_DET_LIMIT_TYPE=min.
+- بقي النموذج وعتبات الكشف والثقة وPADDLE_REC_BATCH_SIZE=4 والقصاصات من صورة المصدر كما هي. صُحح التعليقان غير المطابقين للقيم.
+- تقرير Live يعرض detector=<shape> cap=<max side> threads=<count>، من إحصاءات OCR التي تتلقى القيم من الإعدادات. الشكل الفعلي يتأكد بعد التشغيل على الجهاز.
+- معيار ثلاث جلسات على الجهاز والصفحة نفسيهما: detector avg نحو 600–750 ms، candidates ≥92 مقارنة بخط أساس 103، lines قرب 95، patches 24/24. إذا انخفض الاستدعاء فالخيار التالي 1088.
+- الحالة: تجربة غير متحققة على الجهاز؛ لا ادعاء تسريع أو جودة. اختبار الهاتف المطلوب: تثبيت APK ثم إرسال ثلاث تقارير ومقارنة زمن الكشف والشكل والمرشحين والأسطر وزمن أول ترجمة وتغطية الرقع.
+- التراجع: إعادة حدّي الكاشف إلى 1280 (أو 1088 إذا ثبت فقد الاستدعاء)، مع إبقاء الخيوط 4، وإصدار تصحيحي جديد.
+- ينتظر استكمال بقية المراحل وفق توجيه المستخدم الأحدث، مع إصدار منفصل لكل مرحلة.
+
+---
+**الإصدار:** 5.19  
+**تاريخ التحديث:** 2026-11-17  
 **المستودع:** https://github.com/mouadknight0-cell/ManhwaLens  
-**الفرع:** `arena/8a718184-manhwalens`  
-**طلب الدمج:** [PR #2](https://github.com/mouadknight0-cell/ManhwaLens/pull/2) — مفتوح، غير مدمج  
-**آخر commit للكود على فرع التجربة:** `c9ae6ffcdefbec9ce58a0717c7c7ba218846eb98` (P5-A composite patches + تشخيص هندسة الرقع؛ تجهيز v0.11.5).  
-**آخر CI ناجح مكتمل:** [43627790075](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43627790075) على `7622589f3cdf343ba752f94a3e39c8e7aedc5eec` — نجح Unit tests وBuild debug APK ونشر v0.11.4. تشغيل v0.11.5 الحالي [43630228385](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43629908422) على `6670a089222572dae76c5b17a172f5fa7cd1de57` قيد التنفيذ.  
+**الفرع:** `feature/v0.12.4-bergamot-experiment`  
+**طلب الدمج:** [PR #4](https://github.com/mouadknight0-cell/ManhwaLens/pull/4) — مفتوح/مسودة، مكدّس فوق PR #3؛ لا تدمجه مباشرة إلى main  
+**آخر حالة مؤكدة (2026-11-17):** أحدث prerelease هو v0.12.27 / code 67، ويختبر ONNX بخيطين بدل أربعة؛ CI الإصدار نجح وAPK منشور. قياس v0.12.26 أظهر أول ترجمة بعد 5.299 s وOCR متوسطه 3.163 s، وبناء رقع 356 ms. تجربة الخيوط لم تُختبر بعد على الهاتف. المشروع في فرع تطوير/PR متسلسل؛ الدمج النهائي إلى main لم يحدث.
+**CI الأحدث المتحقق:** CI push #1005 وPR #1006 نجحا على كود v0.12.27 (d25bc32298d6678d763234fb5ca7ba67495f0f6d) ونُشر APK. تحديث التقرير الحالي يوثق الحالة وقد يشغل CI توثيقًا جديدًا.
 **CI الخاص بـ P2-08:** التشغيل [43601294396](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43601294396) نجح على `49e85b0`. **CI الخاص بـ P2-16:** التشغيل [43602609044](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43602609044) نجح بالكامل على `f50081e`. **CI الخاص بـ P2-14:** التشغيل [43604963240](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43604963240) نجح على `fd08ca6`: Unit tests وBuild debug APK ورفع artifacts. Artifacts: test-reports `14118007425` (102844 bytes) وManhwaLens-debug-apk `14118137265` (61619581 bytes). ولا يعني نجاح CI إجراء طلب Gemini حقيقي. بعد ذلك اختبر المستخدم v0.11.1 على جهاز فعلي وأبلغ عن بطء وأخطاء ترجمة؛ لم يُختبر v0.11.2 على الجهاز بعد.
 
 > هذا الملف هو التقرير الهندسي الرسمي الوحيد للمشروع. يستبدل النسخة السابقة من `REPOSITORY_REPORT.md` بالكامل. لا تُنشئ تقارير منفصلة لكل مرحلة أو إصلاح؛ أضف جميع الأعمال المستقبلية إلى هذا الملف مع الاحتفاظ بالتواريخ والأدلة والقرارات وسجل التغييرات.
+
+### مستجدات v0.12.8 — فصل تشخيص محركات الترجمة
+- تم فصل ثلاث وظائف تشخيصية: اختبار تجميع طلبات ML Kit، واختبار Bergamot وحده، والمقارنة الزوجية بين ML Kit وBergamot.
+- اختبار ML Kit batching يستدعي ML Kit دائمًا مهما كان المحرك المحدد، ويحدّث سياسة تجميع ML Kit فقط؛ لا يختبر Bergamot.
+- اختبار Bergamot-only يستدعي محول Bergamot native فقط، دون ML Kit أو fallback، ويعرض أول مرور منفصلًا عن ثلاثة warm passes مع المخرجات لكل حالة.
+- المقارنة الزوجية تأخذ نسخة من سياسة ML Kit المحفوظة للجهاز (joined مثبت وآمن أو parallel)، وتعيد محاولة فقاعات ML Kit الناقصة فقط، وتعطّل cross-engine fallback في القياس.
+- تقرير المقارنة يذكر استراتيجية dispatch المستخدمة، ويشرح أن الزمن هو page-batch wall time وليس sentence latency. Token F1 قياس تداخل معجمي وليس دقة معنوية.
+- Release v0.12.8 منشور: https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.8 ؛ APK حجمه 71,359,650 bytes وSHA-256 هو e28bcfc464ec39398d31ed04401dd34dd0c1d7c4b3fb31c280814737dc9530b5.
+- لم يُختبر التطبيق على هاتف المستخدم بعد؛ جودة OCR وBergamot JNI والترجمة والذاكرة والتحديث فوق النسخة السابقة ما زالت تتطلب تحققًا فعليًا.
 
 ---
 
@@ -18,31 +59,20 @@ ManhwaLens تطبيق Android عائم لترجمة نصوص المانهوا و
 
 ### الحالة الهندسية
 
-| المرحلة / العمل | الحالة |
+| المسار | الحالة الحالية |
 |---|---|
-| P0 — التدقيق المعماري والإصلاحات التأسيسية | منفذ، مختبر، متحقق عبر CI |
-| P1 — ذاكرة أسماء الشخصيات وسلامة التخزين | منفذ، مختبر، متحقق عبر CI |
-| P2-A — P2-01 وP2-02 | منفذ، مختبر، متحقق عبر CI |
-| P2-B — P2-03 وP2-04 | منفذ، مختبر، متحقق عبر CI |
-| P2-17 وP2-18 وP2-19 — إصلاحات المراجعة | منفذة، مختبرة، متحققة عبر CI |
-| P2-C — P2-05 | منفذ، مختبر، متحقق عبر CI |
-| P2-D — P2-06 | منفذ، مختبر، متحقق عبر CI (§5.15) |
-| P2-D — P2-08 | منفذ ومختبر ومتحقق عبر CI بنجاح على HEAD `49e85b0` (§5.16) |
-| P2-D — P2-16 | منفذ، مختبر، ومتحقق عبر CI بنجاح على `f50081e` (§5.17) |
-| P2-D — P2-14 | منفذ ومتحقق عبر CI على `fd08ca6` (§5.18)؛ اختبار v0.11.1 الفعلي كشف بطئاً وأخطاء ترجمة، وv0.11.2 بانتظار اختبار التشخيص |
-| P3 — الأداء والتخزين المؤقت | لم يبدأ كمرحلة هندسية |
-| P4-A — تشخيص OCR/ML Kit | منفذ ومتحقق عبر CI على `1fe34f1` (§13)؛ تقرير الجهاز وصل وتم تحليل مسار OCR/ML Kit |
-| P4-B — حماية حدود الإطار وتجميع الفقاعات | منفذ ومتحقق عبر CI على `7132f6a` (§15)؛ التحقق على الجهاز بانتظار تجربة المستخدم |
-| P4-C — تصفية علامة ManhuaPlus المشوّهة | منفذ ومتحقق عبر CI ونُشر ضمن v0.11.4 (§16)؛ التحقق على الجهاز بانتظار التجربة |
-| P5-A — تجميع رقع العرض المركبة | منفذ مع اختبارات regression؛ CI لـ v0.11.5 قيد التنفيذ (§17) |
-| P5-B — تشخيص حدود الرقع الفعلية | منفذ مع اختبار التقرير؛ CI لـ v0.11.5 قيد التنفيذ (§17) |
-| P5-C — قاموس المصطلحات/الأسماء والتحقق اللغوي | لم يبدأ؛ ينتظر أدلة OCR/ML Kit الخام |
-| P6 — الدمج النهائي والإصدار | لم يبدأ كمرحلة هندسية |
+| P0 — التدقيق والإصلاحات التأسيسية | مكتمل ومتحقق آليًا |
+| P1 — الذاكرة والأسماء وسلامة التخزين | مكتمل ومتحقق آليًا؛ تحسين القواميس حسب السلسلة ممكن عند وصول أمثلة |
+| P2 — الترجمة والسياق وحماية المخرجات | بنود التنفيذ متحققة عبر CI؛ جودة ML Kit العربية ما زالت دون المطلوب في تقارير الهاتف |
+| P3 — الأداء والتخزين المؤقت | المسار النشط: قياس وتجارب OCR/ONNX وزمن أول ظهور |
+| P4 — OCR والتشخيص والتجميع | التشخيص والحواف وتجميع الفقاعات وتصفية العلامات موجودة؛ التحقق من الدقة على الهاتف مستمر |
+| P5 — تنظيف النص والعرض | الرقع المركبة والتشخيص مطبقان؛ بناء الرقع بالخلفية؛ تحسين اللغة والأسماء يحتاج أمثلة خام |
+| P6 — الدمج والاستقرار النهائي | لم يكتمل؛ PR #4 مسودة فوق PR #3، ولا دمج نهائي إلى main |
 
-**المرحلة الهندسية النشطة:** P5-A/P5-B — إصلاح تركيب الرقع وتسجيل حدودها الفعلية. CI لـ v0.11.5 قيد التنفيذ.  
-**التحقق على جهاز Android حقيقي:** التقارير الحالية تخص v0.11.2؛ لم تُختبر بعد تعديلات P4-B وP4-C وP5 على الجهاز.  
-**الدمج إلى `main`:** لم يحدث؛ PR #2 ما زال مفتوحاً.  
-**الإصدار التجريبي المنشور:** v0.11.4 (Version Code 34). الإصدار المجهز v0.11.5 (Version Code 35)، والنشر ينتظر نجاح CI.
+**الحالة التشغيلية:** v0.12.27 / code 67 منشور كتجريبي، وCI الخاص بالكود ناجح. تغيير ONNX threads من 4 إلى 2 فرضية بانتظار قياس الهاتف.  
+**آخر تحقق هاتف:** v0.12.26؛ v0.12.27 لم يُختبر بعد.  
+**المستودع:** PR #4 مفتوح كمسودة يستهدف فرع PR #3؛ PR #3 مفتوح إلى main.  
+**نقطة التوقف:** مقارنة v0.12.27 على الهاتف نفسه والصفحة نفسها.
 
 ### دليل الاختبارات وCI
 
@@ -109,13 +139,13 @@ ManhwaLens تطبيق Android عائم لترجمة نصوص المانهوا و
 ```text
 Tap / Live scan
   → FrameCapture (MediaProjection, RGBA bitmap)
-  → TextRecognizerClient (ML Kit OCR, ≤1600 px long edge)
+  → TextRecognizerClient (PaddleOCR PP-OCRv5 Arabic/English, capped detector input; recognition crops from source frame)
   → BubbleGrouper (lines → bubbles)
   → PagePlan.prepare(blocks, preprocess = Glossary::prepare)
       ├─ remove meaningless blocks
       ├─ deduplicate using glossary-prepared text
       └─ preserve page order
-  → Local progressive pass: PagePlan.progressiveOrder → ML Kit
+  → Local progressive pass: PagePlan.progressiveOrder → ML Kit EN→AR
   → Optional remote relay: PagePlan.remoteOrder → Gemini / LibreTranslate
   → ArabicValidator
   → CachingTranslator (memory LRU + disk cache + fuzzy memo)
@@ -1000,3 +1030,759 @@ Tap / Live scan
 4. إذا كان cover نفسه لا يشمل الأسطر الظاهرة، نراجع تجميع OCR بحذر. وإذا كان cover صحيحاً لكن النص المعروض ناقصاً، نراجع تركيب النص والـ StaticLayout. وإذا كان النص الخام من ML Kit خاطئاً، ننتقل إلى P5-C وجودة المحرك والقاموس المرتبط بالسلسلة.
 
 لا دمج إلى main ولا حذف أو استبدال للإصدارات السابقة في هذه المرحلة.
+
+---
+
+## 18. v0.12.7 — عزل قياس ML Kit عن اختبار batching الخلفي (2026-11-15)
+
+### 18.1 الحالة السابقة والدليل
+- كان PR #4 يتضمن بالفعل EngineComparisonBenchmark لمقارنة ML Kit وBergamot على نفس corpus من 20 حالة، مع أربعة تمريرات لكل محرك (الأولى منفصلة وثلاث دافئة)، ونتائج لكل حالة، وفحص الجودة، واسترداد فشل الدفعة إلى محاولات فردية.
+- كانت واجهة Settings تستدعي MlKitTranslator.warmUp() قبل المقارنة. هذا المسار يستدعي maybeStartSelfTest()، الذي يطلق اختبار فواصل batching في الخلفية مستخدماً translateRaw نفسه والعميل المشترك نفسه. لذلك كان من الممكن أن تتنافس طلبات self-test مع قياسات المقارنة وتشوّه زمن ML Kit.
+
+### 18.2 الإصلاح
+- إضافة warmUpForBenchmark() لتنزيل/التحقق من نموذج ML Kit وتهيئة العميل دون جدولة اختبار batching جديد.
+- إضافة قفل تشخيصي process-wide مشترك بين BatchAutoSelect واختبار المقارنة؛ لا تتداخل طلبات self-test وقياسات ML Kit/Bergamot.
+- تشغيل تهيئة ML Kit الخاصة بالقياس وجميع تمريرات مقارنة المحركين داخل القفل؛ يمنع ذلك تداخل self-test قائم أو منتظر حتى مع طلب التهيئة الأولي.
+- لا يغير المقارن محرك الترجمة المختار أو سياسة batching المحفوظة. يبقى ML Kit الافتراضي وBergamot تجريبياً.
+
+### 18.3 الملفات والـ commits
+| الملف | التغيير |
+|---|---|
+| app/src/main/java/com/manhwalens/app/translate/mlkit/MlKitTranslator.kt | مسار warm-up مستقل للقياس وقفل مشترك مع self-test |
+| app/src/main/java/com/manhwalens/app/ui/settings/SettingsScreen.kt | عزل مقارنة المحركين عن اختبار batching الخلفي |
+| app/build.gradle.kts | v0.12.7 / versionCode 47 |
+| CHANGELOG.md | سجل التغيير |
+| MANUAL_TESTS.md | خطوات اختبار المقارنة على الهاتف |
+| PROJECT_STATE.md | تحديث سجل التسليم والحالة |
+
+Commits: e906fd4, 3dbfa11, a7b314b, e83687b, 97ef808, 1d82a24, a7a9047 (warm-up moved inside the lock), c792078 (report synchronization).
+
+### 18.4 التحقق والإصدار
+- CI baseline: run [43716970386](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43716970386) على 94febc3 نجح في Unit tests وDebug APK، لكنه يسبق تعديلات v0.12.7 ولا يُعد تحققاً لها.
+- تغييرات v0.12.7 مرفوعة إلى فرع التطوير. CI النهائي ونشر Release الحقيقي ما زالا Pending عند كتابة هذا القسم؛ لا يُعلن نجاحهما قبل فحص run وRelease assets.
+- لم يُجرَ اختبار هاتف فعلي. لا يُستنتج من CI نجاح JNI أو دقة PaddleOCR أو جودة المعنى أو RAM/latency.
+
+### 18.5 الخطوة التالية
+1. فحص أحدث push وPR workflows على رأس v0.12.7؛ Unit tests وBuild debug APK يجب أن ينجحا، وPR workflow يجب أن يتخطى خطوات نشر Release.
+2. التأكد من نشر GitHub Release v0.12.7 وإرفاق APK، ثم التحقق من package/version/ABI والتوقيع قبل ادعاء التحديث فوق التثبيت الحالي.
+3. طلب اختبار الهاتف وفق v0.12.7 في MANUAL_TESTS.md، بما في ذلك مقارنة المحركين دون اتصال ونسخ التقرير ومراجعة المعنى لكل حالة.
+
+حالة الجهاز: Not verified. حالة CI لـ v0.12.7: Pending. حالة Release لـ v0.12.7: Pending.
+
+## 19. v0.12.7 — verification and published APK (2026-11-15)
+
+### 19.1 Final fix on the development head
+- Commit: `213cb486297d231f1e2edb3616b14bc5a9d715e5` — `fix(benchmark): skip stale queued batching self-tests`.
+- The queued background batching self-test now rechecks `policy.needsSelfTest()` after acquiring the exclusive diagnostic lock. It exits without writing when the interactive diagnostic has already stored a fresh choice, avoiding stale policy overwrite.
+- This change complements the earlier fair read/write gate and the explicit comparison's exclusive section. Normal page translations remain shared; diagnostics are exclusive. The BatchAutoSelect worker callback bypasses read-lock acquisition only while its parent diagnostic owns the exclusive gate.
+
+### 19.2 CI
+| Workflow | Run | Result |
+|---|---:|---|
+| Development branch push | [43719094340](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43719094340) | Success |
+| PR #4 validation | [43719099811](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43719099811) | Success |
+
+- Both exact-head runs completed pinned PaddleOCR download/SHA-256 checks, pinned Bergamot ARM64 runtime checks, JVM unit tests and debug APK assembly.
+- The push run uploaded the APK and test reports and published v0.12.7. The PR run correctly skipped Release publication.
+- Run 43718878249 was superseded/cancelled during APK assembly after its unit-test step succeeded; it is not used as final green evidence.
+
+### 19.3 Release and install continuity
+- Published prerelease: [ManhwaLens v0.12.7](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.7).
+- Asset: `ManhwaLens-v0.12.7-debug.apk`; 71,347,910 bytes; SHA-256 `8f0eb02118c2cb70a93995acd6a79e8554459012b7bf57e0746bae2f6db6c84d`.
+- `applicationId=com.manhwalens.app`; `versionName=0.12.7`; `versionCode=47`; ABI filters: `arm64-v8a, armeabi-v7a`.
+- v0.12.6 used the same applicationId and versionCode 46.
+- The stable debug keystore source file is byte-identical across the v0.12.6 and v0.12.7 source commits (Git blob SHA `68bd7f5388218224353f11b456ff3c29fb44c64c`). Both CI workflows restore it to `~/.android/debug.keystore` before debug packaging. This is signing-key continuity evidence, not a substitute for the final real-device update-install check.
+
+### 19.4 Remaining verification
+- No phone test is claimed. Still outstanding: update-install on top of v0.12.6, actual offline OCR, Bergamot JNI/model inference, translation semantic review, latency and RAM.
+- ML Kit remains the default; Bergamot remains experimental until device evidence and manual semantic comparison justify a change.
+- PR #4 remains open Draft, based on `feature/v0.12.3-paddle-default-settings`; no merge to main was performed.
+
+
+## Session continuation — 2026-11-15 (protocol adoption, v0.12.10 CI repair)
+
+### Repository state re-verified
+- Repository: https://github.com/mouadknight0-cell/ManhwaLens (public; connected GitHub permissions include push/admin).
+- Default branch: `main`. Active branch: `feature/v0.12.4-bergamot-experiment`.
+- PR #4 is open, Draft, and targets `feature/v0.12.3-paddle-default-settings`; it remains stacked on PR #3. Do not merge PR #4 directly to main.
+- PR #4 head before this session's repair: `1858ed31568205648fb85a7855ed1befbd7b3644`; PR metadata reported 242 commits and 71 changed files.
+- App candidate on that head: `applicationId=com.manhwalens.app`, `versionName=0.12.10`, `versionCode=50`. This is a development candidate, not a published release.
+- Latest verified GitHub Release remains v0.12.9 (published prerelease) with APK `ManhwaLens-v0.12.9-debug.apk`, SHA-256 `0234f60ac8477d0b6045626a1c6a8c2e9bc951f8bf9f42776e86068db93f6a89`. No v0.12.10 Release/APK was present in the latest Releases API response.
+
+### Current candidate changes reviewed
+- v0.12.10 changelog proposes allowing ML Kit EN→AR model download over Wi-Fi or mobile data during first-use translation and warm-up; adding exact-source corrections for `No.` → `لا.`, `Run!` → `اهرب!`, and `KRAK` → `طَق!`; applying those corrections after name repair on fresh and cached results; persisting corrected cache values.
+- ML Kit remains the default offline translator. Bergamot remains optional/experimental. No engine promotion decision is justified by this commit.
+- `ShortDialogueOverrides.apply` explicitly maps exact normalized source `KRAK` to `طَق!`. The fuzzy memo test must therefore expect the corrected visible value, while separately asserting that no second engine call occurs.
+
+### CI failure and repair
+- Latest pre-repair PR validation run: [43750781659](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43750781659), event `pull_request`, head `1858ed31568205648fb85a7855ed1befbd7b3644` — **failure**.
+- Job steps confirm pinned PaddleOCR model downloads/checksums and Bergamot ARM64 runtime validation succeeded. Unit tests failed: **786 tests completed, 1 failed** — `TranslationMemoTest.cachingTranslatorUsesTheMemoItIsGiven`. APK build and later signing/release steps were skipped because tests failed. Release steps were not run.
+- Root cause: the test had been changed to expect raw `AR:KRAK!`, but the production cache-hit path intentionally applies `ShortDialogueOverrides` and returns `طَق!`. This is a stale test expectation, not evidence that the override implementation failed.
+- Fixed the regression assertion to expect `طَق!` while preserving the assertion that the fuzzy memo avoids a second engine call.
+- Repair commit: `1a2d5721835f310b927ca4e96d30abef694a0bd0` — `test: align memo expectation with source-aware SFX correction`.
+- Status after this commit: **Implemented** (test correction pushed). CI re-run on the new head is pending verification; do not claim tests/build pass until a new run completes.
+
+### Verification boundary
+- GitHub repository/PR/branch/release metadata: freshly inspected.
+- CI pre-repair: failed as detailed above; no APK produced from that run.
+- Test fix: pushed, not yet CI-verified at the time of this note.
+- v0.12.10: not Release-published; no phone installation should be requested yet.
+- Physical-device OCR accuracy, bubble grouping, Arabic semantic quality, Bergamot JNI/offline behavior, memory/latency and future-release update installation remain **Not device-verified**.
+
+### Next engineering actions
+1. Inspect the new push and PR workflow runs after commit `1a2d5721835f310b927ca4e96d30abef694a0bd0`; verify all 786+ unit tests and APK assembly.
+2. If green, inspect test report and verify package/version/signing checks; confirm the development-branch workflow publishes v0.12.10 only once, as a GitHub prerelease with APK asset.
+3. Audit the progressive overlay callback path to ensure it applies the same source-aware short-dialogue corrections as final and cache-hit paths; add a deterministic regression test if a real discrepancy exists.
+4. Continue OCR accuracy work with a fixed labeled screenshot corpus; no end-to-end PaddleOCR word accuracy or grouping result is currently evidenced by CI.
+5. Request phone testing only after a verified v0.12.10 Release APK exists and its package/version/signing continuity is checked.
+
+
+## Session continuation — translation diagnostics supplied by user (2026-11-15 20:02 UTC)
+
+### Evidence received
+- User supplied 59 local translation-pair diagnostic entries from Xiaomi 23106RN0DA / Android 14, plus ML Kit batching and 20-case quality benchmark output. These are user-provided device captures; they are not independently reproduced by CI or by this session.
+- All 59 pair records use `ml_kit_en_ar`; most are status OK, with two shown QUALITY_REJECTED entries (`PFFFFT ACK!!` and UI text `odf`) rejected as UNTRANSLATED_ECHO. This demonstrates that the Arabic guard catches obvious English echoes but allows many semantically incorrect Arabic outputs.
+- Clear examples of accepted but incorrect output include `LOOKS LIKE IT'S DONE!` → `يبدو أنه انتهز!`, `Live mode OFF` → `وضع حية قبالة`, `No.` → `رقم`, and `Run!` → `تشغيل!` (the latter two in the raw quality corpus). Other pair examples expose malformed OCR input: `YOL`, `LNINJURED`, `UNINOURED`, `B055 15`, `HuNTEr's`, and fragmented text across bubbles. Translation and OCR defects must be measured separately.
+- The 20-case ML Kit quality report: 20/20 completed; Arabic guard accepted 19, rejected/missing 1; exact normalized matches 2/20; mean Arabic token F1 52.0%. F1 is lexical overlap only and is not semantic accuracy. This is not a Bergamot comparison and does not measure post-processing/correction quality if the benchmark calls raw ML Kit.
+
+### Batching result and policy
+- Same 20-bubble ML Kit EN→AR benchmark: Sequential median/worst 1146/1275 ms; Parallel x6 1163/1753 ms; Joined ` | ` 644/649 ms with 20/20 mapped; Joined `###` 1035/1496 ms; Joined `<1>` 751/760 ms.
+- Joined ` | ` is 43.9% faster than sequential median and 44.6% faster than Parallel x6 median in this sample. Joined newline variants and `@@@` fail the result mapping (19 bad); do not use them.
+- Decision: retain Joined ` | ` as the measured ML Kit batching policy for now. This is a single device/corpus benchmark; validate delimiter collision, empty outputs, reordered/omitted segments, embedded vertical bars, long combined payloads, truncation, and per-bubble error isolation before treating it as universally safe. Do not increase parallelism based on this dataset.
+
+### Engineering interpretation / next implementation priorities
+1. Keep the Arabic quality guard, but do not treat `status=OK` or guard acceptance as translation correctness. Add a second semantic/linguistic quality layer or curated source-aware corrections for high-confidence short commands, negations, idioms and UI state labels; corrections must be exact/context-scoped, not broad substitutions.
+2. The existing v0.12.10 candidate already contains exact-source corrections for `No.` → `لا.`, `Run!` → `اهرب!`, and `KRAK` → `طَق!`. Verify their placement on fresh, cached and progressive overlay paths. The fixed quality benchmark currently reports raw ML Kit and therefore must remain explicitly labelled as raw-engine output; add a separate post-processing evaluation to measure visible FINAL AR.
+3. Extend the fixed corpus with the observed failures: short `No.`, `Run!`; idiom `piece of cake`; `looks like it's done`; `Live mode OFF`; sound effects; broken OCR inputs; proper names/ranks; multi-bubble fragments. Record raw candidate, final output, guard result, correction ID, cache state, and per-case semantic review.
+4. Fix OCR separately: preserve line/bubble context and detect likely OCR corruption (e.g. `B055` vs `BOSS`, `YOL` vs `YOU`, `LNINJURED`/ `UNINOURED`). Do not silently rewrite uncertain source text; retain raw OCR and apply confidence-aware correction only when evidence is strong.
+5. Add explicit tests for Joined ` | ` parsing: exactly N outputs, empty segment, delimiter in source/output, reordered/missing/extra segments, malformed model response, and fallback/retry behavior while preserving successful bubbles.
+6. Keep ML Kit as default and Bergamot experimental. The supplied logs contain no paired Bergamot results and cannot support an engine ranking.
+
+### Repository / CI state at this update
+- Development branch: `feature/v0.12.4-bergamot-experiment`; PR #4 remains open Draft and stacked on PR #3; do not merge directly to main.
+- Latest branch head observed: `d4de5f3cc77f1ad761d8469334aa7ecb3904cefe` (documentation commit). PR validation run #43752989626 was observed in progress; no success/failure conclusion was available at this update.
+- Latest published GitHub Release observed: v0.12.9 prerelease with APK. v0.12.10 is not yet confirmed published; do not request installation until its Release APK, package/version and signer continuity are verified.
+- No source code was changed in this interaction. The diagnostics and analysis are documented only. User phone results are recorded as supplied evidence, not as independently reproduced test results.
+- Device: user-provided diagnostics from Xiaomi 23106RN0DA / Android 14. No additional device test was run by this session.
+
+### Verification boundary and next action
+- User-provided device diagnostics: received and analyzed; not independently reproducible from CI.
+- Joined ` | ` batching: benchmarked in supplied device report, map OK 20/20; broader adversarial parser validation remains pending.
+- Translation semantics: insufficient; mean lexical F1 52.0%, no semantic human-scoring data.
+- OCR quality: unresolved; malformed OCR strings visible in the same capture.
+- Next: inspect current source implementations and test coverage for batching parser, `ShortDialogueOverrides`, progressive/cache paths and quality benchmark; implement regression tests and a post-processing evaluation, then re-run CI.
+
+
+## Engineering continuation — fixes from 59-pair device diagnostics (2026-11-15)
+
+### Source changes implemented on the development branch
+- Expanded exact, source-aware final-output corrections in `ShortDialogueOverrides` for observed mistranslations:
+  - `Looks like it's done!` → `يبدو أن الأمر انتهى!`
+  - `Ha, this is a piece of cake.` → `ها، هذا سهل للغاية.`
+  - `The magical core` → `النواة السحرية.`
+  - Exact observed longer sentence about receiving the magical core → `هذا ما تحصل عليه بعد قتل الوحش: النواة السحرية.`
+- Added unit tests for each correction. Matching is based on normalized exact English source, not the wrong Arabic output; longer unrelated sentences remain untouched.
+- Added `live mode on` and `live mode off` to ManhwaLens-owned UI strings so this exact status label is dropped instead of translated as page text; added a regression test.
+- Expanded the fixed raw ML Kit reference corpus from 20 to 23 cases with the observed idiom, completion phrase and fantasy terminology; updated stable-ID/category tests. This corpus still measures raw ML Kit + Glossary output, not post-processed visible output; the report must continue to say so.
+
+### Commits
+- `3e10f36347fadeedfeaed79cbebdff5a88e294ab` — source-aware translation corrections.
+- `7818a88d10a98270fc97a3168a7c923ba3554ff1` — correction regression tests.
+- `77d9144c451822ad64ffc864bc85d5dcda51618b` — filter Live mode status label.
+- `0fbbcbab6beb132982f38b51611fad5a73e181f1` — owned-UI regression test.
+- `1c3b690f06575a4359a76fb4497ab650933b29fc` — expand raw quality corpus to observed failures.
+- `911ac443e3b20d347be3945e313789fe3f2d9373` — update corpus test expectations.
+- Latest observed PR #4 head: `911ac443e3b20d347be3945e313789fe3f2d9373`.
+
+### CI state at this update
+- Push run #43753300917 on the latest head: build job in progress; not yet verified.
+- PR run #43753306049 on the latest head: queued; not yet verified.
+- Earlier per-commit runs were cancelled by newer pushes; they are not pass/fail evidence for the final head.
+- No APK/release was produced or verified by these source edits. Latest published release remains v0.12.9; v0.12.10 is not confirmed published.
+
+### Analysis / limitations
+- The 59-entry capture contains non-manhwa screen content (notification shade, Android/app UI, launcher/menu text) mixed with comic dialogue. The OCR pipeline has top/bottom edge filtering and own-window filtering, but arbitrary external app/launcher surfaces are not reliably identifiable by exact text. Do not globally suppress common words or translate every screen block as manga without a screen-context policy.
+- OCR strings such as `YOL`, `LNINJURED`, `UNINOURED`, and `B055 15` are upstream recognition errors or segmentation defects; translation corrections cannot safely reconstruct them without contextual OCR evidence. Preserve raw OCR and measure recognition separately.
+- The joined ` | ` batching result remains 644 ms median, 649 ms worst, 20/20 mapped in the supplied sample; newline and `@@@` mappings failed. Keep ` | ` pending broader adversarial tests and repeatable device runs.
+- The 20-case run's 52.0% token F1 and 2/20 exact matches are raw lexical indicators, not semantic scores. The corpus is now 23 cases on source; the next run will provide a new raw baseline after CI and on-device execution.
+
+### Next actions
+1. Wait for final-head push and PR CI; inspect unit-test result and APK packaging, repair any failure.
+2. Add adversarial tests for PIPE splitting (empty, extra, missing, reordered, marker collisions and fallback) before treating the delimiter as generally robust.
+3. Add a separate post-processing/visible-output quality report, so raw engine output and final overlay text are never conflated.
+4. Build a labeled OCR screenshot corpus and evaluate PaddleOCR CER/WER, detection recall/precision, grouping and screen-edge/UI contamination.
+5. Keep ML Kit default and Bergamot experimental; no paired Bergamot semantic results were supplied.
+6. Do not request phone installation until a verified v0.12.10-or-later GitHub Release APK and signing/version continuity are confirmed.
+
+## Session continuation — 2026-11-16 (protocol activation and CI test repair)
+
+### Repository state verified
+- Repository: `mouadknight0-cell/ManhwaLens`.
+- Development branch: `feature/v0.12.4-bergamot-experiment`; PR #4 is open Draft and stacked on PR #3. PR #3 is open and targets `main`. Do not merge PR #4 directly into `main`.
+- Pre-repair PR #4 head: `934573156239a010e3e3f99d073a38b1433424cd` (documentation-only update to `PROJECT_STATE.md`).
+- Branch app metadata read from `app/build.gradle.kts`: `applicationId=com.manhwalens.app`, `versionName=0.12.11`, `versionCode=51`, `minSdk=26`, ABI filters `arm64-v8a` and `armeabi-v7a`.
+
+### CI failure and root cause
+- Workflow run #787 (`43818326700`) failed at `:app:testDebugUnitTest`; report summary: 810 tests completed, one failure. APK assembly and subsequent APK verification/upload/release steps were skipped.
+- Inspected the uploaded `test-reports` artifact (artifact ID `14202939122`). Sole failing entry: `BatchSplitterTestKt.initializationError`, JUnit 4 `InvalidTestClassError` because the two HASH strategy `@Test` functions were declared at file scope after the `BatchSplitterTest` class had already closed.
+- This is a test declaration/class-boundary issue. Existing class-based `BatchSplitterTest` cases all passed; do not modify production splitter behavior to address it.
+
+### Repair implemented
+- Moved the two HASH separator regression tests back inside `BatchSplitterTest` in `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt` (canonical path: `app/src/test/java/com/manhwalens/app/translate/BatchSplitterTest.kt`).
+- Commit: `b751a78e70ba4fcdb47543066d8968fde7cc1335` — `test: keep hash batching cases inside JUnit test class`.
+- Status: Implemented and pushed. CI verification for this new head is pending; no APK or Release is claimed.
+
+### Quality and validation constraints retained
+- ML Kit remains the default offline translator; Bergamot remains optional/experimental.
+- Keep raw engine quality reports separate from final post-processed visible output; token F1 is lexical overlap, not semantic accuracy.
+- OCR recognition, bubble detection/grouping, filtering and translation errors must be measured separately. Do not tune OCR thresholds from text-only translation logs.
+- No device-level validation is claimed. Physical device checks remain required for OCR quality/grouping, semantic Arabic output, offline model/JNI availability, latency/RAM and update installation.
+
+### Next engineering action
+- Inspect the push and PR Actions runs for `b751a78e70ba4fcdb47543066d8968fde7cc1335`. If green, inspect APK metadata and signer continuity and re-check actual GitHub Release assets; otherwise inspect the new test artifact and repair the precise failure.
+
+## Verification continuation — 2026-11-16 (CI green and v0.12.11 release integrity)
+
+### Final-head CI results
+- Development branch / PR #4 head: `1b3b08a49bccb4c2e3f996a61eb1405e021f9c37`.
+- Push workflow #794 (`43822475270`) and PR workflow #795 (`43822478624`) both completed successfully on the same final head.
+- Inspected the uploaded Gradle test report from #795: **811 tests completed, 0 failed, 0 skipped**.
+- Both workflows completed the pinned PaddleOCR model checksum checks, Bergamot ARM64 runtime validation, `:app:assembleDebug`, and pinned experimental debug signing-certificate check.
+- The prior JUnit class-boundary defect is therefore repaired and CI-verified; no production `BatchSplitter` logic was changed for that repair.
+
+### APK / Release / update compatibility evidence
+- Build #794 successfully ran the non-PR update-compatibility gate and verified against v0.12.10:
+  - package ID: `com.manhwalens.app`
+  - versionCode: `50 -> 51`
+  - signing certificate SHA-256: `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152` (same signer on both releases per workflow comparison).
+- GitHub Release `v0.12.11` is published as a prerelease and contains `ManhwaLens-v0.12.11-debug.apk` (71,382,318 bytes; SHA-256 `1ff45531f4c537d816801cb57b1ee4c75981cf7851f241b14fed29adfd540637`).
+- Downloaded the #795 Actions APK artifact and hashed the contained APK; it exactly matches the published Release asset SHA-256 and file size. The binary built and checked in #795 is byte-identical to the published v0.12.11 APK.
+- PR #4 workflow #795 intentionally skips the Release compatibility/publication steps because it is a pull_request event; push workflow #794 executed the update gate and published the Release.
+- The `PROJECT_STATE.md` / `REPOSITORY_REPORT.md` append from the prior interaction stating that this head's CI was pending is superseded by this verified result.
+
+### Repository status and validation boundary
+- PR #3 remains open targeting `main`; PR #4 remains open Draft targeting PR #3. Keep the stack; do not merge PR #4 directly into `main`.
+- Release-published: v0.12.11. CI-verified: 811 JVM unit tests, model/runtime fetch verification, debug APK build, pinned signer check and update compatibility gate on the branch push.
+- Device-verified: **Not verified**. CI cannot prove PaddleOCR page recognition, bubble geometry, Arabic semantic quality, Bergamot on-device JNI/model inference, latency/RAM or actual install-over-existing-app behavior.
+- ML Kit remains the default offline translator; Bergamot remains optional/experimental.
+
+### Next engineering action
+1. Resume the unresolved diagnostic provenance investigation from the earlier device logs, especially `AH` / `YEAH` output mismatches. Trace stable bubble IDs and source text through in-memory/persistent cache, memo/fuzzy matching, and final overlay paths before altering cache keys or translation rules.
+2. Continue OCR evaluation separately using paired screenshots and labeled text/box ground truth; do not infer OCR accuracy from translation-pair text alone.
+3. Request user phone verification only after the source changes are CI-green and a specific behavior requires device evidence.
+
+
+## Engineering continuation — translation memo provenance instrumentation (2026-11-16)
+
+### Analysis
+- Audited `TranslationMemo`, `CachingTranslator`, exact memory/persistent caches, `PagePlan`, `BubbleGrouper`, `CaptureDiagnostics`, and tap/Live ID handling.
+- Repeated block numbers across captures are expected because OCR block IDs restart at 1 per capture; the translation-pair log is append-only with timestamps and does not overwrite by block ID. Live region-reuse boxes use negative IDs, separate from new positive OCR block IDs.
+- Existing JVM tests already reject the direct `AH...` → `YEAH` fuzzy collision and `NO.` → `RUN`; however, a fuzzy `Hit` previously did not expose the source that populated its canonical shape slot, preventing forensic attribution for any other collision.
+
+### Implemented (CI pending)
+- Memo LRU values now retain `{source, arabic}`; `TranslationMemo.Hit` exposes `matchedSource`.
+- `CachingTranslator` writes the matched source into exact/fuzzy memo-hit diagnostic details (truncated/compacted to 52 characters). This does not change matching, cache keys, output, or status codes.
+- Added assertions for matched source on exact/fuzzy hits.
+- Commits: `cf8f320546cb6e7ed6cdfda89af0cbc66c4caa21`, `057a4f334c041e81d0cb69a84e99390e56b28e7a`, `4b2c0e6d4a4e5035c14d88532f45eb70bd4e7da6`.
+- Current head at this note: `4b2c0e6d4a4e5035c14d88532f45eb70bd4e7da6`; push #803 / PR #804 are running or queued. Not CI-verified yet.
+
+### Verification boundary / next steps
+- This is diagnostic instrumentation only, not a proven fix for stale `AH` / `YEAH` outputs. No production matching policy, OCR thresholds, bubble IDs, or batching defaults were changed.
+- After CI passes, a fresh report can attribute a fuzzy result to the exact matched source rather than infer cache behavior from repeated numeric IDs.
+- Joined HASH remains a device-specific speed result; mapping 20/20 checks structural output count, not necessarily semantic one-to-one order if the model reorders the joined list.
+- Device verification remains Not verified. Do not request installation until CI is green and an actual behavior needs physical-device evidence.
+
+
+## Diagnostic grouping continuation — 2026-11-16
+
+### Implemented (CI pending)
+- `TranslationPairTrace` now carries a unique `requestId` per `CachingTranslator.translatePage` call. IDs are process-prefixed and sequence-based so they remain unique across app restarts in one retained report.
+- `TranslationPairLog` adds `requestId` as an optional 10th encoded field and prints it with each PAIR header. Existing 9-field log records remain readable as `request=legacy`.
+- Added a JVM test proving pair events from one page share an ID and a later page call uses a different ID.
+- This addresses false inference from repeated block numbers: `BubbleGrouper` assigns IDs per capture, so block #1 on separate captures is not a collision. `requestId` groups events from one translator page invocation.
+- The earlier memo provenance improvement also includes the original source in `detail=...matched=...` for exact/fuzzy memo hits.
+- Commits: `926aa5b77209597b0a7e74a2e66133e3362d92d1`, `a4de950205178fc8461a91269488d885b6c83a71`, `ff80b94bc69db43a98ce2468939b598fdba1d4f9`, `bd6945cd18b324c10959f9eee663d9d5847d7a81`, `ccb6181b82d8e470c8ba8fac11a6c033eb97be49`.
+
+### Verification / next action
+- CI for the combined final code and documentation head is pending; the earlier intermediate #808 run does not verify these last changes.
+- After green CI, use `request`, `block`, `EN`, and `matched` to identify source-level reuse; do not change the fuzzy algorithm or cache keys unless a real false match is evidenced.
+- No phone test has been run, and no OCR/translation behavior or release version was changed by this diagnostic-only work.
+
+## CI repair — cache-hit request grouping (2026-11-16)
+- PR workflow #823 (`43824001315`) tested 812 cases and reported one failure in `CachingTranslatorTest.observerRecordsFreshFinalPairAndSubsequentCacheHit`: the cache-hit trace's `requestId` was blank.
+- Inspected the failed HTML report artifact (ID `14205109659`). The missing field was limited to the cache-hit constructor; fresh engine/failure/missing-result trace paths already propagated the per-page ID.
+- Fixed by passing the same `traceRequestId` into the cache-hit trace. Commit `55b50914170326b63271be835e8a607d2a9761f5`.
+- This is instrumentation-only. No production translation or cache behavior changed.
+- Fresh CI is required on the new head; current status is pending/unverified.
+
+## CI verified — translation memo/page provenance (2026-11-16)
+- Push #827 (`43824312263`) and PR #828 (`43824320821`) passed on head `335c36aebfeab140e52e575b880c5652924547c5`.
+- Verified the uploaded HTML test summary: **812 tests, 0 failures, 0 ignored**.
+- Pinned models/runtime preparation, unit tests, debug APK build and pinned debug signer validation passed.
+- The #827 APK artifact was 71,384,902 bytes with SHA-256 `1be1a7dd3e11d3556b80f30a89aca4c7d76bb6297847980a2d9ce8e3bdae4063`. It was not a Release: v0.12.11 already exists, and the workflow correctly skipped republishing that version.
+- Diagnostic behavior now exposes exact/fuzzy memo `matched` source and per-page `request` IDs. The 2026-11-15 Solo Leveling chapter-3 device report had already shown `AH...` and `YEAH` receiving the same unrelated Arabic from cache. The old vowel-stripping fuzzy shape explained this; current safe-shape admission plus the no-fuzzy-promotion fix address the cause, and JVM tests cover `AH...` vs `YEAH`. v0.12.12 device verification now checks that the old collision stays absent and identifies the exact source for any future `FUZZY_HIT`.
+- App metadata is being advanced to v0.12.12 / versionCode 52 for a real installable diagnostic update over the v0.12.11 / versionCode 51 release. v0.12.12 CI/release are pending.
+- The device validation guide is in `MANUAL_TESTS.md`, section `v0.12.12 — translation-cache provenance capture`. Preserve translation cache, clear pair log only, reproduce the prior failure, share pair log and relevant OCR capture report.
+- No runtime cache/fuzzy matching/OCR/batching behavior changed; no phone test has been performed.
+
+## v0.12.12 release completed — 2026-11-16
+- Push #834 and PR #835 passed. Verified HTML test report: **812 tests, 0 failures, 0 ignored**.
+- Update gate explicitly confirmed `com.manhwalens.app`, versionCode `51 → 52`, and unchanged signer SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152` against v0.12.11.
+- Published prerelease: https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.12
+- APK: 71,384,898 bytes; SHA-256 `d9ce84716675f08e5bbf7ac29643afa04d936f16c0e56dcf141838935a5c06d0`. The downloaded APK from the Actions artifact was independently hashed and matches the release asset exactly.
+- Device validation is the next gate, not yet completed. Use the v0.12.12 instructions in MANUAL_TESTS.md, preserve translation cache and clear only pair history before reproducing the short-dialogue mismatch. ML Kit remains default; Bergamot remains experimental.
+
+## Final verification — v0.12.12 device diagnostic handoff (2026-11-16)
+- Latest head `c22d66db7d29f27138176ff6a76678e12f5b1811`: Push #837 and PR #838 passed.
+- Inspected #837 test report: 812 tests, 0 failures, 0 ignored, 100% success (1.862s).
+- Downloaded APK from #837 Actions, extracted and hashed it: 71,384,898 bytes; SHA-256 `d9ce84716675f08e5bbf7ac29643afa04d936f16c0e56dcf141838935a5c06d0`. Exact match with the published v0.12.12 Release asset.
+- Release #834 update gate: v0.12.11 → v0.12.12, `com.manhwalens.app`, versionCode 51 → 52, same signer SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`. Release is a published prerelease. Latest #837 correctly skipped republishing the existing tag.
+- Current head is two documentation-only commits after tag target `18f90a108e69044fa1298f1970a218454f7617cf`; compare confirms no app-source or build-file changes after the released binary.
+- Physical-device test is now the remaining gate. Use v0.12.12 guide: install over v0.12.11, keep translation cache, clear only pair log, reproduce the short dialogue, share pair log with `request` + `matched` and include Last capture if OCR source is wrong. No device test claimed.
+- PR #3 is open to main; PR #4 is open Draft targeting PR #3's branch. Preserve the stack.
+
+## v0.12.13 — native OCR memory lifecycle hardening (implemented; CI pending)
+- Fixed OpenCV `Mat` ownership in `QuadTextCrop`, the OCREngine batch-crop scope, `RecPreprocessor`, `DetPreprocessor` and `ImageUtils.resizeToMultipleOf32` so temporary native allocations are released if a later crop/resize/split/normalize/warp step throws.
+- Added explicit preconditions for empty recognition crops and non-3-channel input to prevent malformed tensors from reaching the model. Production Paddle OCR crops are already expected to be 3-channel BGR.
+- Preserved image preprocessing math, BGR order, recognizer height/base width/max width, tensor shape/layout, thresholds, crop geometry and reading order.
+- Prepared `0.12.13` / versionCode `53`, appended a repeated-page OCR memory-stability device checklist to `MANUAL_TESTS.md`.
+- Commits: `006020511bc525218dd6cb5ffecf231ff0fd8bc4`, `c07bfead64e6f950a86083c7e10d6247a719c168`, `fef0c81415b05fe10470ddd7b698b71571b359ea`, `e8932f619a0d6c80e533d88cdf9243c6f8e9626a`, `557c1c2a16d8442a9498ec5aa19a11b0d59b5955`, `6d9e6fff831b8c0f2dc36a3c1b104265760d9cd5`, with metadata/docs changes after them.
+- CI and APK release are not yet verified. Real-device multi-page stability also remains unverified.
+
+### Detector post-processing ownership
+- `DBPostProcessor` now releases raw probability/mask/hierarchy/dilated Mats and every contour; temporary score-mask, polygon and probability ROI Mats are protected by `finally`. Dilation destination and kernel are also released on failure. No contour thresholds/scoring or geometry changed.
+
+## v0.12.13 release verified — OCR native resource lifecycle
+- Push #871 and PR #872 passed on head `78155310cb167ff5629b8a7403e0671e2594c579`.
+- Inspected downloaded Gradle report: 812 tests, 0 failures, 0 ignored (1.996s); debug APK packaging and pinned signing verification passed.
+- Published prerelease v0.12.13. APK asset is 71,388,978 bytes, SHA-256 `daaf7c9776afbe0522568ef2de551a8106e9c373a20bbde091011b6eb9582c90`. The independently downloaded Actions APK artifact matches the release asset exactly.
+- Update check passed against v0.12.12: `com.manhwalens.app`, versionCode 52 → 53, signing certificate SHA-256 unchanged `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
+- Resource lifecycle fixes cover perspective crops, crop batch failure paths, recognition/detection preprocess Mats and channel splits, detector resize failure, DB probability/mask/dilation/contour/score ROI Mats. No image math/threshold/geometry/output behavior was intentionally changed.
+- Device test remains required to validate repeated-page OCR memory stability; detailed checklist is in `MANUAL_TESTS.md` under v0.12.13.
+
+
+## Session re-audit — 2026-11-16 11:40 UTC+1
+
+- Re-read `PROJECT_STATE.md` and `REPOSITORY_REPORT.md` from `feature/v0.12.4-bergamot-experiment`. These handoff files are not present on `main`; `main` remains a separate older baseline. No attempt was made to copy/merge the development stack into main.
+- Reconfirmed current recorded development head `78155310cb167ff5629b8a7403e0671e2594c579`; latest commit is documentation-only. Exact-head PR workflow #872 completed successfully. The recorded push workflow #871 passed and its HTML report showed 812 tests, 0 failures, 0 ignored. The combined status endpoint returned an empty status list, so no additional status conclusion is drawn from it.
+- v0.12.13 / versionCode 53 remains the latest recorded Release-published build; APK SHA-256 `daaf7c9776afbe0522568ef2de551a8106e9c373a20bbde091011b6eb9582c90`; package `com.manhwalens.app`; signer continuity verified by CI against v0.12.12. These facts are inherited from the release evidence already recorded above, not a new APK download in this interaction.
+- Current status: CI-verified + Release-published; physical-device verification remains outstanding. Next action is the repeated-page OCR memory-stability protocol in `MANUAL_TESTS.md`. No app source or runtime behavior changed in this interaction; ML Kit default and experimental Bergamot decision remain unchanged.
+
+
+## Solo Leveling chapter 4 — device findings and targeted repair (2026-11-16)
+
+### User-supplied device evidence
+- Device: Xiaomi 23106RN0DA, Android 14. The supplied diagnostic is a real-device capture; it is not an independent test performed by the maintainer.
+- ML Kit 20-bubble batching: Joined ` | ` median 573 ms / worst 576 ms, 20/20 mapping on every measured pass, one engine request. Sequential median 969 ms; parallel x2 979 ms; x3 1357 ms; x4 1096 ms; x6 1005 ms. Joined pipe is about 40.9% faster than sequential for this measured sample. `@@@`, newline and double-newline produced count=1 instead of 20 and remain invalid.
+- The device reports the joined-pipe verdict was applied. Offline engine selection was unchanged. Do not confuse the separate 23-case quality report with this 20-bubble batching sample.
+- Quality corpus: raw and cleaned candidate mean token F1 49.6%, final visible mean token F1 74.8%, visible exact 9/23; seven exact-source corrections contributed to visible score. These are lexical-overlap metrics, not semantic-quality scores.
+- The 59 pair entries show multiple accepted-but-weak translations. The Arabic validator checks Arabic-script presence, echoes and structural issues; it does not establish semantic correctness.
+- Several source strings contain likely OCR recognition artifacts (e.g. `OLT`, `BLYING`, `QLICKLY`, `STATLES`). These need image-level confirmation before adding generic OCR substitutions.
+- Request `ed782881-p17` took 20,430 ms for three bubbles. This is a latency outlier outside the controlled batching sample; its pipeline-stage trace is needed before changing timeouts or concurrency.
+
+### Implementation from this evidence
+- Added source-exact Solo Leveling chapter-4 repairs in `ShortDialogueOverrides.kt` for rank/dungeon phrasing, the D/E rank dialogue, raid/healer dialogue, hunter description and the final danger exchange.
+- Kept repairs exact-source only; no broad English-token replacements, OCR thresholds, translation engine, cache policy or batch strategy were changed.
+- Added chapter-4 regression assertions in `ShortDialogueOverridesTest.kt`, including apostrophe normalization and the OCR line-wrap form `MON-\\nSTERS`.
+- Added a repeatable device recheck section to `MANUAL_TESTS.md`: install as update over v0.12.13, keep translation cache, clear only pair history, inspect repaired and unrelated lines, and capture any >3 s pipeline trace.
+- Relevant implementation commits: `b59ff325217b9011e99c752ac4ef8bb78d6d2cfe`, `621317c566475106dcffde7176535213e85dfe02`, `83d3b77c81a673e527fcc6568bd332250d70806b`, `120d96ccf966bbd3e09df46476cdf68a256a5348`. Regression-test commits include `6bd44ba4488cf3099e9ce796f2006f8751fbc9db`, `45a92bba5a9dd28d78f5aecdc55f497603557ca4`, and `deb5a382dec72c1ede59da67fb6bdc39a9073e7e`.
+- CI/build result for the latest branch tip is **not yet verified**. The available commit-workflow lookup returned no PR-triggered run for the latest tip; the workflow file includes push triggers for this branch, but no success is claimed. No APK or release has been published for these changes.
+
+### Current gate and next action
+1. Obtain/inspect the GitHub Actions run for the latest branch tip `deb5a382dec72c1ede59da67fb6bdc39a9073e7e`; require unit tests and debug APK build to pass.
+2. If CI passes, bump the app to a new update-compatible version (next patch release) without changing package ID or pinned signer, then publish and verify a prerelease APK.
+3. Ask for the chapter-4 device recheck only after that APK exists. Do not claim the targeted repairs are device-validated until the new pair report is returned.
+4. Separately investigate the 20.43 s request using its stage-level pipeline trace; do not infer that joined batching caused it.
+
+
+## Session update — CI recovery and v0.12.14 candidate (2026-11-16)
+
+### Automated verification
+- CI run #898 (push: `43855482191`) and PR validation #899 (`43855488720`) passed on source head `fbe497c1ed7f7f9f8319a105d58bcf61d2e9b29e`.
+- The initial failure was one stale expected-value assertion, not a compile/runtime regression. The assertion now matches the exact Arabic output from the source-specific correction.
+- Gradle unit-test task and `:app:assembleDebug` completed successfully. The stable experimental signer check passed with SHA-256 `0e36ccf390d6b2ac1696a8b19d173f448837703250baf42d37dbe25e6d109152`.
+- Both validation runs uploaded a v0.12.13 APK artifact (70,080,396 bytes) and test reports. These are validation artifacts, not a new GitHub Release.
+- The workflow correctly skipped publishing because v0.12.13 already exists. Latest actual Release is still v0.12.13; no new installable APK is claimed.
+
+### Candidate release
+- Bumped `versionName` from `0.12.13` to `0.12.14` and `versionCode` from 53 to 54. Package ID and signing configuration remain unchanged.
+- This versioned commit must pass the complete CI release gate, including APK package/version metadata and certificate comparison against the published v0.12.13 APK. Only then can the automatic branch-release workflow publish v0.12.14.
+- Physical-device chapter-4 verification is still pending. After publication, install v0.12.14 over v0.12.13 without clearing data, keep ML Kit selected, clear only pair history, and return the pair/pipeline reports.
+
+
+## Session update — بروتوكول الاستمرارية الهندسية (2026-11-16)
+
+- أكد المستخدم أن هذا مشروع هندسي مستمر، وأن التقرير الموحد يجب تحديثه بعد كل تفاعل متعلق بـ ManhwaLens، مع الفصل بين المنفذ والمتحقق والمخطط له.
+- أعيد تدقيق الحالة من GitHub: المستودع `mouadknight0-cell/ManhwaLens`؛ فرع التطوير النشط `feature/v0.12.4-bergamot-experiment`؛ رأسه المرئي `c33bdf94991bd122d81b7450c0c4874d26efbabb` الذي يجهز v0.12.14 / versionCode 54. المستودع المحلي في مجلد هذه المحادثة غير موجود؛ لم تُجر تغييرات على كود التطبيق.
+- PR #4 مفتوح كمسودة ومكدّس فوق PR #3. PR #3 مفتوح، وPR #2 مدمج. تقرير `main` قديم، لذا اعتمد هذا التقرير على فرع PR #4 كسجل هندسي نشط.
+- تحقق سجل الفرع من CI #898 و#899 الناجحين على الرأس السابق `fbe497c1ed7f7f9f8319a105d58bcf61d2e9b29e`. لم يظهر دليل CI للرأس الحالي؛ أرجعت واجهة commit status قائمة فارغة، لذلك لا تُعدّ ذلك نجاحًا. لا يوجد دليل في هذا التفاعل على نشر v0.12.14؛ أحدث إصدار مسجل يبقى v0.12.13 / versionCode 53.
+- لم تُنفذ اختبارات محلية أو على جهاز. تحقق الهاتف الحقيقي المطلوب لإعادة فحص إصلاحات الفصل 4 يظل معلقًا إلى أن يجتاز الرأس الحالي CI وبوابة توافق الحزمة/التوقيع ويُنشر APK قابل للتحديث.
+- القرار التالي: فحص تشغيلات Actions للرأس `c33bdf94991bd122d81b7450c0c4874d26efbabb`؛ إن لم توجد، تشغيل أو استعادة CI وفق سير العمل المتاح، ومعالجة أي فشل، ثم التحقق من إصدار APK وتوافقه قبل طلب اختبار الجهاز.
+
+
+### متابعة تحقق المرشح v0.12.14 — 2026-11-16
+- تحقق GitHub Actions run [#900](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43856885993) على commit التطبيق `c33bdf94991bd122d81b7450c0c4874d26efbabb`: وظيفة `build` نجحت. خطوات Unit tests، Build debug APK، التحقق من شهادة التوقيع التجريبية، وتنزيل نماذج PaddleOCR/Bergamot المثبتة بالـ checksums نجحت، ورُفع APK وتقارير الاختبار.
+- تخطّت هذه المراجعة بوابة توافق APK مع أحدث Release وخطوة النشر؛ لذلك النجاح لا يثبت قابلية التحديث على الجهاز ولا وجود Release v0.12.14. لا تطلب بعد تثبيت الهاتف؛ يلزم تشغيل مسار إصدار ينجح في بوابة التوافق، وينشر APK، ثم التحقق من ظهوره في Releases.
+- أُرسلت نسخة التقرير المحدّثة على الفرع بواسطة commit توثيق `20bcd95142fc410c184887c25caf724596d86a2d`. تحقق Actions للـ commit التوثيقي كان جارياً وقت هذا التحديث؛ لا يعتمد نجاح بناء الكود على تقرير الحالة وحده.
+
+
+## إصدار v0.12.14 والتحقق قبل اختبار الهاتف — 2026-11-16
+
+- نجح تشغيل GitHub Actions push [#899](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43856876301) على commit التطبيق `c33bdf94991bd122d81b7450c0c4874d26efbabb`. نجحت: Unit tests، Build debug APK، شهادة التوقيع التجريبية الثابتة، بوابة توافق APK مع أحدث Release، رفع artifact، وقرار/نشر Release.
+- تحققت Releases API من نشر [v0.12.14](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.14) كـ prerelease مع الملف `ManhwaLens-v0.12.14-debug.apk`، حجمه 71,390,802 bytes وSHA-256 `e298f885d4b6dba7f96a190303988912212d38338e52be5e409a011787950e1f`. رابط التحميل المباشر: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.14/ManhwaLens-v0.12.14-debug.apk.
+- تشغيل PR #900 على الرأس نفسه نجح كذلك في الاختبارات والبناء والتوقيع، لكنه تخطى بوابة التوافق والنشر كما هو متوقع لحدث pull_request. لا نخلط بينه وبين تشغيل push #899 الذي نفذ بوابة التوافق ونشر الإصدار.
+- الإصدار جاهز لاختبار التحديث الفعلي: ثبّت v0.12.14 مباشرة فوق v0.12.13 دون إزالة التطبيق أو مسح بياناته. اترك ML Kit محددًا وDebug mode مفعّلًا، وامسح سجل translation-pair فقط مع الاحتفاظ بذاكرة الترجمة. أعد صفحات Solo Leveling الفصل الرابع نفسها، وتحقق من الأسطر المصححة ومن بقاء الأسطر غير المرتبطة دون تغيير.
+- أرسل تقرير translation-pair كاملًا ونسخة Last capture / pipeline trace؛ اذكر أي صفحة تجاوزت 3 ثوانٍ. افصل خطأ نص OCR المصدر عن خطأ الترجمة العربية، وأرفق النص المصدر والناتج الظاهر لكل حالة متبقية.
+- لا يوجد حتى الآن دليل على تثبيت أو اختبار التطبيق على هاتف المستخدم. تبقى دقة المعنى وOCR والسرعة والاستقرار على الجهاز غير متحققة؛ لا توصف إصلاحات الفصل الرابع بأنها device-verified قبل استلام تقرير الهاتف.
+- الخطوة التالية: انتظار نتائج اختبار الهاتف أعلاه؛ بعد وصولها، تحليلها ومواصلة إصلاح أي أخطاء مرصودة، مع تحديث هذا التقرير في التفاعل التالي.
+
+
+## تقرير جهاز v0.12.14 ومتابعة إصلاح الفصل الرابع — 2026-11-16
+
+### أدلة batching
+- الجهاز: Xiaomi 23106RN0DA / Android 14. ML Kit EN→AR فقط، 20 فقاعة، 4 قياسات دافئة بعد إسقاط الإحماء.
+- أفضل استراتيجية مجمعة في هذا benchmark: ` | ` بزمن median 625 ms / worst 629 ms مع map OK ‏20/20. parallel x6: median 1030 ms / worst 1053 ms، map OK؛ sequential median 1201 ms. `@@@` وnewline variants فشلت mapping (count 1 بدل 20)، بينما separators أخرى اجتازت هذا الاختبار.
+- أبقينا سياسة ML Kit المحفوظة على parallel x6 لأن ` | ` مسجل سابقًا أنه فشل على صفحة حقيقية (count 2 بدل 3). نجاح corpus ثابت لا يزيل حظر separator ناتجًا عن إخفاق صفحة فعلية.
+
+### أدلة جودة الترجمة
+- 23 حالة: raw candidate مقبول 22/23، exact 2/23، mean token F1 49.6%. Final visible exact 9/23 وmean token F1 74.8% بعد 7 تصحيحات مصدر exact؛ F1 تداخل معجمي لا يساوي الدقة الدلالية.
+- تقرير أزواج الجهاز يحوي 81 سجلًا، مع كثير من CACHE_HIT من الذاكرة المستديمة/المؤقتة؛ لذلك لا ننسبها كلها إلى استدعاءات المحرك الجديدة ولا نعتبر CANDIDATE AR خامًا دائمًا وفق ملاحظة التقرير.
+- بقيت نتائج ضعيفة في السجل، منها صيغة الرتبة ذات THE المكررة، والجملة ذات OCR `WOULO'VE`، ونصوص OCR أخرى مشوهة. لا نضيف استبدالات OCR عامة دون صور تثبت الحروف المصدرية.
+
+### الإصلاحات المنفذة بعد الدليل
+- أضيفت مطابقتان exact-source في `ShortDialogueOverrides.kt`: `WHAT WAS RANK OF THE THE ONE WHO DIED JUST NOW` ونسخة جملة الرتبة ذات `WOULO'VE`. أضيفت لهما assertions في `ShortDialogueOverridesTest.kt`.
+- رُفع الإصدار من 0.12.14 / code 54 إلى مرشح 0.12.15 / code 55. أضيف changelog وقائمة إعادة اختبار الجهاز. لم يتغير محرك الترجمة أو سياسة batching أو OCR.
+- commits: source `e15157977676425d7ddca493edef9c7a4bab28fd`; regression tests `e6e10079b44e12dab2149662175d21edf41e53e8`; version `5e386e4fbba356fd192bbefb07d640fd9a4bb699`; changelog `cc0f73c7fae5b0bd9cb1aac0cd5f3ed21f10eb1f`; manual plan `84f83cb4a575c0a119aa5de3df61a39d4850fe70`.
+- CI الحالي: push #914 queued وPR #4 check #915 pending عند تسجيل هذه الملاحظة؛ لم نثبت بعد نجاح tests أو build أو signer/update gate، ولم ننشر v0.12.15. اختبار الهاتف ينتظر APK منشورًا فقط بعد اجتياز بوابة الإصدار.
+
+### الخطوة التالية
+1. متابعة CI للرأس الحالي؛ إصلاح أي فشل ثم إعادة التحقق.
+2. التحقق من ظهور prerelease APK v0.12.15 وتوافق التحديث فوق v0.12.14.
+3. بعدها إعادة اختبار الجهاز للنصين المحددين وصفحات الفصل نفسه، مع تقرير الأزواج وLast capture/pipeline trace. لا نزعم Device-verified قبل وصول تلك النتائج.
+
+
+## حالة الإصدار v0.12.15 — 2026-11-16
+
+- نجح تشغيل push [#916](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43864481551) على commit `9d2f966895022b94cb718aa6f332b44ff3057b46`. اجتازت الوظيفة Unit tests، بناء APK، التحقق من شهادة التوقيع، بوابة توافق التحديث، ونشر Release. تحقق تشغيل PR #917 ناجح أيضًا على الرأس نفسه.
+- تم التحقق من [GitHub Release v0.12.15](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.15) ووجود APK المرفق `ManhwaLens-v0.12.15-debug.apk` (71,390,882 bytes).
+- حالة العمل: الإصلاحان المصدر-المحددان وCI وRelease متحققون؛ اختبار الهاتف للنصين المحددين لم يُنفذ بعد. سياسة ML Kit batching لا تزال parallel x6 بسبب إخفاق ` | ` السابق في صفحة حقيقية.
+- الخطوة التالية الوحيدة المطلوبة: تثبيت v0.12.15 كتحديث فوق v0.12.14 ثم إعادة فحص نصي فصل 4 وجمع diagnostics وفق `MANUAL_TESTS.md`.
+
+
+## ملاحظة تحليل التقارير الكبيرة — 2026-11-16
+
+- تقرير الهاتف السابق كبير فعلًا: benchmark لسبع سياسات batching، corpus جودة من 23 حالة، و81 سجل translation-pair مع مصادر OCR ونتائج cache ومحرك وترجمة نهائية.
+- استخدم Sol 6 Extra High عند تقديم تقرير بهذه الكثافة أو تقرير مماثل يتضمن عدة مجموعات أدلة متعارضة؛ الهدف هو الحفاظ على تتبع المصدر، تمييز cache عن مخرجات المحرك، وعدم تعميم إصلاحات OCR من حالات فردية.
+- يكفي High للتقرير القصير أو متابعة فحص النصين المحددين في v0.12.15، ما لم يتضمن سجلًا واسعًا أو عطلًا متعدد الطبقات.
+
+
+## اختيار نموذج تحليل تقارير الجهاز — 2026-11-16
+
+- للتقرير الكبير أو التحليل الذي يستدعي تحديث الكود والتشخيصات والإصدار: اختر **GPT-6 Sol مع Extra High**. هو الخيار الأحدث في الواجهة لهذا النوع من العمل، وExtra High مناسب عند وجود أدلة متعارضة وسجلات كبيرة.
+- لا حاجة للرجوع إلى GPT-5.6 Sol لهذه المهام. استخدمه فقط إذا لم يكن GPT-6 Sol متاحًا أو إذا أردت مقارنة سلوك سابق. للتقارير القصيرة والمتابعة الموجهة يمكن تقليل GPT-6 Sol إلى High.
+
+
+## تقرير هاتف الفصل الخامس وخطة v0.12.16 — 2026-11-16
+
+### نتائج القياس
+- الجهاز Xiaomi 23106RN0DA / Android 14؛ تقرير المستخدم يشير إلى Solo Leveling الفصل الخامس. لم يذكر التقرير رقم نسخة التطبيق؛ لذلك لا ننسب الأرقام بثقة إلى إصدار بعينه.
+- ML Kit fixed benchmark: parallel x2 median/worst 1032/1038 ms، x3 1025/1030 ms، x4 1021/1074 ms، x6 1170/1320 ms. كل parallel strategies خرّطت 20/20. joined `|` أعطى 628/638 ms مع mapping 20/20 في الاختبار الثابت، لكن بقي محظورًا بعد mismatch سابق على صفحة فعلية؛ لا نغيّر التفضيل المحفوظ من هذا الاختبار وحده.
+- quality corpus بقي 23 حالة: raw exact 2/23 وmean token F1 49.6%؛ final visible exact 9/23 وF1 74.8% بعد سبعة تصحيحات مصدر exact. هذه درجات overlap معجمي، وليست قياسًا للدقة الدلالية.
+- سجل الجهاز 73 pair. توجد cache hits كثيرة، لذا لا تمثل السجلات كلّها محاولات محرك جديدة. ظهرت أخطاء ترجمة واضحة، ومعها أخطاء OCR/ترتيب أسطر مثل نص بوابة العالم، تمثال الحارس، والسطر الترويجي الطويل في نهاية الصفحة. لا توجد صور في التقرير لتحديد أخطاء OCR حرفيًا.
+
+### تغييرات v0.12.16
+- أضيفت تصحيحات عربية exact-source لمقاطع واضحة من الفصل الخامس تشمل وصف النفق والبوابة، الشرح عن الصيادين والرتب، المعالجين، التماثيل، وصايا كارثينون، وبعض الردود القصيرة.
+- أضيفت regression test جماعية تغطي هذه المطابقات مع اختلافات فصل السطر والشرطة في OCR.
+- ارتفع الإصدار من v0.12.15 / code 55 إلى v0.12.16 / code 56؛ أُضيف Changelog ودليل إعادة اختبار الهاتف. لم يتغير OCR backend أو محرك الترجمة أو سياسة batching.
+- لا يوجد Gradle محلي في بيئة هذه المحادثة؛ التحقق الآلي مطلوب عبر GitHub Actions. لم يُنشر APK جديد ولم يثبت نجاح الاختبارات بعد.
+
+### الخطوة التالية
+1. متابعة push CI على آخر commit، وإصلاح أي فشل.
+2. التحقق من نجاح unit tests وAPK build والتوقيع وتوافق التحديث ونشر prerelease v0.12.16 مع وجود APK.
+3. إعادة اختبار الفصل الخامس على الهاتف فوق v0.12.15؛ جمع تقرير pairs وLast capture/pipeline trace، وذكر نسخة التطبيق. لا تُسجل إصلاحات الفصل الخامس على أنها device-verified قبل النتائج.
+
+
+## التحقق النهائي v0.12.16 وإعادة اختبار الفصل الخامس — 2026-11-16
+
+- CI push [#940](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43868679522) على `5324f642a9f147769666e1a5bf292c3411801d29` اكتمل بنجاح. نجحت Unit tests (814 tests؛ ثم لا فشل مسجل)، Debug APK build، فحص مفتاح التوقيع، بوابة توافق APK مع أحدث Release، رفع artifacts ونشر Release.
+- وقع فشل واحد في التشغيل السابق #938: مصدر `THERE'S NOTHING WE CAN DO NOW, IS THERE?` طُبّع إلى `THERE S ...` لأن الترقيم غير الأبجدي يُحوّل لمسافة؛ مفتاح override المضاف كان `THERES ...` فلم يطابق. عُدلت كل المفاتيح الجديدة التي احتوت contractions لتتبع قاعدة التطبيع، ونجح التشغيل التالي.
+- تحقق Releases API من [v0.12.16](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.16) كـ prerelease مع APK `ManhwaLens-v0.12.16-debug.apk`، 71,392,762 bytes، SHA-256 `0fcac67fbb4936811336a12bacbb0379b1e14389d8f7c1d541ab56d0fe2cc351`.
+- رابط التحميل المباشر: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.16/ManhwaLens-v0.12.16-debug.apk.
+- الخطوة التالية: ثبّت v0.12.16 فوق v0.12.15 دون حذف التطبيق أو مسح بياناته؛ اترك ML Kit وDebug mode مفعّلين؛ امسح سجل translation-pair فقط واحتفظ بذاكرة الترجمة؛ أعد صفحة الفصل الخامس نفسها. تحقق من تصحيحات النفق والبوابة والرتب والمعالجين والتماثيل والوصية والردود القصيرة، وتأكد أن الأسطر المجاورة لم تتغير.
+- أرسل رقم نسخة التطبيق الظاهر في Settings، وتقرير الأزواج كاملًا وLast capture وpipeline trace. أشر إلى كل صفحة تجاوزت 3 ثوانٍ، وارفق النص الإنجليزي الملتقط والناتج العربي لكل خطأ باقٍ. سجل CI والتحقق من APK لا يثبت الاختبار الحقيقي على الهاتف.
+
+
+## متابعة تقرير الجهاز للفصل الخامس — 2026-11-16
+
+### ما يثبته القياس الجديد
+- الجهاز Xiaomi 23106RN0DA / Android 14. اختبار ML Kit ثابت على 20 فقاعة، خمس جولات مع إسقاط جولة الإحماء؛ الإحصاءات التالية وسيط وأسوأ زمن للجولات الأربع الدافئة.
+- أسرع استراتيجية صالحة للمطابقة كانت parallel x4: ‏1033/1042 ms مع خريطة 20/20. parallel x3: ‏1036/1219 ms، x2: ‏1757/1863 ms، x6: ‏1295/1592 ms، وsequential: ‏1692/2638 ms. لذلك سياسة x4 المسجلة مناسبة لهذه النتيجة.
+- اختبار Joined pipe بلغ 623/625 ms مع 20/20 في corpus الثابت، لكنه يبقى محظورًا بسبب mismatch سابق في صفحة حقيقية (2 بدل 3). Separator @@@ ونسخ newline أعطت خريطة 1 بدل 20؛ بقية الفواصل المجمعة التي عرضها التقرير اجتازت هذا الاختبار الثابت. لا نزيل حظر الصفحة الحقيقية بنتيجة corpus ثابت.
+- فحص الجودة ما زال 23 حالة: raw وcleaned exact ‏2/23 ومتوسط token F1 ‏49.6%؛ النهائي exact ‏9/23 وF1 ‏74.8% بعد 7 تصحيحات. F1 تداخل كلمات لا دقة دلالية.
+- سجل الأزواج يحوي 54 سجلًا، وبينها cache hits exact وfuzzy؛ لذلك لا تمثل كل السجلات استدعاءات جديدة للمحرك. رقم نسخة التطبيق لم يرد في التقرير، فلا يمكن نسب النتائج بثقة إلى v0.12.16 أو غيره.
+
+### إصلاحات مرشحة مبنية على الأزواج الواضحة
+- أضيفت في مرشح v0.12.17 مطابقة مصدرية كاملة لأسطر واضحة أخفق فيها ML Kit: شرح gut feeling، أسئلة النجاة والخروج والانحناء، سؤال الأحياء، جملة الوصية الأولى، ردود النظر/التوقف/النجاة، وعبارتا الهجوم المرتبطتان بارتفاع الحركة.
+- تُركت المقاطع المشوشة بشدة دون إصلاح، ومنها ترتيب الكلمات في pair 39 وOCR 15 في pair 46؛ لا تكفي هذه السلاسل لتثبيت نص مقصود بأمان.
+- ارتفع المرشح من 0.12.16 / code 56 إلى 0.12.17 / code 57. لم يتغير محرك الترجمة ولا batching ولا OCR. أضيفت تعليمات إعادة الفحص إلى MANUAL_TESTS.md.
+- نجح CI push #944 على `cd24478dbb1233331590ba203c9acf433d127b4d`: الاختبارات، APK، التوقيع، توافق التحديث والنشر. صدر v0.12.17؛ إصلاحات النص ما زالت بانتظار اختبار الهاتف.
+
+### الخطوة التالية
+1. ثبّت APK v0.12.17 فوق v0.12.16 لإعادة فحص الفصل الخامس.
+2. أعد صفحات الفصل الخامس فوق v0.12.16 دون مسح بيانات التطبيق؛ امسح سجل الأزواج فقط واحتفظ بالذاكرة.
+3. أرسل رقم النسخة، التقرير الكامل، Last capture وpipeline trace، واذكر الصفحات التي تجاوزت 3 ثوانٍ. لا توصف التصحيحات بأنها متحققة قبل ذلك.
+
+
+## تحسين زمن الالتقاط — مرشح v0.12.18 (2026-11-16)
+
+- عادت نتيجة المستخدم إلى أن زمن الصفحة لا يزال قرابة 4 ثوانٍ. القياسات المتاحة سابقًا: ML Kit parallel x4 عالج 20 فقاعة بوسيط 1033 ms؛ وظهرت حالة شاذة 20,430 ms لثلاث فقاعات. تقرير الحالة الشاذة لم يتضمن تقسيم زمن المراحل، لذا لا نعدّها دليلًا على بطء ML Kit نفسه.
+- فحص مسار Tap في FloatingButtonService أظهر انتظارًا يصل إلى 800 ms لإطار تالٍ بعد إخفاء واجهة التطبيق، ثم 120 ms إضافية للاستقرار. جعل هذا الانتظار المرشح يصل إلى 300 ms و32 ms على التوالي.
+- عند عدم وصول إطار جديد، يبقى السلوك الوقائي الحالي: توسم الصورة بأنها غير نظيفة وتُستبعد مناطق واجهة ManhwaLens من OCR. لم يُخفض دقة الصورة أو يُغيّر OCR/ML Kit أو التوازي.
+- ارتفع الإصدار من v0.12.17 / code 57 إلى v0.12.18 / code 58. أضيف فحص واحد موجّه للسرعة في MANUAL_TESTS.md: نفس الجهاز والصفحة، قياس tap-to-first-Arabic وtap-to-complete، ومقارنة spans في Pipeline trace. لا حاجة لإعادة فحص جودة الترجمة.
+- هذه مراجعة كود ذات حد زمني نظري أقصر؛ لا نزعم تحسنًا فعليًا قبل قياس الجهاز. CI وتوافق APK مع الإصدار السابق والنشر مطلوبة قبل التثبيت.
+
+
+## خفض زمن OCR — مرشح v0.12.19 (2026-11-16)
+
+- طلب المستخدم هدفًا لا يتجاوز ثانية من مسح النص حتى إخراج الصفحة. القياس السابق يعرض قيدًا مهمًا: ML Kit وحده ترجم 20 فقاعة في 1033 ms median، قبل زمن OCR والرسم؛ لذلك لا يمكن ضمان الهدف الكامل بهذه المنظومة والقياس المتاح.
+- فحص إعداد PaddleOCR وجد أن الشاشة الملتقطة تُحد إلى عرض 720 px، لكن كاشف OCR يرفع أصغر ضلع إلى 1280 ثم يسمح بضلع طويل 1920. على إدخال 720×1600 ينتج ذلك تقريبًا 864×1920 بعد المحاذاة.
+- عدّل v0.12.19 الحد الطويل للكاشف إلى 1600، فيقارب حجم الإدخال 704×1600؛ أي خفض بنحو 32% من بكسلات الكاشف مع الحفاظ على مستوى دقة المصدر الملتقط. هذا توقع حجم معالجة، وليس قياس سرعة فعليًا.
+- لم تتغير أداة OCR أو ML Kit أو batching أو عتبة الثقة. المطلوب قياس واحد على نفس الهاتف/الصفحة، مع فصل tap-to-first-Arabic عن tap-to-complete، ومقارنة detection input/inference وOCR وtranslation وoverlay في Pipeline trace. لا حاجة لإعادة اختبار مجموعة جودة الترجمة.
+- المرشح v0.12.19 / code 59. CI وتوقيع APK وتوافق التحديث والنشر مطلوبة قبل التثبيت؛ والسرعة وجودة النص الصغير لا تزالان غير متحققين على الهاتف.
+
+
+### تحقق إصدار v0.12.19 — 2026-11-16
+- نجح GitHub Actions Android build [#948](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43875364872) على commit `f61e3cce502145e777f42894bf033b82a806a045`: unit tests، APK build، التوقيع، توافق التحديث والنشر.
+- تحقق نشر prerelease [v0.12.19](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.19) وملف `ManhwaLens-v0.12.19-debug.apk` (71,393,770 bytes)، SHA-256 `a1bad4db83e638af63500b17119b9e38b7e5ba98737f33314ad54b878824dca0`.
+- ثبّت v0.12.19 فوق v0.12.18، وقِس مرة واحدة على نفس الصفحة tap-to-first-Arabic وtap-to-complete، ثم أرسل Pipeline trace وLast capture. لا إعادة لاختبار جودة الترجمة.
+- لا توجد بعد نتيجة هاتف تقيس نسبة التحسن الفعلية. هدف ≤1 ثانية للصفحة الكاملة لا يزال غير مضمون، لأن قياس ML Kit وحده على 20 فقاعة كان 1033 ms median.
+
+
+## تحديث دقة benchmark وسرعة الصفحة — مرشح v0.12.20 (2026-11-16)
+
+- تقرير المستخدم الجديد لا يذكر إصدار التطبيق. قياس ML Kit batching: x4 median/worst 1024/1087 ms، x6 ‏1024/1040، x2 ‏1870/2207، x3 ‏1543/1841. مقارنة بالتقرير السابق المتاح، x4 لم يتراجع (كان 1033 ms)، لكن x2 وx3 أبطأ؛ x6 في هذه الجولة قريب من x4. لا يكفي تشغيل واحد لتبديل السياسة.
+- joined pipe ظل الأسرع في corpus الثابت (627 ms، خريطة 20/20) لكنه ما زال محظورًا بسبب mismatch سابق في صفحة فعلية (2 بدل 3). لا نفعّل separator اعتمادًا على هذا القياس.
+- بقية quality benchmark لم تتغير: raw exact ‏2/23 وF1 ‏49.6%؛ final visible exact ‏9/23 وF1 ‏74.8%. F1 تداخل معجمي لا دقة معنى. لا يوجد دليل من هذا التقرير وحده أن سرعة المسح الكامل تحسنت أو تراجعت؛ benchmark يستدعي محرك ML Kit فقط.
+- استجابةً لطلب تحسين دقة benchmark، عُدّل BenchmarkRunner ليُحمّي كل الاستراتيجيات ثم يقيسها بجولات متداخلة ذات ترتيب دوّار ومعكوس بالتناوب، مع الحفاظ على عدد الاستدعاءات. أضيف عرض كل أزمنة الجولات ومدى التشتت (max-min) إلى median/worst، واختبارات تغطي الحساب والعرض.
+- ارتفع الإصدار إلى v0.12.20 / code 60. لا يتغير محرك التطبيق أو مستوى التوازي المحفوظ. ما زال أداء التطبيق الكامل غير متحقق؛ نحتاج تشغيل benchmark الجديد مرة واحدة مع Pipeline trace لصفحة واحدة لفصل OCR عن الترجمة والعرض. لا حاجة لتكرار quality corpus.
+- CI push #952 نجح؛ v0.12.20 نُشر كـ prerelease كما هو موثق أدناه.
+
+
+### تحقق benchmark v0.12.20 — 2026-11-16
+- نجح Android build CI [#952](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43877999559) على commit `ed89f78cbe34a174a4fb6a1d018fa9a9093c37af`: unit tests، APK build، التوقيع، توافق التحديث والنشر.
+- تحقق prerelease [v0.12.20](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.20) مع `ManhwaLens-v0.12.20-debug.apk` (71,398,262 bytes)، SHA-256 `56ce51cbb72493edae1c38f08a1dcbb5451ed0595a682cea8a4b52b64f4af58f`.
+- طريقة القياس أصبحت interleaved مع عدد طلبات ثابت وwarm-up واحد لكل طريقة، وتعرض median/worst/range وأزمنة الجولات الأربع. الاختبارات الآلية اجتازت في CI.
+- من المهم: لا يوجد قياس للهاتف بعد التعديل؛ نتيجة مستخدم التقرير الأخيرة لم تذكر نسخة التطبيق، وx4 فيها 1024 ms مقابل 1033 ms سابقًا. لا دليل أن x4 صار أسوأ، لكن لا يمكن استنتاج زمن OCR إلى overlay من benchmark المحرك.
+- الخطوة التالية فحص واحد على v0.12.20: شغّل batching benchmark مرة واحدة، ثم التقط صفحة واحدة وأرفق Pipeline trace وLast capture. لا تعِد اختبار quality corpus.
+
+
+## إصلاح مقاطعة Live OCR — مرشح v0.12.21 (2026-11-16)
+
+- سجل المستخدم: `InterruptedException` داخل `TextRecognizerClient.paddleClient()` أثناء `runBlocking` لتهيئة PaddleOCR، مستدعى من `FloatingButtonService.liveTranslate()`. أعقبه حدث startup جديد بعد 37 ثانية؛ هذا متوافق مع انقطاع worker أثناء توقف/إعادة إنشاء الخدمة، لكنه لا يثبت وحده المصدر الدقيق للمقاطعة.
+- أصلح v0.12.21 مسار Live ليميّز InterruptedException/CancellationException أو إيقاف الخدمة عن أخطاء OCR/الترجمة الحقيقية. الإلغاء يعيد تدوير frame غير المملوك، ولا يسجل ErrorLog كفشل ترجمة، ويعيد الحالة إلى Waiting إذا كانت الخدمة ما زالت حية. أخطاء OCR الحقيقية تظل ظاهرة كـ ERROR.
+- لم يتغير محرك OCR أو ML Kit أو الإعدادات أو جودة الترجمة. أضيف فحص Live واحد بعد تثبيت النسخة إلى MANUAL_TESTS.md.
+- نُشر v0.12.21 / code 61 بعد نجاح CI push #956؛ إصلاح Live ما زال بانتظار فحص الهاتف.
+
+
+### تحقق إصدار Live v0.12.21 — 2026-11-16
+- نجح Android build CI [#956](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43881494523) على commit `38c8809293b41c2df13fb6b1d72a6b8cfc8b9b9c`: unit tests، APK build، التوقيع، التوافق والنشر.
+- تحقق prerelease [v0.12.21](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.21) مع APK `ManhwaLens-v0.12.21-debug.apk`، 71,398,818 bytes، SHA-256 `7ab4c21bc776e7a9137a4e44f28c30d61c2358306728d218a42f4bd016726cf3`.
+- لإعادة فحص Live مرة واحدة: ثبّت فوق v0.12.20، شغّل Live بعد بدء جديد للخدمة حتى تمر تهيئة PaddleOCR، ثم أرسل Live diagnostics/Last error فقط إن عاد الخطأ. الإلغاء أثناء الإيقاف لا يفترض أن يظهر كخطأ OCR.
+- لا يوجد تحقق فعلي على الجهاز بعد.
+
+
+## قياس جلسة Live من التشغيل إلى الإيقاف — مرشح v0.12.22 (2026-11-16)
+
+- فصلنا قياس المحرك عن قياس المسار الحي: اختبار ML Kit batching الحالي لا يزال يقيس الاستراتيجيات والمحرك فقط، بينما أضيف زر **Live session benchmark** لالتقاط فترة Live من تفعيله حتى إيقافه.
+- القياس يبدأ عند تفعيل Live فعليًا (بما في ذلك التسليح بعد موافقة الالتقاط أو الاستعادة)، وينتهي عند إيقاف Live أو توقف الخدمة/خطأ الحلقة. يسجل مدة الجلسة بالساعة الرتيبة، وزمن أول overlay ظاهر، وعدد الإطارات، ومتوسط/أقصى زمن المعالجة وOCR والمحرك وعدد المخرجات الظاهرة.
+- لا يسجل نص OCR أو الترجمة؛ يجمع عدادات وأزمنة فقط، ويكتب التقرير محليًا بعد انتهاء الجلسة. يمكن تسليح القياس وإلغاء تسليحه ونسخ آخر تقرير من Settings → Diagnostics. يتطلب التسليح أن يكون Live متوقفًا لضمان أن القياس يبدأ عند لحظة التفعيل.
+- أضيف فحص واحد إلى MANUAL_TESTS.md: سلّح، شغّل Live، انتظر أول overlay، تنقل قليلًا، أوقف Live، ثم انسخ التقرير. هذا هو التحقق المطلوب على الهاتف؛ لا حاجة لإعادة فحص جودة ترجمة corpus أو ML Kit batching.
+- الإصدار المرشح v0.12.22 / code 62. لم يُشغّل بناء أو اختبار محلي في هذه الخطوة؛ ننتظر CI الذي يبدأ بعد دفع التغيير، ثم دورة Live واحدة لقياس الهاتف. لم تُثبت أي نسبة تحسن سرعة هنا لأن هذا تغيير في القياس لا في زمن OCR/الترجمة.
+
+
+### تحقق إصدار Live benchmark v0.12.22 — 2026-11-16
+- نجح Android build CI [#960](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43890568945) على commit `ad846bb1447aa0d15d7fb3af47646a73d09169eb`: unit tests، بناء APK، التوقيع، توافق التحديث والنشر.
+- تحقق prerelease [v0.12.22](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.22) مع `ManhwaLens-v0.12.22-debug.apk` (71,409,706 bytes)، SHA-256 `96413da2a8d9045397a17338393749b99a1547893475f2f7efc6a30e1bb3c77f`.
+- واجهة القياس وتسجيل الجلسة اجتازا build والاختبارات الآلية. لا يوجد بعد قياس من الجهاز؛ المطلوب جلسة Live واحدة: تسليح والميزة متوقفة، تشغيل، انتظار أول overlay، استخدام الصفحة، إيقاف، ثم نسخ التقرير.
+- لا ندّعي تحسنًا في زمن الترجمة من هذا الإصدار؛ التغيير يجعل تأخير Live قابلًا للقياس ويفصل زمن أول overlay عن أزمنة OCR والمحرك.
+
+
+## تحليل قياس Live وتخفيف OCR — مرشح v0.12.23 (2026-11-16)
+
+- قياس المستخدم الثاني: Live ON→OFF ‏125,388 ms، أول overlay بعد 8,684 ms، ‏18 إطارًا، معالجة الإطار متوسط/أقصى 3,612/5,149 ms، OCR ‏3,435/4,764 ms، والترجمة 102/397 ms، مع 15 overlay ظاهرًا. هذا يجعل OCR نحو 95% من متوسط زمن الإطار؛ لا يوجد أساس لتغيير batching المحرك.
+- تقرير Live self-check السابق (16:09) أُخذ بعد توقف الخدمة وذكر 0 log lines؛ التقرير الأحدث (16:14) صار فيه سجل حي ويحدد أزمنة Paddle. انتهت جلسة القياس السابقة بسبب توقف الخدمة بدل حدث Live OFF، لكن المؤقت حفظ التقرير مع سبب الإنهاء.
+- استجابة لهيمنة OCR، خُفض حد الجانب الطويل لكاشف PaddleOCR من 1600 إلى 1280 بكسل. على إطار 720×1600 هذا يخفض بكسلات الكاشف المتوقعة بنحو 36%؛ تقدير workload فقط وليس وعدًا بنسبة تسريع. صور المصدر الأصلية تبقى بحجمها لمسار OCR والتعرف على القصاصات حسب محول Paddle.
+- سجل Live self-check اللاحق قرأ مباشرة: first frame بعد 272 ms؛ وآخر OCR (10 أسطر) 6,284 ms = detector 2,718 ms + recognizer 3,511 ms، مع cold load 719 ms؛ الترجمة 250 ms والعرض اكتمل 2/2. فشل self-check لأن واجهة التطبيق كانت ظاهرة وقت الفحص (appVisible counter=1)، وليس لأن OCR/الترجمة لم تكتمل. يوجد أيضًا timeout واحد 150 ms في patch overlay، لكنه صغير مقابل OCR.
+- خُفض حد detector من 1600 إلى 1280، وضُبط التعرف على دفعات من 4 قصاصات بدل قصاصة لكل استدعاء؛ لـ14 مرشحًا تصبح 4 استدعاءات بدل 14. `OCREngine` يربط نواتج الدفعة بترتيب الصناديق، وCTC decoder يدعم batch dimension. قصاصات recognition تبقى من صورة المصدر الأصلية.
+- توسع تقرير Live benchmark ليعرض كشف Paddle وrecognition total/inference على حدة، إضافة إلى لحظة دخول أول إطار، زمن معالجة الإطار الأول، والفرق المتبقي حتى أول overlay. هذا يميز انتظار/جدولة الالتقاط عن زمن OCR والمحرك.
+- المرشح v0.12.23 / code 63. لم يُشغّل بناء محلي ولا قياس جهاز بعد التغيير. يتطلب التحقق جلسة Live واحدة على نفس الصفحة؛ لا تعاد مجموعة جودة الترجمة أو اختبار ML Kit.
+
+
+### تحقق OCR Live v0.12.23 — 2026-11-16
+- نجح Android build CI [#964](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43894774380) على commit `88fe6df6505693413f2198f5f5c023df7341fbec`: unit tests، APK build، التوقيع، توافق التحديث والنشر.
+- تحقق prerelease [v0.12.23](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.23) مع `ManhwaLens-v0.12.23-debug.apk` (71,411,710 bytes)، SHA-256 `b219928ee82d25f4ef50fa64707211b49f0270f1e85cf250f1a114c6b5d3bb6c`.
+- التعديل يخفض detector max side إلى 1280 ويشغل OCR recognition batches بحجم 4؛ لا توجد نتيجة جهاز بعد التعديل، ولا ندّعي تسريعًا محققًا. نفّذ جلسة Live واحدة على نفس الصفحة؛ يبيّن التقرير detector/recognizer وfirst-frame split، وراجع بقاء الخط الصغير ظاهرًا.
+
+
+## 2026-11-16 — توحيد قياس تجربة Live
+- إزالة أدوات القياس المنفصلة الظاهرة في الإعدادات: ML Kit batching وBergamot فقط ومقارنة المحركين. بقي فحص Live الذاتي كما هو لأنه يفحص حالة الخدمة، وليس بنشمارك.
+- الإبقاء على بنشمارك واحد اختياري يغطي جلسة Live من التشغيل حتى الإيقاف، وتوسيع تقريره ليشمل زمن أول إطار وأول إخراج مرئي، متوسط/أقصى زمن الإطار وOCR والمحرك، مراحل detector/recognizer وإعداداتها، أعداد الأسطر والمرشحين ومرفوضات الثقة، محاولات الترجمة والكتل ونتائج الذاكرة المؤقتة، الطبقات المتوقعة والمعروضة، حالات Live، الإطارات الفارغة أو السوداء والإخفاقات والإلغاءات، وحجم الإطار والجهاز وإصدار التطبيق.
+- لا يسجل التقرير أي نص من الصفحة أو OCR أو الترجمة، ويظل محليًا. هذا تغيير في القياس فقط ولا يدّعي تحسنًا في السرعة.
+- تحقق الإصدار v0.12.24 / code 64: نجح CI run [#969](https://github.com/mouadknight0-cell/ManhwaLens/actions/runs/43898285502) بما فيه Unit tests وبناء APK وفحوص التوقيع والتوافق. نُشر prerelease [v0.12.24](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.24)؛ APK حجمه 71,396,626 bytes وSHA-256 `6441cce2e37bf1df7c2bc714398749e2a2d2528f48049a17dbc14d4324fd17bd`. لم تُقَس سرعة على الجهاز بعد؛ القياس من جلسة Live فعلية مطلوب لاستخراج خط الأساس.
+
+
+## تدقيق الاستمرارية وتأكيد حالة المستودع — 2026-11-16
+
+- أُعيد فحص المستودع المتصل وحالة GitHub بعد تعذر العثور عليه في مجلد جلسة Codex. المستودع الصحيح هو `mouadknight0-cell/ManhwaLens`، والفرع الجاري هو `feature/v0.12.4-bergamot-experiment`؛ لم يُجرَ أي تغيير على `main`.
+- HEAD الحالي `a90b0fbb32316a1a62a55f4fd9a3610943a616e8` (`docs: record unified Live benchmark release`). PR #4 مفتوح ويستهدف فرع `feature/v0.12.3-paddle-default-settings`، وPR #3 مفتوح ويستهدف `main`.
+- الإصدار الأحدث المتحقق والمنشور هو prerelease [v0.12.24](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.24), code 64، ويتضمن `ManhwaLens-v0.12.24-debug.apk`. نجح CI الخاص بالإصدار #969، كما نجح PR validation #973 على HEAD الحالي.
+- هذا التفاعل كان تدقيق حالة فقط: لم تتغير ملفات التطبيق ولم تُشغّل اختبارات جديدة. جرى تحديث هذا التقرير وحده ليعكس حالة GitHub الراهنة.
+- العمل الهندسي التالي: تنفيذ جلسة Live واحدة على الهاتف باستخدام خيار **Live session benchmark** في v0.12.24، ثم مشاركة التقرير المحلي لتحديد خط الأساس لزمن أول إخراج مرئي ومراحل OCR والترجمة. لا توجد مطالبة بتغيير محرك أو عتبات قبل قياس الجهاز.
+
+
+## تحليل Live self-check v0.12.24 على الهاتف — 2026-11-16
+
+- استلمنا تقرير Live self-check على Xiaomi 23106RN0DA / Android 14، إصدار 0.12.24 (64). نتيجة OVERALL: FAIL بسبب المرحلة 6 فقط: `appVisible=counter=1 started=1`، والسبب المسجل `paused (ManhwaLens UI visible)`. هذا سلوك مقصود عند تشغيل الفحص بينما شاشة ManhwaLens نفسها مفتوحة؛ يمنع OCR/الترجمة فوق واجهة التطبيق. لا يعد دليلًا على تعطل Live.
+- بقية حالة الالتقاط سليمة في التقرير: صلاحية overlay وprojection والجلسة والإطار الأول (242ms) ومعدل الإطارات (2.37/s) والـ stash والـ OCR الأخير (11 سطرًا/3320ms) والترجمة المحلية الأخيرة (33ms) ورسم الرقعة (1/1) اجتازت الفحص. Tracker verdict هو WAIT لأن الشاشة متغيرة للتو؛ ليس فشلًا ثابتًا.
+- سجّل التقرير استعادة تلقائية لعلامة screenOff غير المتسقة مع كون الشاشة تفاعلية، وهي آلية self-heal متوقعة. لا توجد cleanCaptureTimeouts أو OCR drops. آخر إزالة رقع بسبب ظهور واجهة التطبيق أمر متوقع أيضًا.
+- جلسة Live benchmark المعروضة داخل التقرير تعود إلى 16:07–16:09 وانتهت بسبب توقف الخدمة: 18 إطارًا، أول overlay بعد 8.684s، زمن الإطار متوسط/أقصى 3.612/5.149s، OCR 3.435/4.764s، والترجمة 102/397ms، و15 إخراجًا مرئيًا. هذا يؤكد أن OCR هو العنصر الأبطأ في تلك الجلسة، لكنه ليس قياسًا جديدًا منذ إصدار 0.12.24.
+- اختبار batching على الجهاز: joined `|` كان median 627ms مع map سليم 20/20 مقابل 1028ms لـ parallel x4، لكنه سبق أن فشل على صفحة حقيقية (`count 2 != 3`) ولذلك بقي محظورًا؛ السياسة الحالية parallel x2 لم تتغير. لا نفعّل joined اعتمادًا على هذا benchmark الصناعي وحده.
+- فحص جودة ML Kit المحلي: 23 حالة مكتملة؛ المحرك الخام قبل 21/23 مع mean token F1 ‏47.2%، والإخراج النهائي قبل 22/23 مع F1 ‏72.4% وexact ‏9/23 بعد 7 تصحيحات مصدرية. هذه مقاييس lexical overlap وليست دقة دلالية، وتبقى جودة الترجمة موضوع متابعة منفصل.
+- التقييم والخطوة التالية: لا يلزم إصلاح لمرحلة 6 بناءً على هذا التقرير. للحصول على تحقق تشغيلي حقيقي، تُجرى جلسة benchmark جديدة مع قارئ خارجي في المقدمة (لا شاشة ManhwaLens)، ثم يوقف Live من عنصر التحكم العائم قبل فتح Settings ونسخ التقرير. لا تغييرات في OCR أو محرك الترجمة أو batching ضمن هذا التفاعل.
+- الملفات البرمجية: لا تغيير. لم نشغّل اختبارات محلية. تم تحديث هذا التقرير وحده؛ لا يُدّعى تحقق جديد عبر CI.
+
+
+## اعتماد بروتوكول القيادة الهندسية والاستمرارية — 2026-11-16
+
+- استلم المشروع بروتوكول القيادة الهندسية المستقلة. هذا التفاعل تدقيق/توجيه إداري فقط؛ لا يغير التطبيق أو القرارات التقنية، ولا يدعي أي تقدم برمجي.
+- راجعت الحالة الحية عبر GitHub: HEAD فرع `feature/v0.12.4-bergamot-experiment` هو `963a9331e4b02828a9edc55cf3a62d1f76038b7e`؛ PR #4 مفتوح كمسودة ويستهدف فرع PR #3 `feature/v0.12.3-paddle-default-settings`، وPR #3 ما يزال مفتوحًا إلى `main`. آخر CI ظاهر، run #977، مكتمل بنجاح على HEAD أعلاه. إصدار prerelease الأحدث المتحقق هو v0.12.24 / code 64 مع APK مرفق.
+- لم تتغير ملفات الكود ولم تُشغّل اختبارات جديدة في هذا التفاعل. حالة الهاتف لم تتغير: لا يوجد قياس Live benchmark جديد على الجهاز لإصدار v0.12.24.
+- الخطوة الهندسية التالية المسجلة: جلسة Live benchmark واحدة على الهاتف أثناء عرض قارئ خارجي، ثم إيقاف Live من الزر العائم ونسخ التقرير. هذا مطلوب لقياس زمن أول overlay وفصل OCR عن الترجمة؛ لا تغيير للمحركات أو batching قبل ظهور القياس.
+- تم تحديث هذا التقرير وحده ليثبت أحدث حالة ومضمون هذا التفاعل. لا حاجة لتدخل إضافي الآن، سوى تقرير الهاتف عند إجراء القياس.
+
+
+## تحليل Live session benchmark على الهاتف — 2026-11-16
+
+- استلمنا تقرير جلسة فعلية من Xiaomi 23106RN0DA / Android 14 مع ManhwaLens v0.12.24 (64)، بدقة التقاط 720×1600. استمرت الجلسة 101,779 ms وانتهت بإيقاف Live.
+- النتيجة التشغيلية: 16 إطار معالجة، 14 إخراج overlay مرئي، 34/34 رقعة متوقعة رُسمت، و0 فشل overlay أو إطار أسود أو فشل/إلغاء معالجة. مر إطاران بلا رقع. سجل OCR ‏140 سطرًا و152 مرشحًا مع 12 رفض ثقة (7.9% من المرشحين)؛ هذا عدّ فقط ولا يكشف صحة النصوص.
+- OCR هو الحمل الأكبر المقاس: متوسط 2,686 ms لكل إطار (كاشف 875 ms، متعرف 1,784 ms، overhead ‏11 ms)، مقابل 99 ms متوسطًا لمحرك الترجمة. التعرف استغرق في المتوسط 1,760 ms للاستدلال؛ آخر إعداد مسجل استخدم 8 مرشحين ودفعتين للتعرف. لم نغيّر النموذج أو عتبات الثقة لأن التقرير لا يتضمن أمثلة OCR موسومة يمكن بها تقييم الدقة.
+- أول ظهور عربي حدث عند 11,919 ms من بدء Live: دخل أول إطار المعالجة بعد 3,644 ms، واستغرق عمل الإطار 5,701 ms (OCR ‏3,699 ms ومحرك 206 ms)، ثم مرت 2,574 ms حتى الظهور. من قراءة موضع القياس في الكود، هذه الـ2,574 ms تشمل الوقت بين إنهاء معالجة الإطار وظهور overlay؛ لا يفصل القياس الحالي انتظار main thread عن بناء الرقع وتحديث طبقة overlay.
+- سجلت الترجمة 15 محاولة (13 نجاحًا و2 فشل)، 38 كتلة، و29 hit مقابل 3 misses في الذاكرة المؤقتة. لا يمكن استنتاج فشل ظاهر من عداد الاستدعاءات وحده؛ التحقق يثبت أن كل الرقع المتوقعة في الجلسة رُسمت.
+- لا نقارن هذه الأرقام سببيًا بجلسات سابقة لأن الصفحة والظروف لم تثبت مطابقتها. ولا يستنتج التقرير تحسن دقة OCR أو جودة العربية من التوقيت والأعداد وحدها.
+- لا تعديل برمجي في هذا التفاعل. تحليل الكود يبين أن «التأخير خارج عمل أول إطار» يجمع انتظار طابور الواجهة وبناء الرقع وتطبيق overlay. المهمة الهندسية التالية المحددة: توسيع القياس الاختياري ليقسم أول ظهور إلى (1) انتظار callback على main thread، (2) زمن بناء الرقع، (3) زمن تطبيقها في overlay؛ إضافة تغطية JVM لهذه الحسابات، ثم إنتاج prerelease قابل للتثبيت وإجراء جلسة واحدة مماثلة على الهاتف. إلى ذلك الحين لا تغيير لمحركات OCR/الترجمة أو عتبات الثقة.
+- التحقق الحالي: PR #4 ما يزال مفتوحًا كمسودة. آخر CI على HEAD السابق لهذا التفاعل، Android build #979، نجح في Unit tests وبناء APK ورفع artifacts؛ لم تُشغّل اختبارات جديدة بسبب هذا التحليل فقط.
+
+
+## تحقق CI لتحديث التقرير — 2026-11-16
+
+- بعد تسجيل تحليل الهاتف في commit التوثيق `1dbc663ae4755b402b0ccf896ab1d795b12154b6`، نجح Android build push #980 وPR validation #981. أكدت النتائج نجاح Unit tests وBuild debug APK وفحوص شهادة التوقيع ورفع تقارير الاختبار وAPK كـ artifacts. لم تُجر تغييرات كود أو اختبارات جهاز في هذا التحديث.
+- PR #4 ما يزال مفتوحًا كمسودة. إصدار الهاتف الأحدث يبقى v0.12.24 / code 64؛ لم ننشئ إصدارًا جديدًا في جولة التحليل.
+
+
+## تحسين تشخيص التأخير وتجربة دفعة OCR أكبر — v0.12.25 (2026-11-16)
+
+- **الدليل:** جلسة Xiaomi 23106RN0DA على v0.12.24 سجلت recognizer بمتوسط 1,784 ms ومتوسط استدلال 1,760 ms، مقابل 875 ms للكاشف و99 ms للترجمة. آخر تشغيل OCR عرض 8 مرشحين ودفعتين عند batch size 4. هذا يجعل التعرف المرشح الأوضح لتقليل زمن OCR، لكنه لا يثبت أن batch size 8 أسرع على الجهاز.
+- **التغيير التجريبي:** ضبط PaddleOCR recognition batch size من 4 إلى 8، مع إبقاء النموذج، صورة المصدر، قصاصات التعرف، حد الثقة، إعداد detector وعدد الخيوط دون تغيير. المتوقع تقليل عدد استدعاءات ONNX للصفحات التي فيها حتى 8 قصاصات؛ لا ندعي تسريعًا أو تحسنًا في الدقة قبل مقارنة الجهاز.
+- **تحسين القياس:** تسجيل أزمنة أول إخراج إلى خمسة أجزاء: انتظار طابور main thread، تحضير callback، بناء الرقع، التسليم من البناء إلى التحديث، وتطبيق التحديث في طبقة overlay. تبقى الأرقام اختيارية ومحلية ولا تسجل نص الصفحة.
+- **الملفات المعدلة في هذا التغيير:** `TextRecognizerClient.kt` (دفعة 8)، `LiveSessionBenchmark.kt` و`FloatingButtonService.kt` (مراحل التوقيت)، اختبار JVM جديد لحساب الفواصل، `app/build.gradle.kts` (v0.12.25/code65)، `CHANGELOG.md`، `MANUAL_TESTS.md`، `DECISIONS.md`، وهذا التقرير.
+- **حالة التحقق عند إعداد هذا commit:** لا يوجد تشغيل CI للمرشح بعد. سيُبنى ويُختبر عبر GitHub Actions، ثم ينشر workflow إصدار prerelease APK تلقائيًا بعد اجتياز فحوص الاختبار والتوقيع والتوافق. لا يوجد تشغيل محلي مدعى.
+- **الخطوة التالية:** مقارنة تقرير واحد على الهاتف نفسه والصفحة نفسها بعد تثبيت v0.12.25 فوق v0.12.24. راقب زمن recognizer وعدد الدفعات ورفض الثقة وتغطية النص، وكذلك مكونات زمن أول overlay. أعد حجم الدفعة إلى 4 إذا زاد الزمن أو تراجعت التغطية.
+
+
+## تحقق ونشر v0.12.25 — 2026-11-16
+
+- نجح Android build push #984 وPR validation #985 على commit `3f29487e84310422c085d72072ed897806381adb`. نجحت Unit tests، بناء Debug APK، استعادة وفحص شهادة التوقيع الثابتة، فحص package/versionCode/signature للتحديث فوق أحدث release، ورفع APK وتقارير الاختبار.
+- أُنشئ prerelease [v0.12.25](https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.25) وتحقق ظهوره في Releases مع `ManhwaLens-v0.12.25-debug.apk` (71,399,110 bytes، SHA-256 `82b547772b4f7443f03d1f8d9d1d9d9a433d7a5db2a39d6ae209b2ff43ac2b84`). رابط التنزيل المباشر: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.25/ManhwaLens-v0.12.25-debug.apk.
+- اختبار `LiveOverlayStageTimesTest` اجتاز حالتي تقسيم الفواصل الصحيحة ومعالجة الطوابع غير الصالحة دون قيم سالبة. لا توجد مطالبة بتسريع فعلي حتى تعاد جلسة الهاتف نفسها؛ زيادة batch size ما زالت تجربة تحتاج تحقق latency والذاكرة وتغطية OCR.
+- العمل المطلوب من الهاتف: تثبيت v0.12.25 فوق v0.12.24، واستخدام الجهاز والصفحة نفسيهما، ثم إرسال تقرير Live benchmark الجديد للتحقق من سرعة recognizer/عدد دفعاته ومراحل أول overlay ورفض الثقة وتغطية النص.
+
+
+## إعادة إرسال قياس v0.12.24 — 2026-11-16
+
+- وصل تقرير Live session مطابق لقياس Xiaomi السابق: التطبيق المبلغ عنه هو v0.12.24 (code 64)، ووقت الجلسة 17:01:48–17:03:30، والقياسات نفسها (16 إطارًا، OCR متوسط 2,686 ms، recognition متوسط 1,784 ms، وأول إخراج بعد 11,919 ms).
+- هذا ليس اختبارًا لـ v0.12.25؛ لذلك لا يقيّم دفعة recognition الجديدة بحجم 8 ولا يحتوي تفصيل First overlay stages الذي أضيف في ذلك الإصدار. لا تغيير برمجي أو استنتاج أداء جديد من هذه الإعادة.
+- المقارنة المطلوبة ما تزال: تشغيل v0.12.25 / code 65 على الهاتف نفسه والصفحة نفسها، ثم إرسال تقرير Live session benchmark الذي يعرض إصدار التطبيق وFirst overlay stages وعداد recBatches.
+
+
+## تحليل قياس v0.12.25 وخطوة تقليل التعطّل — 2026-11-16
+
+- جلسة Xiaomi 23106RN0DA على v0.12.25 (code65) سجلت OCR متوسط 2,953 ms (recognizer 1,909 ms، detector 1,013 ms) وإطارًا متوسطه 3,262 ms؛ مقابل v0.12.24: OCR 2,686 ms وإطار 2,959 ms. هذا فرق وصفي من جلستين، وليس اختبارًا مضبوطًا بالكامل، لكنه لا يدعم استمرار batch size 8؛ تُعاد إلى 4.
+- إجمالي المرشحين 134 مقابل 152 في الجلسة السابقة، ورفض الثقة 5 مقابل 12؛ لا نستنتج تحسن أو تراجع OCR من عدديْن دون مطابقة الصفحة والمرشحين. كل الرقع في هذه الجلسة رُسمت (29/29) بلا إخفاق.
+- أول overlay ظهر بعد 10,500 ms. تقسيم المراحل كشف main queue 1 ms، callback prep 2 ms، patch build 2,002 ms، handoff 1 ms، overlay apply 39 ms. بناء الرقع وحده هو عنق زجاجة العرض الظاهر في القياس.
+- تغيير v0.12.26: إعادة حجم batch إلى 4، ونقل buildPatches من callback الواجهة إلى عامل Live الخلفي القائم. هذا يزيل نحو ثانيتين من حجب main thread في هذه العينة، لكنه لا يضمن تقليل إجمالي زمن أول overlay لأن rasterization ما زال مطلوبًا قبل عرض الرقع.
+- تحقق المرشح v0.12.26: الكود والتقرير والاختبارات سيسجلون في commit واحد؛ ينتظر GitHub Actions اختبارات JVM والبناء والتوقيع والتوافق والنشر. الاختبار التالي على الهاتف نفسه سيقارن استجابة الواجهة وزمن patch build وfirst visible output.
+
+## تحليل تقرير الهاتف v0.12.25 وإغلاق دورة v0.12.26 — 2026-11-17
+
+- وصل تقرير هاتف Xiaomi 23106RN0DA على v0.12.25 / code 65 (جلسة 2026-11-16 17:42:29–17:44:14، 720×1600). عالج Live ‏14 إطارًا في 105.2 ثانية؛ 29/29 رقعة متوقعة رُسمت، لا فشل OCR/overlay ولا إطارات سوداء، مع إطارين بلا رقع.
+- متوسط OCR كان 2,953 ms (max 4,984): detector ‏1,013 ms، recognition ‏1,909 ms (inference ‏1,879 ms)، وpipeline overhead ‏12 ms. الترجمة المحلية ‏105 ms بالمعدل. مقارنة الوصف مع v0.12.24 ليست تجربة مضبوطة؛ لا نستنتج تراجعًا سببيًا، لكن زيادة دفعة التعرف لم تُظهر تسريعًا في هذه العينة. في آخر OCR كان 7 مرشحين في دفعة واحدة، كما أن الجلسة تضمنت 12/14 إخراجًا مرئيًا.
+- أول ترجمة مرئية بعد 10.5 ثانية. مقاييسها فصلت السبب: دخول أول إطار بعد 2.457 ثانية، عمل الإطار 5.998 ثانية (OCR ‏4.052 والترجمة 96 ms)، ثم زمن بناء الرقع 2.002 ثانية، و39 ms لتطبيقها. نقل بناء الرقع إلى العامل الخلفي يخفض حجب الواجهة، لكنه لا يزيل وقت الرسم الكلي.
+- جودة الترجمة بقيت موضع قلق مستقل عن الأداء. تقرير أزواج الترجمة يحتوي 42 مدخلاً، معظمها CACHE_HIT من الذاكرة الدائمة؛ لذلك لا يكشف النص الخام للمحرك في هذه الحالات. تظهر أخطاء ملموسة مثل ترجمة “MISS” كـ«ملكة جمال»، و“MR. SONG” كـ«السيد. الأغنية»، ونصوص مشوهة مثل “YOL” و“5HUT” قد تكون OCR أو ترجمة/كاش. لا ننسبها للمحرك قبل ربط OCR الخام والمرشح الخام للمداخل غير المخزنة؛ ولا تُستخدم هذه القائمة وحدها لإضافة تصحيحات عامة.
+- الفشلين من 14 محاولة ترجمة لا يثبتان عدد الترجمات الخاطئة بصريًا؛ 29/29 الرقع المتوقعة رُسمت، لكن الرسم لا يثبت جودة النص. كما لا يمكن تقييم candidate AR لمعظم hits القديمة بسبب غياب raw-candidate tracing وقت إنشائها.
+- راجعت الحالة الحالية بعد هذا الاختبار: الإصدار v0.12.26 / code 66 منشور في GitHub Releases، وCI push #994 وPR validation #43913362461 نجحا على HEAD 69da8300c66a0abcab2407e80dc717ff3bedf910. يتضمن v0.12.26 إعادة حجم دفعة Paddle إلى 4 وإخراج بناء الرقع من طابور الواجهة، مع اختبار JVM للتوقيت. لم يختبر الهاتف هذا الإصدار بعد.
+- الخطوة الهندسية التالية: تثبيت v0.12.26 فوق v0.12.25 وتشغيل جلسة Live واحدة مماثلة على الجهاز نفسه والصفحة نفسها. راقب OCR avg/max، recBatches، زمن بناء الرقع وfirst visible translation. قبل المقارنة امسح cache الترجمة في التطبيق إذا أمكن، أو استخدم صفحة لم تُترجم من قبل؛ وإلا فلن تمثل أزمنة 105 ms جودة/زمن محرك غير مخزن.
+- ملف APK للاختبار: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.26/ManhwaLens-v0.12.26-debug.apk. يلزم هذا الاختبار على الهاتف للتحقق من التغيير؛ لا تغيير كود إضافي إلى حين وصول قياس v0.12.26.
+
+
+## تحليل جلسة الهاتف v0.12.26 — 2026-11-17
+
+- وصل قياس Xiaomi 23106RN0DA / Android 14 على v0.12.26، 720×1600: 13 إطارًا، 12 إخراجًا مرئيًا، 24/24 رقعة مرسومة، صفر فشل/إلغاء/إطار أسود، وإطار واحد بلا رقع.
+- أول ترجمة ظهرت بعد 5,299 ms: دخول أول إطار 1,325 ms، عمل أول إطار 3,890 ms (OCR ‏3,075 + محرك 281)، ثم 84 ms خارج عمل الإطار. بناء الرقع 356 ms وoverlay apply ‏72 ms. هذا يتسق مع إزالة بناء الرقع من طابور الواجهة؛ ظهر في عينة v0.12.25 السابقة بناء 2,002 ms، لكن اختلاف الجلسة يمنع ادعاء فرق سببي مضمون.
+- عبر الإطارات المقاسة، OCR متوسط 3,163 ms (max 4,390)، detector ‏1,238 ms، recognizer ‏1,896 ms، والترجمة 316 ms على 9 إطارات و18 كتلة (16 misses، 2 hits، 9/9 نجاحات). آخر قراءة عرضت 7 candidates، low confidence=1، recBatches=2. الأولوية التالية هي تقليل زمن Paddle CPU دون المساس بحد الثقة أو OCR source resolution.
+- أول إطار ليس متوسط الأداء العام؛ فيه OCR أسرع من المتوسط. زمن الإطار المتوسط 3,252 ms والحد الأقصى 6,080 ms. لا توجد نتائج موسومة لنص OCR، لذا لا نخفض أبعاد الكشف ولا عتبة الثقة اعتمادًا على الزمن وحده.
+- الترجمة غير المخزنة ارتفعت إلى 316 ms بالمعدل مقابل جلسات سابقة فيها cache hits أكثر؛ 16 misses فقط، فلا نعتبر هذه عينة كافية لتغيير توازي ML Kit. جميع الاستدعاءات التسعة نجحت.
+- لم تتغير ملفات التطبيق أو إعداداته في هذه المراجعة. اجتاز التغيير السابق v0.12.26 CI بالفعل. الخطوة الهندسية التالية: إضافة/استخدام مقارنة أداء اختيارية مضبوطة لـ ONNX intra-op thread counts (2 مقابل 4) على صفحة/جهاز ثابتين، مع مقارنة OCR outputs والرفض، ثم إبقاء الإعداد الذي يحسن latency دون فقد نصوص. وبعدها تجربة detector input cap فقط إذا ظلت الجودة قابلة للمقارنة.
+- يلزم تحقق هاتف مرة أخرى بعد إصدار مرشح المقارنة؛ لا تعديل لتفضيل المحرك أو الثقة الآن.
+
+## تجربة عدد خيوط ONNX بعد قياس v0.12.26 — 2026-11-17
+
+- تحليل القياس: 13 إطارًا، 12 overlay مرئيًا، 24/24 رقعة رُسمت بلا إخفاق. أول إخراج 5,299 ms؛ patch build 356 ms؛ OCR المتوسط 3,163 ms (detector 1,238 / recognizer 1,896)، والترجمة غير المخزنة بالمعدل 316 ms على 9 إطارات.
+- أبقى الإصلاح السابق patch rasterization خارج main thread؛ لا دليل من هذه العينة على أن CPU OCR أسرع من الإصدار السابق بسبب اختلاف ظروف الجلسة.
+- التغيير المرشح v0.12.27: خفض ONNX intra-op threads من 4 إلى 2 فقط لتقليل التنافس على CPU بين PaddleOCR وML Kit وواجهة التطبيق. حجم detector، rec batch size=4، النموذج، القصاصات، thresholds ومحرك الترجمة بلا تغيير. الأثر المتوقع غير محسوم: قد ينخفض التنافس أو يزداد زمن الاستدلال.
+- تم تعديل TextRecognizerClient.kt وapp/build.gradle.kts (versionCode 67/versionName 0.12.27) وCHANGELOG.md. commit المرشح HEAD 226a5b493cfa4952f11588141877f203d36986ed.
+- التحقق: CI push وPR لـ v0.12.27 بدأا؛ لا نعدّ الإصدار منشورًا حتى نجاح الاختبارات والبناء وفحوص التوقيع والتوافق وظهور APK في Releases. لم تُشغّل اختبارات محلية.
+- الخطوة التالية بعد CI الأخضر: تثبيت v0.12.27 كتحديث على الهاتف نفسه، إعادة الصفحة/جلسة مشابهة، وإرسال تقرير الأداء. نقارن OCR avg/max، detector/recognizer inference، أول ظهور، engine time، 24/24 coverage، وعدد المرشحين ورفض الثقة مع v0.12.26. إذا كان الأداء أو التغطية أسوأ نعيد 4 threads دون طلب مراجعة تقنية.
+
+## تحقق ونشر تجربة v0.12.27 — 2026-11-17
+
+- CI push #1005 [44109390861] وPR validation #1006 [44109408516] اكتمل بنجاح على commit d25bc32298d6678d763234fb5ca7ba67495f0f6d.
+- تحقق نشر GitHub Release التجريبي v0.12.27 / versionCode 67 مع ManhwaLens-v0.12.27-debug.apk (71,399,830 bytes): https://github.com/mouadknight0-cell/ManhwaLens/releases/tag/v0.12.27
+- التغيير الوحيد في سلوك الأداء عن v0.12.26 هو ONNX intra-op threads من 4 إلى 2. لا توجد دعوى بتسريع أو أثر OCR حتى الآن؛ يحتاج قياسًا على الهاتف نفسه، مع مقارنة زمن OCR والكشف والتعرف وأول ظهور وعدد المرشحين ورفض الثقة.
+- ملفات المشروع التي تغيرت في تجربة الإصدار: TextRecognizerClient.kt، app/build.gradle.kts، CHANGELOG.md، وREPOSITORY_REPORT.md.
+- الخطوة/نقطة التوقف: اختبار فعلي واحد على هاتف Xiaomi نفسه. رابط APK المباشر: https://github.com/mouadknight0-cell/ManhwaLens/releases/download/v0.12.27/ManhwaLens-v0.12.27-debug.apk. بعد ورود القياس أقرر إبقاء خيطين أو العودة إلى أربعة بناءً على الزمن والتغطية.
+
+## ملخص شامل للحالة الهندسية — 2026-11-17
+
+### المنتج والاتجاه
+ManhwaLens أداة Android عائمة تلتقط الشاشة، تستخرج النص الإنجليزي، تجمعه في كتل/فقاعات، تترجمه إلى العربية وترسم رقع RTL معتمة. المنتج Offline First. OCR الحالي PaddleOCR PP-OCRv5 محلي؛ ML Kit هو محرك الترجمة المحلي الأساسي. خيارات الترجمة تتضمن Gemini وLibreTranslate وBergamot التجريبي. لا يدعي المشروع دعم النصوص الآسيوية أو التنضيد العمودي للمانغا.
+
+### ما أُنجز
+- P0/P1: تدقيق المعمارية، تمرير name sheet، منع صدى الإنجليزية، ذاكرة أسماء الشخصيات حسب السلسلة، والتحقق الآمن من التخزين والاستعادة.
+- P2: النتائج الجزئية، عزل رفض الفقاعة، تمرير الأسماء والسياق، إعادة محاولة Gemini عند حدود المخرجات، وحراسة المخرجات العربية. التنفيذ متحقق آليًا؛ جودة الترجمة الفعلية ما زالت تحتاج تحسينًا.
+- P4: تشخيص اختياري للنص الخام والثقة والحدود، حماية الحواف، منع دمج الفقاعات عبر سطر وسيط، وتصفية العلامات المشوهة، ثم اعتماد PaddleOCR للتعرف.
+- P5: جمع رقع الأسطر الشقيقة، منع النتائج القديمة من استبدال الأحدث، وتسجيل حدود العرض. نُقل بناء الرقع إلى عامل خلفي.
+- أُضيفت تقارير أداء Live من التشغيل حتى الإيقاف، وتقسيم detector/recognizer/translation/overlay، وفحوص للكاش والأخطاء من دون تسجيل نص الصفحة.
+
+### القرارات والقيود
+- لا خفض لعتبات OCR أو دقة المصدر اعتمادًا على الوقت وحده؛ يجب موازنة السرعة مع تغطية النص.
+- لا تغيير لترتيب batching للترجمة بسبب benchmark صناعي إذا فشل على صفحة حقيقية.
+- cache hit لا يثبت جودة الترجمة؛ بعض النصوص المخزنة قديمة وسيئة، ويلزم ربط OCR الخام بمرشح المحرك غير المخزن قبل إضافة تصحيحات عامة.
+- نجاح CI لا يعادل اختبار هاتف حقيقي.
+
+### آخر قياس هاتف
+على Xiaomi 23106RN0DA / Android 14، الإصدار v0.12.26، بدقة 720×1600: عولجت 13 لقطة، ظهر 12 إخراجًا، ورُسمت كل الرقع 24/24 بلا فشل. أول ترجمة ظهرت بعد 5.299 s؛ OCR متوسطه 3.163 s، detector 1.238 s، recognizer 1.896 s، الترجمة 316 ms على 9 إطارات، وبناء الرقع 356 ms. OCR هو أكبر حمل متبقٍ. هذه عينة واحدة وليست متوسط عدة جلسات.
+
+### الإصدارات والمستودع
+- آخر إصدار تجريبي: v0.12.27 / code 67.
+- خفّض الإصدار خيوط ONNX من 4 إلى 2 فقط. نجح CI push #1005 وPR #1006 ونُشر APK.
+- PR #3 مفتوح باتجاه main، وPR #4 مسودة فوق PR #3. لم يندمج التطوير التجريبي إلى main.
+- لا توجد دعوى بأن خيطين أسرع قبل قياس الهاتف؛ يتطلب ذلك اختبارًا مباشرًا على الجهاز نفسه.
+
+### ما نريد فعله بعد ذلك
+1. اختبار v0.12.27 على الهاتف نفسه والصفحة نفسها المستخدمة مع v0.12.26.
+2. مقارنة OCR avg/max، الكشف والتعرف، زمن الترجمة غير المخزنة، زمن أول ترجمة، عدد المرشحين ورفض الثقة، والرقع المرئية.
+3. الإبقاء على خيطين إذا انخفض الزمن وبقيت التغطية؛ العودة إلى أربعة إذا ساء الزمن أو فُقد نص.
+4. بعد حسم عدد الخيوط، متابعة detector وrecognizer كل على حدة بتغيير واحد وتجربة قابلة للتكرار.
+5. معالجة أخطاء العربية والأسماء من بيانات OCR/المحرك الخام غير المخزنة، لا بتصحيح عام مبني على صورة أو cache hit وحده.
+6. إكمال مراجعة PRs المتسلسلة ودمجها إلى main بعد التحقق.
+

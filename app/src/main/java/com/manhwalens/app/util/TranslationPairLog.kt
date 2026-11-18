@@ -27,7 +27,8 @@ object TranslationPairLog {
                 trace.elapsedMs.coerceAtLeast(0).toString(),
                 trace.sourceEnglish.take(MAX_FIELD_CHARS),
                 trace.candidateArabic.take(MAX_FIELD_CHARS),
-                trace.finalArabic.take(MAX_FIELD_CHARS)
+                trace.finalArabic.take(MAX_FIELD_CHARS),
+                trace.requestId.take(40)
             ).joinToString("\t") { encode(it) }
             synchronized(this) {
                 file.appendText(line + "\n")
@@ -52,12 +53,14 @@ object TranslationPairLog {
         if (lines.isEmpty()) null else buildString {
             appendLine("ManhwaLens translation pair diagnostics")
             appendLine("entries=${lines.size} · local only · Debug mode capture")
-            appendLine("EN = original OCR source · CANDIDATE AR = engine output · FINAL AR = post-processed result")
+            appendLine("EN = original OCR source · CANDIDATE AR = raw engine/cache value before current processing · FINAL AR = accepted value returned for display (blank if rejected)")
+            appendLine("Note: entries captured before raw-candidate tracing was added may show a post-processed value in CANDIDATE AR.")
             appendLine()
             lines.forEachIndexed { index, line ->
                 val fields = line.split('\t').map(::decode)
                 if (fields.size >= 9) {
-                    appendLine("PAIR ${index + 1} · ${fields[0]} · ${fields[1]} · block #${fields[2]}")
+                    val requestId = fields.getOrNull(9)?.takeIf { it.isNotBlank() } ?: "legacy"
+                    appendLine("PAIR ${index + 1} · ${fields[0]} · ${fields[1]} · request=$requestId · block #${fields[2]}")
                     appendLine("status=${fields[3]} · detail=${fields[4]} · elapsedMs=${fields[5]}")
                     appendLine("EN: ${display(fields[6])}")
                     if (fields[7] != fields[8]) appendLine("CANDIDATE AR: ${display(fields[7])}")

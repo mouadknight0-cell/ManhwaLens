@@ -2,7 +2,7 @@ name: Android build
 
 on:
   push:
-    branches: [main, master, arena/cebceb7a-manhwalens, arena/8a718184-manhwalens]
+    branches: [main, master, feature/v0.12.4-bergamot-experiment, arena/cebceb7a-manhwalens, arena/8a718184-manhwalens]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -44,10 +44,11 @@ jobs:
       # install each APK as an update instead of treating it as a different app.
       - name: Restore stable experimental debug signing key
         run: |
-          mkdir -p "$HOME/.android"
-          base64 --decode ci/experimental-debug.keystore.base64 > "$HOME/.android/debug.keystore"
-          chmod 600 "$HOME/.android/debug.keystore"
-          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey >/dev/null
+          set -euo pipefail
+          mkdir -p ci
+          base64 --decode ci/experimental-debug.keystore.base64 > ci/experimental-debug.keystore
+          chmod 600 ci/experimental-debug.keystore
+          keytool -list -v -storetype PKCS12 -keystore ci/experimental-debug.keystore -storepass android -alias androiddebugkey | grep "SHA256:"
 
       - name: Download pinned PaddleOCR Arabic/English models
         run: |
@@ -66,6 +67,18 @@ jobs:
           echo "799113ebf267fbe742deb99eb36e8d42c9ddc5291ceacf92add41b4d52a59110  app/src/main/assets/models/rec/inference.onnx" | sha256sum --check
           grep -q "model_name: arabic_PP-OCRv5_mobile_rec" app/src/main/assets/models/rec/inference.yml
           du -h app/src/main/assets/models/det/inference.onnx app/src/main/assets/models/rec/inference.onnx
+
+      # Mozilla Bergamot JNI bridge, pinned to an immutable upstream commit.
+      # Only ARM64 is supported; the Kotlin adapter gates loading on API 28+ / 64-bit.
+      - name: Fetch pinned Bergamot ARM64 runtime
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/jniLibs/arm64-v8a
+          curl --fail --location --retry 3 --retry-all-errors \
+            https://raw.githubusercontent.com/wasi-master/wmkeyboard/b5eef356e9e200051a50fffb347d9344ef94843b/core/intelligence/src/bergamot/jniLibs/arm64-v8a/libwmbergamot.so \
+            -o app/src/main/jniLibs/arm64-v8a/libwmbergamot.so
+          test "$(stat -c%s app/src/main/jniLibs/arm64-v8a/libwmbergamot.so)" -eq 6732632
+          file app/src/main/jniLibs/arm64-v8a/libwmbergamot.so | grep -q 'ARM aarch64'
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -98,6 +111,88 @@ jobs:
           echo "file=$OUT" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Verify APK uses the pinned experimental debug certificate
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          EXPECTED_CERT=$(keytool -list -v -storetype PKCS12 -keystore ci/experimental-debug.keystore -storepass android -alias androiddebugkey | sed -n "s/^[[:space:]]*SHA256: //p" | head -1 | tr -d ":" | tr "[:upper:]" "[:lower:]")
+          CURRENT_CERT=$("$BUILD_TOOLS/apksigner" verify --print-certs "${{ steps.apk.outputs.file }}" | sed -n "s/^Signer #1 certificate SHA-256 digest: //p" | head -1 | tr "[:upper:]" "[:lower:]")
+          test -n "$EXPECTED_CERT"
+          test -n "$CURRENT_CERT"
+          if [ "$CURRENT_CERT" != "$EXPECTED_CERT" ]; then
+            echo "::error::Debug APK signer does not match the pinned experimental keystore."
+            echo "Expected: $EXPECTED_CERT"
+            echo "Actual:   $CURRENT_CERT"
+            exit 1
+          fi
+          echo "APK signer matches the pinned experimental key: $CURRENT_CERT"
+
+      # Refuse to publish an update that Android cannot install over the latest
+      # published APK. Package identity, monotonically increasing versionCode and
+      # signing certificate are all part of Android's update contract.
+      - name: Verify APK update compatibility with latest published release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.apk.outputs.version }}
+        run: |
+          set -euo pipefail
+          VERSION_TAG="v$APP_VERSION"
+          APK="${{ steps.apk.outputs.file }}"
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          CURRENT_BADGING=$("$BUILD_TOOLS/aapt" dump badging "$APK" | head -1)
+          CURRENT_PACKAGE=$(printf '%s\\n' "$CURRENT_BADGING" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")
+          CURRENT_CODE=$(printf '%s\\n' "$CURRENT_BADGING" | sed -n "s/.*versionCode='\\([0-9]*\\)'.*/\\1/p")
+          test "$CURRENT_PACKAGE" = "com.manhwalens.app"
+          test -n "$CURRENT_CODE"
+
+          # Branch pushes of an already-published app version produce validation artifacts
+          # only; the release decision below will not publish that tag again. Avoid comparing
+          # such an internal rebuild with a historical APK that the user accepted as a
+          # one-time signing exception. Explicit tag pushes still run the full gate.
+          if [[ "$GITHUB_REF" == "refs/heads/feature/v0.12.4-bergamot-experiment" ]] && gh release view "$VERSION_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $VERSION_TAG already exists; this branch build will not publish it. Package/version metadata validated; signer was checked above."
+            exit 0
+          fi
+
+          CURRENT_CERT=$("$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
+          test -n "$CURRENT_CERT"
+          export VERSION_TAG
+          PREVIOUS_TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 50 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | map(.tagName) | map(select(. != env.VERSION_TAG)) | .[0] // empty')
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No earlier published release found; package identity validated, continuity check skipped."
+            exit 0
+          fi
+          mkdir -p /tmp/previous-release
+          gh release download "$PREVIOUS_TAG" --repo "$GITHUB_REPOSITORY" --pattern 'ManhwaLens-*-debug.apk' --dir /tmp/previous-release
+          PREVIOUS_APK=$(find /tmp/previous-release -maxdepth 1 -name 'ManhwaLens-*-debug.apk' -print -quit)
+          test -n "$PREVIOUS_APK"
+          PREVIOUS_CERT=$("$BUILD_TOOLS/apksigner" verify --print-certs "$PREVIOUS_APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
+          PREVIOUS_BADGING=$("$BUILD_TOOLS/aapt" dump badging "$PREVIOUS_APK" | head -1)
+          PREVIOUS_PACKAGE=$(printf '%s\\n' "$PREVIOUS_BADGING" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")
+          PREVIOUS_CODE=$(printf '%s\\n' "$PREVIOUS_BADGING" | sed -n "s/.*versionCode='\\([0-9]*\\)'.*/\\1/p")
+          test "$PREVIOUS_PACKAGE" = "$CURRENT_PACKAGE"
+          test "$CURRENT_CODE" -gt "$PREVIOUS_CODE"
+          # One controlled signing transition is allowed because the user explicitly
+          # accepted the currently installed v0.12.8 as an exception. v0.12.9 establishes
+          # the permanent future baseline. All later versions compare against v0.12.9.
+          if [ "$APP_VERSION" = "0.12.9" ]; then
+            if [ "$PREVIOUS_TAG" != "v0.12.8" ]; then
+              echo "::error::Baseline bootstrap expected v0.12.8 as the previous release, got $PREVIOUS_TAG."
+              exit 1
+            fi
+            echo "One-time signing baseline bootstrap: v0.12.9 will establish the future signer."
+            echo "Package and versionCode continuity still verified against $PREVIOUS_TAG."
+          else
+            if [ "$CURRENT_CERT" != "$PREVIOUS_CERT" ]; then
+              echo "::error::Signing certificate changed: refusing to publish an APK that cannot update the previous future-baseline release."
+              echo "Previous release: $PREVIOUS_TAG"
+              echo "Previous certificate: $PREVIOUS_CERT"
+              echo "Current certificate:  $CURRENT_CERT"
+              exit 1
+            fi
+            echo "Update compatibility verified against $PREVIOUS_TAG (package=$CURRENT_PACKAGE, versionCode=$PREVIOUS_CODE -> $CURRENT_CODE, certificate=$CURRENT_CERT)."
+          fi
       - name: Upload APK artifact
         uses: actions/upload-artifact@v6
         with:
@@ -113,9 +208,41 @@ jobs:
           path: app/build/reports/tests/
           if-no-files-found: ignore
 
-      - name: Attach APK to GitHub Release (tag builds)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Publish one Release automatically when a new versionName reaches the
+      # development branch. Existing version tags are not republished for every
+      # follow-up commit. Explicit v* tag pushes also publish/update their Release.
+      # Pull-request builds (including same-repository PRs) are validation-only.
+      # GitHub sets GITHUB_REF to refs/pull/<number>/merge for pull_request events.
+      # Publish only from the designated development branch or an explicit v* tag.
+      - name: Decide whether this build should publish a Release
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/feature/v0.12.4-bergamot-experiment')
+        id: release_gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="v${{ steps.apk.outputs.version }}"
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              echo "Release $TAG already exists; this is another commit of the same app version."
+            else
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+              echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Publish APK on GitHub Releases
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/feature/v0.12.4-bergamot-experiment') && steps.release_gate.outputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.apk.outputs.file }}
+          tag_name: ${{ steps.release_gate.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ManhwaLens v${{ steps.apk.outputs.version }}
+          prerelease: ${{ startsWith(github.ref, 'refs/heads/') || contains(steps.apk.outputs.version, '-') }}
+          files: |
+            ${{ steps.apk.outputs.file }}
           generate_release_notes: true

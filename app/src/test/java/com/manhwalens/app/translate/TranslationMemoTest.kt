@@ -20,6 +20,7 @@ class TranslationMemoTest {
         assertNotNull(hit)
         assertTrue(hit!!.exact)
         assertEquals("مرحبا", hit.arabic)
+        assertEquals("Hello there", hit.matchedSource)
     }
 
     @Test
@@ -31,7 +32,42 @@ class TranslationMemoTest {
             val hit = memo.get(variant)
             assertNotNull("variant $variant should hit", hit)
             assertEquals("كراك", hit!!.arabic)
+            assertEquals("KRAK!!", hit.matchedSource)
         }
+    }
+
+    @Test
+    fun ambiguousShortDialogueNeverFuzzyMatchesDifferentWords() {
+        val memo = TranslationMemo()
+        memo.put("AH...", "آه...")
+        assertNull("YEAH must not reuse AH's weak canonical shape", memo.get("YEAH"))
+
+        memo.put("NO.", "لا.")
+        assertNull("RUN must not reuse NO's weak canonical shape", memo.get("RUN"))
+        memo.put("SORRY.", "آسف.")
+        assertNull("short dialogue with an ambiguous shape must miss", memo.get("AH"))
+    }
+
+    @Test
+    fun whitespaceDoesNotArtificiallyMakeAWeakShapeEligible() {
+        val memo = TranslationMemo()
+        memo.put("a b", "أ ب")
+        assertEquals(0, memo.fuzzySize())
+        assertNull(memo.get("a-b"))
+    }
+
+    @Test
+    fun cachingTranslatorDoesNotCrossServeAhAndYeah() {
+        val fake = FakeTranslator()
+        val memo = TranslationMemo()
+        val caching = CachingTranslator(fake, TranslationCache(), memo = memo)
+
+        val ah = caching.translatePage(listOf(TranslationBlock(1, "AH..."))) as PageTranslation.Success
+        val yeah = caching.translatePage(listOf(TranslationBlock(1, "YEAH"))) as PageTranslation.Success
+
+        assertEquals("AR:AH...", ah.blocks.single().arabic)
+        assertEquals("AR:YEAH", yeah.blocks.single().arabic)
+        assertEquals("different short dialogue must reach the engine", 2, fake.calls)
     }
 
     @Test
@@ -68,15 +104,27 @@ class TranslationMemoTest {
     }
 
     @Test
-    fun shapeOfCollapsesVowelsAndRepeats() {
+    fun shapeOfCollapsesRepeatedLettersAndPunctuationButPreservesVowelsAndWordBoundaries() {
         val memo = TranslationMemo()
-        // Doubled letters and vowels collapse; the consonant skeleton is what is compared.
         val krak = memo.shapeOf("krak")
+        assertEquals("krak", krak)
         assertEquals(krak, memo.shapeOf("kraak"))
-        assertEquals(krak, memo.shapeOf("KRAK!"))
+        assertEquals(krak, memo.shapeOf("KRAK!!"))
         assertEquals(memo.shapeOf("thud"), memo.shapeOf("thuud"))
-        // Two different words keep different shapes.
-        assertTrue(memo.shapeOf("krak") != memo.shapeOf("thud"))
+        assertEquals("youregoing", memo.shapeOf("You're going.").replace(" ", ""))
+        assertTrue(memo.shapeOf("first") != memo.shapeOf("forest"))
+        assertTrue(memo.shapeOf("a man") != memo.shapeOf("aman"))
+        assertEquals("ah", memo.shapeOf("AH..."))
+        assertEquals("yeah", memo.shapeOf("YEAH"))
+    }
+
+    @Test
+    fun fuzzyCacheDoesNotCollideOnVowelOrWordBoundaryDifferences() {
+        val memo = TranslationMemo()
+        memo.put("first", "الأول")
+        assertNull("forest must not receive the translation of first", memo.get("forest"))
+        memo.put("a man", "رجل")
+        assertNull("aman must not receive the translation of a man", memo.get("aman"))
     }
 
     @Test
@@ -93,13 +141,42 @@ class TranslationMemoTest {
                 )
             }
         }
-        val caching = CachingTranslator(engine, TranslationCache(), memo = memo)
+        val cache = TranslationCache()
+        val traces = ArrayList<TranslationPairTrace>()
+        val caching = CachingTranslator(engine, cache, memo = memo, onTranslationPair = { traces += it })
         caching.translatePage(listOf(TranslationBlock(1, "KRAK!")))
         assertEquals(1, calls)
         // Same burst, different OCR spelling: served from the memo, no second engine call.
         val second = caching.translatePage(listOf(TranslationBlock(1, "Kraak"))) as PageTranslation.Success
         assertEquals(1, calls)
-        assertEquals("AR:KRAK!", second.blocks.single().arabic)
+        assertEquals("طَق!", second.blocks.single().arabic)
+        // A fuzzy hit must never become an exact cache entry for different source text.
+        assertNull(cache.get("fake_engine", "Kraak"))
+        val third = caching.translatePage(listOf(TranslationBlock(1, "Kraak"))) as PageTranslation.Success
+        assertEquals("طَق!", third.blocks.single().arabic)
+        assertEquals(1, calls)
+        assertEquals(listOf("OK", "FUZZY_HIT", "FUZZY_HIT"), traces.map { it.status })
+        assertEquals(listOf("KRAK!", "Kraak", "Kraak"), traces.map { it.sourceEnglish })
+        assertTrue(traces[1].detail.contains("matched=KRAK!"))
+        assertTrue(traces[2].detail.contains("matched=KRAK!"))
+    }
+
+    @Test
+    fun exactMemoHitIsRecognizedAndPromotedToTheExactCache() {
+        val memo = TranslationMemo()
+        val cache = TranslationCache()
+        val fake = FakeTranslator()
+        memo.put("Where are you?", "أين أنت؟")
+        val traces = ArrayList<TranslationPairTrace>()
+        val caching = CachingTranslator(fake, cache, memo = memo, onTranslationPair = { traces += it })
+
+        val result = caching.translatePage(listOf(TranslationBlock(1, "Where are you?"))) as PageTranslation.Success
+
+        assertEquals("أين أنت؟", result.blocks.single().arabic)
+        assertEquals(0, fake.calls)
+        assertEquals("أين أنت؟", cache.get("fake_engine", "Where are you?"))
+        assertTrue(traces.single().detail.startsWith("served from exact translation memo;"))
+        assertTrue(traces.single().detail.contains("matched=Where are you?"))
     }
 
     @Test

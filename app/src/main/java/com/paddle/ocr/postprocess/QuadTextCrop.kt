@@ -31,56 +31,75 @@ object QuadTextCrop {
     fun crop(src: Mat, box: OCRBox): Mat {
         // Align with PaddleX CropByPolys.get_minarea_rect_crop: recompute minAreaRect
         // from the detected quad before perspective transform.
-        val rectPoints = box.points.map { Point(it.x.toDouble(), it.y.toDouble()) }
         val rectInput = MatOfPoint2f()
-        rectInput.fromList(rectPoints)
-        val boundingBox = Imgproc.minAreaRect(rectInput)
-        rectInput.release()
+        var srcPts: MatOfPoint2f? = null
+        var dstPts: MatOfPoint2f? = null
+        var transform: Mat? = null
+        var warped: Mat? = null
 
-        val boxPoints = Array(4) { Point() }
-        boundingBox.points(boxPoints)
-        val ordered = QuadGeometry.orderMinAreaRectPoints(boxPoints)
+        try {
+            val rectPoints = box.points.map { Point(it.x.toDouble(), it.y.toDouble()) }
+            rectInput.fromList(rectPoints)
+            val boundingBox = Imgproc.minAreaRect(rectInput)
 
-        val widthTop = hypot(ordered[0].x - ordered[1].x, ordered[0].y - ordered[1].y)
-        val widthBottom = hypot(ordered[2].x - ordered[3].x, ordered[2].y - ordered[3].y)
-        val heightLeft = hypot(ordered[0].x - ordered[3].x, ordered[0].y - ordered[3].y)
-        val heightRight = hypot(ordered[1].x - ordered[2].x, ordered[1].y - ordered[2].y)
+            val boxPoints = Array(4) { Point() }
+            boundingBox.points(boxPoints)
+            val ordered = QuadGeometry.orderMinAreaRectPoints(boxPoints)
 
-        val dstW = max(widthTop, widthBottom).toInt().coerceAtLeast(1)
-        val dstH = max(heightLeft, heightRight).toInt().coerceAtLeast(1)
+            val widthTop = hypot(ordered[0].x - ordered[1].x, ordered[0].y - ordered[1].y)
+            val widthBottom = hypot(ordered[2].x - ordered[3].x, ordered[2].y - ordered[3].y)
+            val heightLeft = hypot(ordered[0].x - ordered[3].x, ordered[0].y - ordered[3].y)
+            val heightRight = hypot(ordered[1].x - ordered[2].x, ordered[1].y - ordered[2].y)
 
-        val srcPts = MatOfPoint2f()
-        srcPts.fromList(ordered)
-        val dstPts = MatOfPoint2f()
-        dstPts.fromList(
-            listOf(
-                Point(0.0, 0.0),
-                Point(dstW.toDouble(), 0.0),
-                Point(dstW.toDouble(), dstH.toDouble()),
-                Point(0.0, dstH.toDouble()),
+            val dstW = max(widthTop, widthBottom).toInt().coerceAtLeast(1)
+            val dstH = max(heightLeft, heightRight).toInt().coerceAtLeast(1)
+
+            val sourcePoints = MatOfPoint2f().also { srcPts = it }
+            sourcePoints.fromList(ordered)
+            val destinationPoints = MatOfPoint2f().also { dstPts = it }
+            destinationPoints.fromList(
+                listOf(
+                    Point(0.0, 0.0),
+                    Point(dstW.toDouble(), 0.0),
+                    Point(dstW.toDouble(), dstH.toDouble()),
+                    Point(0.0, dstH.toDouble()),
+                )
             )
-        )
-        val m = Imgproc.getPerspectiveTransform(srcPts, dstPts)
-        srcPts.release()
-        dstPts.release()
 
-        val dst = Mat(dstH, dstW, CvType.CV_8UC3)
-        Imgproc.warpPerspective(
-            src,
-            dst,
-            m,
-            Size(dstW.toDouble(), dstH.toDouble()),
-            Imgproc.INTER_CUBIC,
-            Core.BORDER_REPLICATE,
-        )
-        m.release()
+            val perspective = Imgproc.getPerspectiveTransform(sourcePoints, destinationPoints)
+            transform = perspective
+            val output = Mat(dstH, dstW, CvType.CV_8UC3)
+            warped = output
+            Imgproc.warpPerspective(
+                src,
+                output,
+                perspective,
+                Size(dstW.toDouble(), dstH.toDouble()),
+                Imgproc.INTER_CUBIC,
+                Core.BORDER_REPLICATE,
+            )
 
-        if (dst.rows().toDouble() / dst.cols() >= VERTICAL_CROP_RATIO) {
-            val rotated = Mat()
-            Core.rotate(dst, rotated, Core.ROTATE_90_COUNTERCLOCKWISE)
-            dst.release()
-            return rotated
+            if (output.rows().toDouble() / output.cols() >= VERTICAL_CROP_RATIO) {
+                val rotated = Mat()
+                try {
+                    Core.rotate(output, rotated, Core.ROTATE_90_COUNTERCLOCKWISE)
+                    return rotated
+                } catch (t: Throwable) {
+                    rotated.release()
+                    throw t
+                }
+            }
+
+            // Transfer ownership to the caller. The finally block still releases every
+            // temporary Mat, but not the returned crop.
+            warped = null
+            return output
+        } finally {
+            rectInput.release()
+            srcPts?.release()
+            dstPts?.release()
+            transform?.release()
+            warped?.release()
         }
-        return dst
     }
 }

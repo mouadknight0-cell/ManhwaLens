@@ -127,7 +127,8 @@ object ArabicValidator {
         )
     }
 
-    private val englishToken = Regex("[A-Za-z]+(?:['’][A-Za-z]+)*")
+    // Split apostrophe/hyphen OCR artifacts into words so "s'What" still exposes "What".
+    private val englishToken = Regex("[A-Za-z]+")
 
     /**
      * Catch a complete English source echo embedded in otherwise Arabic text without

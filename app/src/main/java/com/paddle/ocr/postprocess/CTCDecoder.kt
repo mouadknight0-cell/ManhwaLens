@@ -18,10 +18,21 @@ object CTCDecoder {
     private const val BLANK_IDX = 0
 
     fun decode(output: FloatArray, shape: LongArray, characterList: List<String>): List<Pair<String, Float>> {
-        val reverseArabic = characterList.any { token -> token.any { it.code in 0x0600..0x06FF } }
+        require(shape.size == 3) { "Expected CTC output shape [batch,time,classes], got ${shape.contentToString()}" }
         val batchSize = shape[0].toInt()
         val timeSteps = shape[1].toInt()
         val numClasses = shape[2].toInt()
+        require(batchSize > 0 && timeSteps > 0 && numClasses > 1) {
+            "Invalid CTC output dimensions: ${shape.contentToString()}"
+        }
+        require(numClasses == characterList.size + 1) {
+            "CTC class count $numClasses does not match dictionary size ${characterList.size} + blank"
+        }
+        val expectedValues = batchSize.toLong() * timeSteps.toLong() * numClasses.toLong()
+        require(expectedValues <= Int.MAX_VALUE && output.size == expectedValues.toInt()) {
+            "CTC tensor size mismatch: expected $expectedValues floats, got ${output.size}"
+        }
+        val reverseArabic = characterList.any { token -> token.any { it.code in 0x0600..0x06FF } }
 
         val results = mutableListOf<Pair<String, Float>>()
         for (b in 0 until batchSize) {
@@ -73,22 +84,45 @@ object CTCDecoder {
      * Latin/numeric runs internally readable.
      */
     internal fun reverseArabicVisualOrder(text: String): String {
+        // English-only output must stay LTR even though the Arabic dictionary is loaded.
+        if (text.none { it.code in 0x0600..0x06FF }) return text
+
         val runs = mutableListOf<String>()
         val latin = StringBuilder()
+
+        fun flushLatin() {
+            if (latin.isEmpty()) return
+            val value = latin.toString()
+            latin.clear()
+
+            // Spaces at a script boundary are neutral. Keep spaces inside an English phrase
+            // together, but detach edge spaces so reversing RTL runs does not glue
+            // "abc مرحبا" into "abcمرحبا" (or leave a leading/trailing space).
+            val leading = value.takeWhile { it.isWhitespace() }
+            val trailing = value.takeLastWhile { it.isWhitespace() }
+            val coreEnd = value.length - trailing.length
+            if (coreEnd <= leading.length) {
+                runs += value
+                return
+            }
+            val core = value.substring(leading.length, coreEnd)
+            if (leading.isNotEmpty()) runs += leading
+            if (core.isNotEmpty()) runs += core
+            if (trailing.isNotEmpty()) runs += trailing
+        }
+
         for (char in text) {
             if (char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' ||
-                char in " :*./%+-"
+                char in '\u0660'..'\u0669' || char in '\u06F0'..'\u06F9' ||
+                char in ":*./%+-" || char.isWhitespace()
             ) {
                 latin.append(char)
             } else {
-                if (latin.isNotEmpty()) {
-                    runs += latin.toString()
-                    latin.clear()
-                }
+                flushLatin()
                 runs += char.toString()
             }
         }
-        if (latin.isNotEmpty()) runs += latin.toString()
-        return runs.asReversed().joinToString("")
+        flushLatin()
+        return runs.asReversed().joinToString("").trim()
     }
 }

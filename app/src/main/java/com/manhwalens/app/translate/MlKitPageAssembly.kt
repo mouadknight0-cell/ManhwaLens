@@ -38,11 +38,8 @@ object MlKitPageAssembly {
      * standalone name, is returned unchanged, so progressive display is neither delayed nor
      * disabled.
      */
-    fun progressivePayload(block: TranslatedBlock): TranslatedBlock? {
-        if (block.arabic.isBlank()) return null
-        if (ArabicValidator.issue(block.english, block.arabic) != null) return null
-        return block
-    }
+    fun progressivePayload(block: TranslatedBlock): TranslatedBlock? =
+        TranslationOutputSanitizer.prepare(block)
 
     // ------------------------------------------------------------------ P2-06
     // Failure policy for a whole page. Before these rules existed the engine decided

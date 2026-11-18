@@ -54,7 +54,7 @@
     <string name="debug_mode_summary">While enabled, ManhwaLens records recent English-to-Arabic translation pairs locally for tap and Live mode, including the engine and quality-check result. It also keeps the existing pipeline diagnostics. Nothing is uploaded automatically.</string>
     <string name="translation_pairs_note">Saved on this device: %1$d recent pairs (maximum 200). Includes OCR English, final Arabic, engine and quality status. No automatic upload.</string>
     <string name="translation_pairs_copy">Copy translation pairs</string>
-    <string name="translation_pairs_clear">Clear</string>
+    <string name="translation_pairs_clear">Reset log</string>
     <string name="translation_pairs_empty">No translation pairs saved yet. Enable Debug mode and translate a page.</string>
     <string name="translation_pairs_copied">Translation pairs copied</string>
     <string name="translation_pairs_cleared">Translation pairs cleared</string>\n    <string name="translation_cache_section">Saved translations</string>\n    <string name="translation_cache_summary">%1$d cached translation entries. Resetting removes cached English→Arabic results so a new translation engine starts with clean results. Your glossary, character names and settings are kept.</string>\n    <string name="translation_cache_reset_title">Reset saved translations?</string>\n    <string name="translation_cache_reset_confirm">This deletes the in-memory, fuzzy and on-device saved translation cache. It does not delete your glossary, character names, diagnostic translation pairs or settings. The next capture will translate the text again.</string>\n    <string name="translation_cache_reset_action">Reset saved translations</string>\n    <string name="translation_cache_reset_done">Saved translation cache reset.</string>
@@ -203,13 +203,16 @@
     <string name="ignore_list_summary">One phrase per line (or comma-separated), case-insensitive. Blocks containing any phrase are skipped before translation. Pre-filled with common site chrome: Subscribe, Get the app, Continue Reading, TOP, Episode, views, coins. Clear the field to disable.</string>
 
     <!-- Benchmark (Part C) -->
-    <string name="benchmark_button">Benchmark translation</string>
-    <string name="benchmark_summary">Translates the same 20 sentences with the on-device ML Kit engine (offline): one by one, in parallel (2/3/4/6 at once) and as one joined call with 8 different separators. 5 passes each, first one discarded; shows median and worst time and whether every bubble maps back. Takes about a minute. The result is also added to the self-check \"Copy report\".</string>
-    <string name="benchmark_title">Translation benchmark</string>
-    <string name="benchmark_running">Running…</string>
-    <string name="benchmark_close">Close</string>
-    <string name="benchmark_copy">Copy results</string>
+    <string name="live_benchmark_arm">Arm Live session benchmark</string>
+    <string name="live_benchmark_cancel">Cancel Live benchmark</string>
+    <string name="live_benchmark_copy">Copy Live report</string>
+    <string name="live_benchmark_summary">One opt-in report for the full Live ON→OFF session. Captures first-frame/first-overlay delays; capture and processing totals; OCR detector and recognizer stage timings/configuration, candidate and line counts; translation calls, blocks, cache, engine and failures; overlays painted; Live state changes; and device/app details. Counts and timings only; page text is never recorded.</string>
+    <string name="live_benchmark_armed">Live benchmark armed. Turn Live on, use the page, then turn Live off.</string>
+    <string name="live_benchmark_cancelled">Live benchmark cancelled</string>
+    <string name="live_benchmark_turn_off_first">Turn Live off before arming the session benchmark.</string>
+    <string name="live_benchmark_no_report">No completed Live session report yet.</string>
     <string name="benchmark_copied">Benchmark copied</string>
+    <string name="benchmark_close">Close</string>
 
     <string name="safe_mode_title">Safe Mode</string>
     <string name="safe_mode_body">The app crashed twice at startup, so it launched without the floating button, translation and Live mode. Your settings were left untouched. Tap below to retry normally.</string>
