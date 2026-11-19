@@ -66,9 +66,18 @@ jobs:
               if "EndToEndBenchmarkTest" in p:
                   so = root.find("system-out")
                   if so is not None and so.text:
-                      for line in so.text.strip().splitlines()[:8]:
-                          if line.strip():
-                              print(f"::notice::{line.strip()}")
+                      lines = [l.strip() for l in so.text.strip().splitlines() if l.strip()]
+                      # Group into <=8 compact notice lines (GitHub caps annotations at 10/step)
+                      chunk = []
+                      for l in lines:
+                          if l.startswith("===") or l.startswith("Comparison"):
+                              if chunk:
+                                  print("::notice::" + " | ".join(chunk))
+                              chunk = [l]
+                          else:
+                              chunk.append(l)
+                      if chunk:
+                          print("::notice::" + " | ".join(chunk))
           PY
           if [ $RC -ne 0 ]; then
             (grep -E "^e: " /tmp/gradle-test.log; awk '/\* What went wrong:/,/\* Try:/' /tmp/gradle-test.log) | head -n 6 | while IFS= read -r line; do

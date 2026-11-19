@@ -178,8 +178,7 @@ class PipelineOptimizationUnitTest {
         var cancels = 0
         val pageA = ByteArray(64 * 128) { 10.toByte() }
         val pageB = ByteArray(64 * 128) { 90.toByte() }
-        val pageC = ByteArray(64 * 128) { 170.toByte() }
-        val queue = ArrayDeque(listOf(pageA, pageB, pageC))
+        val queue = ArrayDeque<ByteArray?>(listOf(pageA, null, pageB, null))
 
         val driver = LiveLoopDriver(
             source = object : LiveLoopDriver.FrameSource<ByteArray> {
@@ -215,16 +214,20 @@ class PipelineOptimizationUnitTest {
         )
         driver.startSession(now)
 
-        // First frame -> Settling clean triggers speculative OCR
+        // Tick 1: first frame arrives -> Changing
+        driver.tick()
+        // Tick 2: still (stash reused, <400ms) -> Settling clean triggers speculative OCR
+        now += 150L
         driver.tick()
         assertEquals(1, settlingHits)
-        // New scrolling frame -> Changing cancels speculative OCR
+        // Tick 3: new scrolling frame -> Changing cancels speculative OCR
+        val cancelsBefore = cancels
         now += 150L
         driver.tick()
-        assertTrue(cancels >= 1)
-        // Next still tick -> Settling clean triggers again
+        assertTrue(cancels > cancelsBefore)
+        // Tick 4: next still tick -> Settling clean triggers again
         now += 150L
         driver.tick()
-        assertTrue(settlingHits >= 2)
+        assertEquals(2, settlingHits)
     }
 }
