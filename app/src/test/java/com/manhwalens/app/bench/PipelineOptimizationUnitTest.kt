@@ -176,9 +176,9 @@ class PipelineOptimizationUnitTest {
         var now = 1_000L
         var settlingHits = 0
         var cancels = 0
-        val pageA = ByteArray(64 * 128) { 10 }
-        val pageB = ByteArray(64 * 128) { 90 }
-        val pageC = ByteArray(64 * 128) { 170 }
+        val pageA = ByteArray(64 * 128) { 10.toByte() }
+        val pageB = ByteArray(64 * 128) { 90.toByte() }
+        val pageC = ByteArray(64 * 128) { 170.toByte() }
         val queue = ArrayDeque(listOf(pageA, pageB, pageC))
 
         val driver = LiveLoopDriver(
@@ -209,10 +209,11 @@ class PipelineOptimizationUnitTest {
                 override fun onSettlingClean(frame: ByteArray, gray: ByteArray) { settlingHits++ }
                 override fun onCancelSpeculative() { cancels++ }
             },
-            clockMs = { now },
+            clock = { now },
             stableWindowMs = 400L,
             changeThreshold = 10f
         )
+        driver.startSession(now)
 
         // First frame -> Settling clean triggers speculative OCR
         driver.tick()
