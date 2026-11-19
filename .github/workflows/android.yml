@@ -45,13 +45,37 @@ jobs:
 
       - name: Unit tests
         run: |
-          set -o pipefail
-          ./gradlew $GRADLE_ARGS :app:testDebugUnitTest 2>&1 | tee /tmp/gradle-test.log || {
-            (grep -E "^e: " /tmp/gradle-test.log; grep -E "FAILED$" /tmp/gradle-test.log; awk '/\* What went wrong:/,/\* Try:/' /tmp/gradle-test.log) | head -n 9 | while IFS= read -r line; do
+          set +e
+          ./gradlew $GRADLE_ARGS :app:testDebugUnitTest > /tmp/gradle-test.log 2>&1
+          RC=$?
+          cat /tmp/gradle-test.log
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          for p in sorted(glob.glob("app/build/test-results/testDebugUnitTest/TEST-*.xml")):
+              try:
+                  root = ET.parse(p).getroot()
+              except Exception:
+                  continue
+              for tc in root.findall("testcase"):
+                  f = tc.find("failure")
+                  e = tc.find("error")
+                  bad = f if f is not None else e
+                  if bad is not None:
+                      msg = (bad.attrib.get("message") or bad.text or "").replace("\n", " ")[:300]
+                      print(f"::error::{tc.attrib.get('classname')}.{tc.attrib.get('name')}: {msg}")
+              if "EndToEndBenchmarkTest" in p:
+                  so = root.find("system-out")
+                  if so is not None and so.text:
+                      for line in so.text.strip().splitlines()[:8]:
+                          if line.strip():
+                              print(f"::notice::{line.strip()}")
+          PY
+          if [ $RC -ne 0 ]; then
+            (grep -E "^e: " /tmp/gradle-test.log; awk '/\* What went wrong:/,/\* Try:/' /tmp/gradle-test.log) | head -n 6 | while IFS= read -r line; do
               [ -n "$line" ] && echo "::error::$line"
             done
-            exit 1
-          }
+          fi
+          exit $RC
 
       - name: Build debug APK
         run: ./gradlew $GRADLE_ARGS :app:assembleDebug

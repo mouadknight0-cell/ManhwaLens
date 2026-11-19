@@ -78,10 +78,42 @@ object BubbleGrouper {
             byRoot.getOrPut(find(i)) { mutableListOf() }.add(sorted[i])
         }
 
-        return byRoot.values
-            .map { group -> sortLinesInReadingOrder(group) }
-            .sortedWith(compareBy({ it.minOf { line -> line.box.top } }, { it.minOf { line -> line.box.left } }))
+        val grouped = byRoot.values.map { group -> sortLinesInReadingOrder(group) }
+        return sortBlocksInReadingOrder(grouped)
             .mapIndexed { index, group -> BubbleBlock(id = index + 1, lines = group) }
+    }
+
+    private fun sortBlocksInReadingOrder(groups: List<List<DetectedLine>>): List<List<DetectedLine>> {
+        if (groups.size <= 1) return groups
+        val withBounds = groups.map { g -> g to Rect2D.unionAll(g.map { it.box }) }
+            .sortedWith(compareBy({ it.second.top }, { it.second.left }))
+        val rows = ArrayList<MutableList<Pair<List<DetectedLine>, Rect2D>>>(withBounds.size)
+        var rowTop = withBounds[0].second.top
+        var rowBottom = withBounds[0].second.bottom
+        var curRow = mutableListOf(withBounds[0])
+        rows += curRow
+        for (i in 1 until withBounds.size) {
+            val item = withBounds[i]
+            val b = item.second
+            val overlap = min(rowBottom, b.bottom) - max(rowTop, b.top)
+            val minH = min(rowBottom - rowTop, b.height)
+            if (minH > 0f && overlap >= minH * 0.5f) {
+                curRow += item
+                rowTop = min(rowTop, b.top)
+                rowBottom = max(rowBottom, b.bottom)
+            } else {
+                curRow = mutableListOf(item)
+                rows += curRow
+                rowTop = b.top
+                rowBottom = b.bottom
+            }
+        }
+        val out = ArrayList<List<DetectedLine>>(groups.size)
+        for (row in rows) {
+            if (row.size > 1) row.sortBy { it.second.left }
+            for (item in row) out += item.first
+        }
+        return out
     }
 
     /**
