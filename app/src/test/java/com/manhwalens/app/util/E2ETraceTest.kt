@@ -89,7 +89,7 @@ class E2ETraceTest {
 
         val report = E2ETrace.report()
         assertTrue(report, report.contains("passes=3 complete=1 incomplete=1 failed=1"))
-        assertTrue(report, report.contains("first sentence (T6-T0): median 100"))
+        assertTrue(report, report.contains("first sentence after stable point (T6-T0): median 100"))
         assertFalse(ok.failed)
         assertTrue(bad.failed)
     }
