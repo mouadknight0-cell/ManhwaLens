@@ -526,8 +526,9 @@ object EndToEndBenchmarkRunner {
                 val ar = translateDeterministic(prepared)
                 val tb = TranslatedBlock(b.id, b.english, ar)
                 out += tb
-                if (onBlockReady != null) {
-                    runCatching { onBlockReady.invoke(tb) }.onFailure { err.compareAndSet(null, it) }
+                val cb = onBlockReady
+                if (cb != null) {
+                    runCatching { cb.invoke(tb) }.onFailure { err.compareAndSet(null, it) }
                 }
             }
             if (onBlockReady == null && batchMs > 0L) {
@@ -620,22 +621,30 @@ object EndToEndBenchmarkRunner {
     }
 
     private fun buildCpuTimeProvider(): () -> Long {
-        val jvmBean = runCatching {
+        val jvmBean: (() -> Long)? = try {
             val mgmt = Class.forName("java.lang.management.ManagementFactory")
             val bean = mgmt.getMethod("getThreadMXBean").invoke(null)
             val supported = bean.javaClass.getMethod("isCurrentThreadCpuTimeSupported").invoke(bean) as? Boolean
             if (supported == true) {
                 val method = bean.javaClass.getMethod("getCurrentThreadCpuTime")
-                { (method.invoke(bean) as Long) / 1_000_000L }
-            } else null
-        }.getOrNull()
+                val fn: () -> Long = { (method.invoke(bean) as Long) / 1_000_000L }
+                fn
+            } else {
+                null
+            }
+        } catch (_: Throwable) {
+            null
+        }
         if (jvmBean != null) return jvmBean
 
-        val androidDebug = runCatching {
+        val androidDebug: (() -> Long)? = try {
             val dbg = Class.forName("android.os.Debug")
             val method = dbg.getMethod("threadCpuTimeNanos")
-            { ((method.invoke(null) as Long).coerceAtLeast(0L)) / 1_000_000L }
-        }.getOrNull()
+            val fn: () -> Long = { ((method.invoke(null) as Long).coerceAtLeast(0L)) / 1_000_000L }
+            fn
+        } catch (_: Throwable) {
+            null
+        }
         return androidDebug ?: { -1L }
     }
 }
