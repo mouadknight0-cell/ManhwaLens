@@ -164,6 +164,8 @@ object LiveSessionBenchmark {
                 appendLine("Overlay: expected=$overlayExpected · painted=$overlayPainted · failed=$overlayFailures")
                 appendLine("Live status transitions: " + (liveStatuses.entries.joinToString { "${it.key}=${it.value}" }.ifBlank { "none" }))
                 appendLine("Visible overlay outputs: $outputs")
+                appendLine(E2ETrace.report("live"))
+                appendLine(E2ETrace.report("tap"))
                 appendLine("Privacy: timing and counts only; no page text")
             }.trim()
             active = false
@@ -321,6 +323,7 @@ object LiveSessionBenchmark {
         runCatching { File(context.applicationContext.filesDir, REPORT_FILE).takeIf { it.isFile }?.readText() }.getOrNull()
 
     private fun resetCounters() {
+        E2ETrace.reset()
         frames = 0L
         passTotalMs = 0L
         passMaxMs = 0L

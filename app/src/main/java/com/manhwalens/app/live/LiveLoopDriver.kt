@@ -419,12 +419,22 @@ class LiveLoopDriver<F : Any>(
                     )
                     sink.onStatus(DriverStatus.SKIPPED)
                 } else {
+                    // Start one end-to-end sample when a changed page first becomes stable.
+                    // Keep it pending across clean-capture timeouts so those waits are included.
+                    var e2ePass = com.manhwalens.app.util.E2ETrace.peekPending()
+                    if (e2ePass == null) {
+                        com.manhwalens.app.util.E2ETrace.beginPending("live", settleMs = sinceChange(now))
+                        e2ePass = com.manhwalens.app.util.E2ETrace.peekPending()
+                    }
                     val clean = acquireCleanFrame()
                     if (clean == null) {
                         // Abort this cycle; same-page memory untouched so the next tick retries.
                         sink.onCleanCaptureTimeout(consecutiveCleanTimeouts)
                     } else {
                         consecutiveCleanTimeouts = 0
+                        com.manhwalens.app.util.E2ETrace.mark(
+                            e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T1_CAPTURE_DONE
+                        )
                         lastAttemptedThumb = gray
                         sink.onStatus(DriverStatus.TRANSLATING)
                         sink.trace(

@@ -1,3 +1,9 @@
+## 0.12.32 — privacy-safe end-to-end latency baseline
+- Add T0–T7 timing for Tap and Live and include settle-to-first/full display metrics in the Live report.
+- Keep the report limited to timings and counts; no page text is recorded.
+- Add JVM tests for stage spans, percentiles, incomplete samples, and idempotent finish.
+- Device performance remains unverified pending on-device runs.
+
 ## 0.12.31 — count recorded fatal crashes only
 - Change StartupGuard so ordinary short-lived process runs do not increment the crash streak; only the uncaught exception handler's recorded fatal exception counts, once per run.
 - Raise the Safe Mode threshold to three recorded fatal runs. Migrate away from the previous short-run counter on the first launch under the new state format.
