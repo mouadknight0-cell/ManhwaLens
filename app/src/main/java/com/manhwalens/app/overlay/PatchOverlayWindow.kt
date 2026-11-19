@@ -51,6 +51,7 @@ class PatchOverlayWindow(private val context: Context, private val windowManager
         var lastRemovalReason: String = "none"
         var lastRemovalAtMs: Long = 0L
         var lastRemovalCount: Int = 0
+        val pendingDraws = HashMap<Int, () -> Unit>()
         private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
 
         override fun onDraw(canvas: android.graphics.Canvas) {
@@ -68,6 +69,9 @@ class PatchOverlayWindow(private val context: Context, private val windowManager
                     slot.patch.bottom * sy
                 )
                 canvas.drawBitmap(slot.patch.bitmap, null, dst, paint)
+                // Count a readable, fully faded-in patch, not a queued UI mutation.
+                // This is Canvas submission, not a compositor presentation timestamp.
+                if (a == 255) pendingDraws.remove(slot.patch.id)?.invoke()
             }
         }
     }
@@ -176,8 +180,15 @@ class PatchOverlayWindow(private val context: Context, private val windowManager
 
     fun contentEpoch(): Int = contentEpochValue
 
-    fun replaceAll(patches: List<BubblePatch>, frameWidth: Int, frameHeight: Int) {
-        MainThread.run { replaceAllImpl(patches, frameWidth, frameHeight) }
+    fun replaceAll(patches: List<BubblePatch>, frameWidth: Int, frameHeight: Int,
+                   onDrawn: ((Int) -> Unit)? = null) {
+        MainThread.run {
+            replaceAllImpl(patches, frameWidth, frameHeight)
+            val v = root ?: return@run
+            if (onDrawn != null) patches.forEach { patch ->
+                v.pendingDraws[patch.id] = { onDrawn(patch.id) }
+            }
+        }
     }
 
     /**
@@ -211,9 +222,11 @@ class PatchOverlayWindow(private val context: Context, private val windowManager
     }
 
     /** Fade-in one patch (progressive painting). Replaces any patch with the same id. */
-    fun upsert(patch: BubblePatch, frameWidth: Int, frameHeight: Int) {
+    fun upsert(patch: BubblePatch, frameWidth: Int, frameHeight: Int, onDrawn: (() -> Unit)? = null) {
         MainThread.run {
             val v = ensureWindow() ?: return@run
+            v.pendingDraws.remove(patch.id)
+            if (onDrawn != null) v.pendingDraws[patch.id] = onDrawn
             recyclePatch(v.slots.remove(patch.id)?.patch)
             v.frameWidth = frameWidth
             v.frameHeight = frameHeight
@@ -334,6 +347,7 @@ class PatchOverlayWindow(private val context: Context, private val windowManager
     private fun replaceAllImpl(patches: List<BubblePatch>, frameWidth: Int, frameHeight: Int) {
         contentEpochValue++
         val v = ensureWindow() ?: run { patches.forEach { recyclePatch(it) }; return }
+        v.pendingDraws.clear()
         val old = v.slots.values.toList()
         v.slots.clear()
         old.forEach { recyclePatch(it.patch) }
@@ -351,6 +365,7 @@ class PatchOverlayWindow(private val context: Context, private val windowManager
     private fun clearImpl(reason: String, fadeOut: Boolean) {
         contentEpochValue++
         val v = root ?: return
+        v.pendingDraws.clear()
         if (v.slots.isEmpty()) {
             v.lastRemovalReason = reason
             v.lastRemovalAtMs = SystemClock.elapsedRealtime()

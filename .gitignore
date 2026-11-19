@@ -15,3 +15,6 @@ keystore/
 
 # Imported development artifacts
 /dropbox/
+
+# Local Python benchmark-tool caches
+__pycache__/
