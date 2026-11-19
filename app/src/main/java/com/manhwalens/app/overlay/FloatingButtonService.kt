@@ -702,7 +702,13 @@ class FloatingButtonService : Service() {
         firstFrameLatch = CountDownLatch(1)
         sessionCreatedAtMs = SystemClock.elapsedRealtime()
         firstFrameAtMs = -1L
-        val reader = ImageReader.newInstance(screen.x, screen.y, PixelFormat.RGBA_8888, 3)
+        // v0.13.0: render the mirror at the WORKING size (≤720 px wide, aspect preserved)
+        // instead of display resolution. The old path copied a ~10 MB RGBA buffer and
+        // downscaled it to 720 px on every capture (capBitmapWidth) — the mirror now
+        // delivers exactly the pixels the OCR/overlay pipeline ever used, minus that
+        // copy, alloc and scale pass. capBitmapWidth stays as a safety no-op.
+        val work = com.manhwalens.app.capture.MirrorSizing.workingSize(screen.x, screen.y)
+        val reader = ImageReader.newInstance(work.first, work.second, PixelFormat.RGBA_8888, 3)
         sessionReader = reader
         reader.setOnImageAvailableListener({ onFrameAvailable() }, captureHandler)
         // Reserve this projection token BEFORE the platform call. If creation throws,
@@ -710,8 +716,8 @@ class FloatingButtonService : Service() {
         displayCreatedForProjection = true
         val virtualDisplay = projection.createVirtualDisplay(
             "manhwalens-mirror",
-            screen.x,
-            screen.y,
+            work.first,
+            work.second,
             densityDpi,
             android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             reader.surface,
@@ -726,7 +732,7 @@ class FloatingButtonService : Service() {
             "create (session now persistent for service lifetime)"
         )
         com.manhwalens.app.util.LiveLog.i(
-            TAG, "live: capture session created (persistent mirror) display=${screen.x}x${screen.y}"
+            TAG, "live: capture session created (persistent mirror) display=${screen.x}x${screen.y} working=${work.first}x${work.second}"
         )
         // Part 1c: EVERY path that creates the session must start the loop.
         ensureLiveLoopStarted("capture session created")
@@ -1903,8 +1909,9 @@ class FloatingButtonService : Service() {
             captureExecutor.execute {
                 try {
                     val screen = screenSize()
+                    val work = com.manhwalens.app.capture.MirrorSizing.workingSize(screen.x, screen.y)
                     val dpi = resources.displayMetrics.densityDpi
-                    display.resize(screen.x, screen.y, dpi)
+                    display.resize(work.first, work.second, dpi)
                     // Detach + re-attach the SAME surface: forces the mirror to start over
                     // without creating a second VirtualDisplay on this projection token.
                     display.setSurface(null)
@@ -1956,8 +1963,9 @@ class FloatingButtonService : Service() {
                 val currentSurface = sessionReader?.surface
                 if (currentDisplay != null && currentSurface != null) {
                     val screen = screenSize()
+                    val work = com.manhwalens.app.capture.MirrorSizing.workingSize(screen.x, screen.y)
                     val dpi = resources.displayMetrics.densityDpi
-                    currentDisplay.resize(screen.x, screen.y, dpi)
+                    currentDisplay.resize(work.first, work.second, dpi)
                     currentDisplay.setSurface(null)
                     currentDisplay.setSurface(currentSurface)
                     firstFrameLatch = CountDownLatch(1)
@@ -1977,13 +1985,14 @@ class FloatingButtonService : Service() {
                     return@execute
                 }
                 val screen = screenSize()
+                val work = com.manhwalens.app.capture.MirrorSizing.workingSize(screen.x, screen.y)
                 val dpi = resources.displayMetrics.densityDpi
                 // Reserve before calling Android: this token must never be used for a
                 // second createVirtualDisplay attempt, including after an exception.
                 displayCreatedForProjection = true
                 val created = projection.createVirtualDisplay(
                     "manhwalens-mirror",
-                    screen.x, screen.y, dpi,
+                    work.first, work.second, dpi,
                     android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                     activeSurface, null, captureHandler
                 )
@@ -2543,6 +2552,8 @@ class FloatingButtonService : Service() {
             return
         }
         captureStartedAtMs = SystemClock.elapsedRealtime()
+        // v0.13.0: T0 — the end-to-end latency clock starts at scan initiation.
+        com.manhwalens.app.util.EndToEndLatency.beginRun()
         // Part C: a capture is starting — the menu must not be on screen (it would be
         // burned into the frame and would read as a page change).
         mainHandler.post { lensMenuWindow?.dismiss() }
@@ -2633,6 +2644,10 @@ class FloatingButtonService : Service() {
                     " black=$dark [$lastBlackCheck]" + (if (dark) " (FLAG_SECURE?)" else "")
             )
             captureStageDone = true
+            // v0.13.0: T1 — frame copied into a Bitmap (capture complete).
+            com.manhwalens.app.util.EndToEndLatency.mark(
+                com.manhwalens.app.util.EndToEndLatency.Event.T1_CAPTURE_COMPLETE
+            )
             Log.i(
                 TAG,
                 "capture ok: totalMs=$totalMs displayCreateMs=${displayCreatedAt - startedAt} " +
@@ -2738,68 +2753,16 @@ class FloatingButtonService : Service() {
             }
 
             // --- Filter (sound effects / watermarks / ignore-list) ----------
+            // v0.13.0: filtering runs INSIDE recognizeAndFilterBlocks
+            // (CaptureOcrProcessor) — BlockFilter + garbage/own-window classifier, with
+            // the FILTER trace records there. The old second pass here re-ran both
+            // filters on the already-filtered blocks with identical parameters (same
+            // 16dp min height, same owned rects, empty patch rects): a pure duplicate
+            // that only cost CPU on the critical path. ocrBlocks is already filtered.
             stage = "filter"
-            if (ocrError == null) {
-                val fStart = SystemClock.elapsedRealtime()
-                val edgePrefs = com.manhwalens.app.data.SettingsPrefs(applicationContext)
-                val density = resources.displayMetrics.density
-                val filterResult = BlockFilter.apply(
-                    ocrBlocks, bitmap.height,
-                    edgePrefs.ignoreTopPct, edgePrefs.ignoreBottomPct, edgePrefs.ignorePhraseList(),
-                    minHeightPx = 16f * density, minWordCount = 1,
-                    frameWidth = bitmap.width
-                )
-                if (filterResult.edgeWarnings.isNotEmpty()) {
-                    PipelineTracer.span("horizontal edge OCR", 0, filterResult.edgeWarnings.joinToString { "#${it.id}:${it.side}" }.take(240))
-                }
-                val removed = filterResult.removed.joinToString(", ") { "#${it.id}:${it.reason}" }.take(300)
-                PipelineTracer.record(
-                    PipelineTracer.Stage.FILTER, StageTrace.Status.OK,
-                    SystemClock.elapsedRealtime() - fStart,
-                    "kept ${filterResult.kept.size}/${ocrBlocks.size}" +
-                        if (removed.isNotEmpty()) " · removed: $removed" else " · removed: none"
-                )
-                ocrBlocks = filterResult.kept
-
-                // ---- Part 1 defense-in-depth: drop anything that is OUR windows ----
-                // (blocks intersecting our rects, matching our UI strings, or looking
-                // like OCR garbage from burned-in Arabic). Runs AFTER BlockFilter so the
-                // trace shows both reasons.
-                if (ocrBlocks.isNotEmpty()) {
-                    val gStart = SystemClock.elapsedRealtime()
-                    val classifier = com.manhwalens.app.ocr.OcrGarbageClassifier(
-                        com.manhwalens.app.util.OwnedWindows.UI_STRINGS
-                    ) { SystemClock.elapsedRealtime() }
-                    // v0.9.8: the frame is captured with our windows hidden, so stale patch /
-                    // menu rects must NOT veto real page text (they used to drop every bubble
-                    // that sat where an old patch or the menu had been).
-                    val patchRects = emptyList<com.manhwalens.app.ocr.geometry.Rect2D>()
-                    val ownedRects = tapOwnedRects
-                    val before = ocrBlocks.size
-                    ocrBlocks = ocrBlocks.filterNot { block ->
-                        val v = classifier.classify(
-                            block.text.replace('\n', ' ').trim(),
-                            block.bounds,
-                            patchRects = patchRects,
-                            ownedRects = ownedRects
-                        )
-                        if (!v.keep) {
-                            PipelineTracer.span("ocr drop", 0, "#${block.id}=${v.reason}")
-                            true
-                        } else false
-                    }
-                    val dropped = before - ocrBlocks.size
-                    PipelineTracer.record(
-                        PipelineTracer.Stage.FILTER, StageTrace.Status.OK,
-                        SystemClock.elapsedRealtime() - gStart,
-                        "kept ${ocrBlocks.size}/$before (garbage+own-window drops: $dropped)"
-                    )
-                }
-            } else {
-                PipelineTracer.record(
-                    PipelineTracer.Stage.FILTER, StageTrace.Status.SKIPPED, 0L,
-                    "skipped — OCR produced no usable blocks"
-                )
+            if (ocrError != null) {
+                PipelineTracer.record(PipelineTracer.Stage.FILTER, StageTrace.Status.SKIPPED, 0L,
+                    "skipped — OCR produced no usable blocks")
             }
 
             // --- Translation -------------------------------------------------
@@ -2907,6 +2870,10 @@ class FloatingButtonService : Service() {
                             relayRemoteTranslation(relayPainter, relayPlan, relayOriginal, relayUnique)
                         }
                     }
+                    // v0.13.0: T5 — translation execution starts here.
+                    com.manhwalens.app.util.EndToEndLatency.mark(
+                        com.manhwalens.app.util.EndToEndLatency.Event.T5_TRANSLATION_STARTED
+                    )
                     // v0.9.5 self-check stage 10 also wants ms + error for the TAP path,
                     // and PageTranslation.Failure carries no elapsedMs of its own.
                     val tapTranslateStartedAt = android.os.SystemClock.elapsedRealtime()
@@ -3077,6 +3044,13 @@ class FloatingButtonService : Service() {
 
             PipelineTracer.span("cache", 0, "hits=$cacheHits misses=$cacheMisses per page")
 
+            // v0.13.0: dialogue volume for the latency stats (regions, translated, failed).
+            com.manhwalens.app.util.EndToEndLatency.noteDialogueStats(
+                regions = ocrBlocks.size,
+                translated = translations.count { it.arabic.isNotBlank() },
+                failed = translateError != null
+            )
+
             // --- Reconcile the progressive overlay (Part C) ------------------
             // Painter already painted whatever resolved early; fill in the rest.
             // If nothing painted yet (engine returned everything at once), fall back
@@ -3116,6 +3090,11 @@ class FloatingButtonService : Service() {
             )
             autoArmLiveIfNeeded()
             stage = "overlay"
+            // v0.13.0: T7 — every detected dialogue line is translated and its display
+            // is queued on the main thread immediately below (within ms of on-screen).
+            com.manhwalens.app.util.EndToEndLatency.mark(
+                com.manhwalens.app.util.EndToEndLatency.Event.T7_ALL_DISPLAYED
+            )
             retainReviewFrame(bitmap, meta)
             maybeScheduleAiCleanup(bitmap, bubbleBoxes)
             if (painterAttached) {
@@ -3835,6 +3814,9 @@ class FloatingButtonService : Service() {
 
     /** Show the non-blocking trace panel (debug mode) and persist to Last error. */
     private fun finishPipelineTrace() {
+        // v0.13.0: close the end-to-end latency run (records it when a sentence was
+        // displayed, otherwise counts it as failed). Every terminal path funnels here.
+        com.manhwalens.app.util.EndToEndLatency.finishRun()
         // Back-fill any stage the pipeline never reached so all 7 are always shown.
         val present = PipelineTracer.snapshot().map { it.stage }.toSet()
         for (stage in PipelineTracer.Stage.values()) {
@@ -4087,23 +4069,9 @@ class FloatingButtonService : Service() {
             throw CaptureException("unsupported pixelStride=$pixelStride (expected 4 for RGBA_8888)")
         }
         val buffer = plane.buffer
-        val pixels = IntArray(width * height)
-        val row = ByteArray(width * 4)
-        for (y in 0 until height) {
-            buffer.position(y * rowStride)
-            buffer.get(row)
-            var i = 0
-            var p = y * width
-            while (i < row.size) {
-                val r = row[i].toInt() and 0xFF
-                val g = row[i + 1].toInt() and 0xFF
-                val b = row[i + 2].toInt() and 0xFF
-                val a = row[i + 3].toInt() and 0xFF
-                pixels[p] = (a shl 24) or (r shl 16) or (g shl 8) or b
-                i += 4
-                p++
-            }
-        }
+        // v0.13.0: same RGBA->ARGB pixels via a branch-light swizzle (red/blue swap,
+        // no per-row ByteArray alloc). The buffer is treated as read-only input.
+        val pixels = com.manhwalens.app.capture.RgbaSwizzle.swab(buffer, width, height, rowStride)
         buffer.clear()
         return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
     }

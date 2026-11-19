@@ -24,16 +24,30 @@ class TranslationCache(private val maxEntries: Int = 1000) {
         runCatching { Glossary.cacheText(source) }.getOrDefault(source)
 
     @Synchronized
-    fun get(engineId: String, source: String, style: String = "default"): String? = map[key(engineId, source, style)]
+    fun get(engineId: String, source: String, style: String = "default"): String? = getByKey(key(engineId, source, style))
 
     @Synchronized
     fun put(engineId: String, source: String, translated: String, style: String = "default") {
-        map[key(engineId, source, style)] = translated
+        putByKey(key(engineId, source, style), translated)
     }
 
     @Synchronized
     fun remove(engineId: String, source: String, style: String = "default") {
-        map.remove(key(engineId, source, style))
+        removeByKey(key(engineId, source, style))
+    }
+
+    /** v0.13.0 — key-reuse variants so callers that already hold the key pay the glossary prepare only once. */
+    @Synchronized
+    fun getByKey(key: String): String? = map[key]
+
+    @Synchronized
+    fun putByKey(key: String, value: String) {
+        map[key] = value
+    }
+
+    @Synchronized
+    fun removeByKey(key: String) {
+        map.remove(key)
     }
 
     @Synchronized

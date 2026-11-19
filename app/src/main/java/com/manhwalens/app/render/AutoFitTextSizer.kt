@@ -22,7 +22,15 @@ data class AutoFitResult(
 
 /**
  * Pick the largest font size whose wrapped layout fits [maxHeightPx].
- * Deterministic: descends from [maxPx] to [minPx] in [STEP_PX] increments.
+ * Deterministic: the size grid is [maxPx], [maxPx]-[STEP_PX], ... down to [minPx].
+ *
+ * v0.13.0 — binary search over that grid instead of a 1 px linear descent. The
+ * "fits" predicate is monotone in font size (a larger font never produces a shorter
+ * layout: glyphs get wider, lines get taller, wrapping only adds lines), so the
+ * largest fitting size found by binary search is EXACTLY the size the linear descent
+ * returned — same font, same height, same [AutoFitResult.fits] — at ~6 measures
+ * instead of up to ~58. That is ~6 StaticLayouts per patch instead of ~55, on the
+ * overlay's critical paint path.
  */
 object AutoFitTextSizer {
 
@@ -39,17 +47,29 @@ object AutoFitTextSizer {
         if (text.isBlank() || maxWidthPx <= 0 || maxHeightPx <= 0 || maxPx <= minPx) {
             return AutoFitResult(minPx.coerceAtLeast(1f), 0, text.isBlank())
         }
-        var size = maxPx
-        var lastHeight = 0
-        while (size >= minPx) {
+        // Grid index i in [0..steps] -> size = maxPx - i*STEP_PX. Binary-search the
+        // smallest i (largest size) whose layout fits.
+        val steps = ((maxPx - minPx) / STEP_PX).toInt().coerceAtLeast(0)
+        var lo = 0
+        var hi = steps
+        var best: AutoFitResult? = null
+        var minHeight = 0
+        while (lo <= hi) {
+            val mid = (lo + hi) ushr 1
+            val size = maxPx - mid * STEP_PX
             val m = measurer.measure(text, maxWidthPx, size)
-            lastHeight = m.heightPx
+            if (mid == steps) minHeight = m.heightPx
             if (m.heightPx <= maxHeightPx) {
-                return AutoFitResult(size, m.heightPx, true)
+                best = AutoFitResult(size, m.heightPx, true)
+                hi = mid - 1 // a larger size might still fit
+            } else {
+                lo = mid + 1
             }
-            size -= STEP_PX
         }
-        return AutoFitResult(minPx, lastHeight, false)
+        // No fitting size: report the floor size with its measured height, exactly like
+        // the old linear descent did. (When nothing fits, the search always measures
+        // the floor index, so minHeight is real.)
+        return best ?: AutoFitResult(minPx, minHeight, false)
     }
 }
 

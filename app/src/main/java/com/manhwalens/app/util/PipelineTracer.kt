@@ -115,6 +115,8 @@ object PipelineTracer {
             sb.append("— waiting / sub-steps —\n")
             for (x in sp) sb.append(x.line()).append('\n')
         }
+        // v0.13.0: end-to-end latency (T0→T7) block — key-free, safe for bug reports.
+        sb.append("\n").append(EndToEndLatency.report()).append('\n')
         return sb.toString().trim()
     }
 

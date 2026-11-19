@@ -76,12 +76,17 @@ class CachingTranslator(
         var fuzzyHits = 0
         for (b in blocks) {
             if (b.english.isBlank()) continue // echoed back empty below; never sent to engine
-            val memHit = cache.get(engineId, b.english, style)
-            val diskHit = if (memHit == null) persistent?.get(cache.key(engineId, b.english, style)) else null
+            // v0.13.0: compute the cache key + prepared text ONCE per block. Glossary.prepare
+            // is a regex pass; the old code paid it up to 3x per block (mem get, disk get,
+            // fuzzy get, plus again on put/remove). Same keys, same order, one pass.
+            val ck = cache.key(engineId, b.english, style)
+            val prepared = cachePrepared(b.english)
+            val memHit = cache.getByKey(ck)
+            val diskHit = if (memHit == null) persistent?.get(ck) else null
             var hit = memHit ?: diskHit
             var fromFuzzy = false
             if (hit == null) {
-                val fuzzy = memo?.get(cachePrepared(b.english))?.arabic
+                val fuzzy = memo?.get(prepared)?.arabic
                 if (fuzzy != null) {
                     hit = fuzzy
                     fromFuzzy = true
@@ -106,36 +111,37 @@ class CachingTranslator(
                 when {
                     diskHit != null -> {
                         // Promote the (possibly name-repaired) disk hit, so the correction sticks.
-                        cache.put(engineId, b.english, repairedHit ?: diskHit, style)
+                        cache.putByKey(ck, repairedHit ?: diskHit)
                         diskHits++
                     }
-                    fromFuzzy && repairedHit != null -> cache.put(engineId, b.english, repairedHit, style)
+                    fromFuzzy && repairedHit != null -> cache.putByKey(ck, repairedHit)
                 }
                 // A repaired plain memory hit must be written back too, otherwise every capture
                 // re-repairs the same stale entry.
-                if (repairedHit != rawHit) cache.put(engineId, b.english, repairedHit, style)
+                if (repairedHit != rawHit) cache.putByKey(ck, repairedHit)
             } else {
                 if (hit != null && issue != null) {
-                    val key = cache.key(engineId, b.english, style)
-                    cache.remove(engineId, b.english, style)
-                    persistent?.remove(key)
-                    memo?.remove(cachePrepared(b.english))
+                    cache.removeByKey(ck)
+                    persistent?.remove(ck)
+                    memo?.remove(prepared)
                 }
                 // A stale pre-guard remote entry is a cache MISS, never a visible translation.
                 misses.add(b)
             }
         }
+        // v0.13.0: one map instead of a linear scan per cached block (O(n^2) on busy pages).
+        val englishById = blocks.associate { it.id to it.english }
         if (onBlockReady != null && cached.isNotEmpty()) {
             for ((id, arabic) in cached) {
                 if (arabic.isNotBlank()) {
-                    val english = blocks.firstOrNull { it.id == id }?.english ?: ""
+                    val english = englishById[id] ?: ""
                     runCatching { onBlockReady(TranslatedBlock(id, english, arabic)) }
                 }
             }
         }
         val cacheHits = cached.size
         cached.forEach { (id, arabic) ->
-            val source = blocks.firstOrNull { it.id == id }?.english.orEmpty()
+            val source = englishById[id].orEmpty()
             runCatching {
                 onTranslationPair?.invoke(TranslationPairTrace(id, source, arabic, arabic, engineId, "CACHE_HIT", "served from cache", 0L))
             }
@@ -233,12 +239,15 @@ class CachingTranslator(
                         val finalArabic = tb.arabic
                         translatedById[tb.id] = if (isRejected) "" else finalArabic
                         if (finalArabic.isNotBlank() && !isRejected) {
-                            cache.put(engineId, tb.english, finalArabic, style)
-                            toPersist[cache.key(engineId, tb.english, style)] = finalArabic
+                            val ck2 = cache.key(engineId, tb.english, style)
+                            cache.putByKey(ck2, finalArabic)
+                            toPersist[ck2] = finalArabic
                             memo?.put(cachePrepared(tb.english), finalArabic)
                         }
                     }
-                    if (toPersist.isNotEmpty()) persistent?.putAll(toPersist)
+                    // v0.13.0: disk write on a background thread — translatePage() must not
+                    // serialize the whole JSON cache on the pipeline thread.
+                    if (toPersist.isNotEmpty()) persistent?.putAllAsync(toPersist)
                 }
             }
         }

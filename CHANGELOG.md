@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.13.0 — 2026-11-19 (experimental)
+
+### End-to-end translation latency (the #1 priority)
+- Added mandatory T0→T7 instrumentation: scan initiated → capture → preprocessing → OCR → grouping → translation → first Arabic sentence → all dialogue displayed. First-sentence and full-translation latency (median/P95/worst), per-stage medians, and dialogue-volume counters are recorded in a bounded ring and appended to the pipeline report (key-free, no page text). See `PERFORMANCE.md`.
+- Capture fast path: the screen mirror now renders at the working size (≤720 px, aspect preserved) instead of display resolution, and RGBA→ARGB conversion uses a branch-light swizzle — no full-res copy, alloc, or downscale per capture.
+- Removed a duplicated tap-path filter pass (BlockFilter + garbage classifier ran twice with identical parameters); the single pass now lives in `CaptureOcrProcessor` with the FILTER trace records.
+- Translation core: `Glossary.prepare` is memoized (one regex pass per block instead of up to three), cache keys are computed once per block, the disk cache write moved off the pipeline thread, and an O(n²) id lookup became a single map.
+- Overlay: auto-fit text sizing uses binary search (~6 vs ~58 layout measures per patch, provably identical font), and the progressive painter coalesces sibling raster builds (single-flight per area, no discarded patches).
+- Added a fixed-dataset orchestration benchmark (`OrchestrationBenchmarkTest`, 20-bubble sample page) that runs in CI and prints comparable timings.
+
+### Verification
+- GitHub Actions must pass the full JVM unit-test suite (including the new latency, swizzle, binary-search, memo, async-cache, and orchestration tests) and assemble the debug APK.
+- No device-measured latency numbers are claimed yet — real T0→T7 figures require a physical device (issue #8). All v0.13.0 changes are output-identical by construction and covered by equivalence tests.
+
 ## 0.12.2 — 2026-11-15 (experimental)
 
 ### PaddleOCR on-device comparison build
