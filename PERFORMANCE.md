@@ -63,6 +63,29 @@ The key-free block is appended to the pipeline report
   not by device timing. Device before/after numbers must be collected before
   claiming a specific speedup in milliseconds.
 
+## v0.13.0 CI baseline (JVM orchestration, scripted engine)
+
+Run 44589290709 (PR #17, 2026-11-19) — `ORCH-BENCH` annotations on the check run.
+Fixed dataset, scripted-latency engine; these are **orchestration** numbers, not
+device latency:
+
+| Scenario | Median |
+|---|---|
+| Grouping (40 OCR lines → 20 bubbles) | 0 ms |
+| PagePlan (20 blocks) | 0 ms |
+| Translate cold (20 blocks, 2 ms/block engine) | 40 ms (= 20×2 ms scripted; orchestration overhead ≈ 0) |
+| Translate warm (20 blocks, all cached) | 0 ms |
+| Dedupe fanout (20 blocks → 5 engine calls) | 10 ms (= 5×2 ms scripted) |
+| Dispatch sequential (20 × 10 ms) | 202 ms |
+| Dispatch parallel ×4 (20 × 10 ms) | 51 ms (~4×, as expected) |
+
+Reading: on this dataset the orchestration layer adds ~nothing beyond engine
+time; cache hits are ~free; dedupe cuts engine calls 4×; parallel dispatch
+scales ~linearly. The remaining T0→T7 time on a device is therefore engine/OCR
+time — which is exactly what the T0–T7 stage medians will show once a device
+runs it (issue #8). Future optimizations must beat these baselines in the same
+`ORCH-BENCH` lines.
+
 ## v0.13.0 optimization log
 
 | Change | Stage | Why it helps E2E |
