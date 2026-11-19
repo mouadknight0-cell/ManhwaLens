@@ -2632,6 +2632,7 @@ class FloatingButtonService : Service() {
     }
 
     private fun doCapture(projection: android.media.projection.MediaProjection) {
+        val e2ePass = com.manhwalens.app.util.E2ETrace.begin("tap")
         // Per-cycle timers start clean: spans/stages accumulate only within this run.
         com.manhwalens.app.util.PipelineTracer.reset()
         val startedAt = SystemClock.elapsedRealtime()
@@ -2658,6 +2659,7 @@ class FloatingButtonService : Service() {
             // buffered frame immediately — this is the big win of the persistent session.
             val tapFrame = acquireTapFrame()
                 ?: throw CaptureException("the screen mirror delivered no frame — try again, or re-grant screen capture")
+            com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T1_CAPTURE_DONE)
             var bitmap: Bitmap = tapFrame.bitmap
             noteFrameSize(bitmap)
             statusPill?.showLoading(getString(R.string.pill_capturing))
@@ -2676,6 +2678,7 @@ class FloatingButtonService : Service() {
                     dark = isNearlyBlack(bitmap)
                 }
             }
+            com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T2_PREPROCESS_DONE)
             activeCaptureDiagnostics = if (debugMode && !dark) {
                 com.manhwalens.app.util.CaptureDiagnostics(bitmap.width, bitmap.height)
             } else null
@@ -2707,6 +2710,7 @@ class FloatingButtonService : Service() {
                     "nothing drawn — black frame")
                 mainHandler.post { statusPill?.hide() }
                 finishPipelineTrace()
+                com.manhwalens.app.util.E2ETrace.finish(e2ePass)
                 runCatching { if (!bitmap.isRecycled) bitmap.recycle() }
                 return
             }
@@ -2727,6 +2731,7 @@ class FloatingButtonService : Service() {
             var ocrLineCount = 0
             var ocrBlocks: List<BubbleBlock> = emptyList()
             ocrBlocks = recognizeAndFilterBlocks(bitmap, diagnostics = activeCaptureDiagnostics)
+            com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T3_OCR_DONE)
             ocrMs = lastOcrMs
             ocrLineCount = lastOcrLines
             // Part 2: retry once after longer hide if OCR output looks cut (incomplete sentence).
@@ -2824,6 +2829,8 @@ class FloatingButtonService : Service() {
                 ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS,
                 preprocess = { com.manhwalens.app.translate.Glossary.prepare(it) }
             )
+            e2ePass.blocks = dedupePlan.uniqueCount
+            com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T4_GROUPED)
             if (pageBlocks.size != dedupePlan.uniqueCount) {
                 com.manhwalens.app.util.PipelineTracer.span(
                     "dedupe", 0, com.manhwalens.app.translate.PagePlan.describe(dedupePlan)
@@ -2873,7 +2880,12 @@ class FloatingButtonService : Service() {
                     ::sampleBackground,
                     ::buildPatches,
                     ::patchOverlayEnsure,
-                    { statusPill?.hide() }
+                    { statusPill?.hide() },
+                    onFirstSentenceReady = { com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T6_FIRST_SENTENCE) },
+                    onAllDisplayed = { displayed ->
+                        if (displayed) com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T7_ALL_DISPLAYED)
+                        com.manhwalens.app.util.E2ETrace.finish(e2ePass)
+                    }
                 )
             } else null
 
@@ -2900,6 +2912,7 @@ class FloatingButtonService : Service() {
                     // local bubbles appear first; only validated remote Arabic can replace them.
                     val useProgressive = com.manhwalens.app.translate.TranslatorFactory
                         .remoteUpgradeAvailable(applicationContext)
+                    com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T5_TRANSLATE_START)
                     // Launch the optional remote upgrade NOW — it runs alongside the ML Kit pass.
                     if (useProgressive && painter != null) {
                         val relayPlan = dedupePlan
@@ -2920,7 +2933,10 @@ class FloatingButtonService : Service() {
                         // Tap path paints progressively with ML Kit except when Bergamot is explicitly selected.
                         val mlkit = com.manhwalens.app.translate.TranslatorFactory.createProgressive(
                             applicationContext,
-                            painter::onBlockReady,
+                            { block ->
+                                if (block.arabic.isNotBlank()) com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T6_FIRST_SENTENCE)
+                                painter.onBlockReady(block)
+                            },
                             activeCaptureDiagnostics?.let { diagnostics ->
                                 { trace -> diagnostics.recordTranslation(trace) }
                             }
@@ -3064,6 +3080,9 @@ class FloatingButtonService : Service() {
                 }
             }
 
+            e2ePass.translated = translations.count { it.arabic.isNotBlank() }
+            if (e2ePass.translated > 0) com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T6_FIRST_SENTENCE)
+
             run {
                 val sent = dedupePlan.uniqueCount
                 val received = translations.count { it.arabic.isNotBlank() }
@@ -3138,12 +3157,17 @@ class FloatingButtonService : Service() {
                     recordPaintResult(patches.size, bubbleBoxes.size)
                     if (patches.isNotEmpty()) {
                         patchOverlayEnsure().replaceAll(patches, bw, bh)
+                        if (e2ePass.at(com.manhwalens.app.util.E2ETrace.Mark.T6_FIRST_SENTENCE) != com.manhwalens.app.util.E2ETrace.UNSET) {
+                            com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T7_ALL_DISPLAYED)
+                        }
+                        com.manhwalens.app.util.E2ETrace.finish(e2ePass)
                         PipelineTracer.record(
                             PipelineTracer.Stage.OVERLAY, StageTrace.Status.OK, 0L,
                             "transparent patch overlay attached · patches painted = ${patches.size} of ${bubbleBoxes.size}"
                         )
                     } else {
                         patchOverlay?.clearPatches("error")
+                        com.manhwalens.app.util.E2ETrace.finish(e2ePass)
                         PipelineTracer.record(
                             PipelineTracer.Stage.OVERLAY, StageTrace.Status.FAILED, 0L,
                             if (bubbleBoxes.isEmpty()) "0 boxes — nothing translated for this page"
@@ -3155,19 +3179,24 @@ class FloatingButtonService : Service() {
             }
             Log.i(TAG, "stage=overlay shown; tap→overlay ${meta.tapToOverlayMs} ms")
         } catch (e: SecurityException) {
+            com.manhwalens.app.util.E2ETrace.finish(e2ePass, failed = true)
             if (!captureStageDone) traceCaptureFailed(startedAt, stage, e)
             onCaptureFailure(e, fatal = true, stage = stage)
         } catch (e: CaptureException) {
+            com.manhwalens.app.util.E2ETrace.finish(e2ePass, failed = true)
             if (!captureStageDone) traceCaptureFailed(startedAt, stage, e)
             onCaptureFailure(e, fatal = false, stage = stage)
         } catch (e: OutOfMemoryError) {
+            com.manhwalens.app.util.E2ETrace.finish(e2ePass, failed = true)
             if (!captureStageDone) traceCaptureFailed(startedAt, stage, e)
             onCaptureFailure(e, fatal = true, stage = stage)
         } catch (e: Exception) {
+            com.manhwalens.app.util.E2ETrace.finish(e2ePass, failed = true)
             if (!captureStageDone) traceCaptureFailed(startedAt, stage, e)
             onCaptureFailure(e, fatal = true, stage = stage)
         } catch (e: Throwable) {
             // Last-resort catch-all (NoClassDefFoundError, etc.): report and die gracefully.
+            com.manhwalens.app.util.E2ETrace.finish(e2ePass, failed = true)
             if (!captureStageDone) traceCaptureFailed(startedAt, stage, e)
             onCaptureFailure(e, fatal = true, stage = stage)
         } finally {
@@ -3211,6 +3240,9 @@ class FloatingButtonService : Service() {
      *  4. swap the overlay content in place (or attach it for the first pass).
      */
     private fun liveTranslate(inputFrame: Bitmap, initialGray: ByteArray) {
+        val e2ePass = com.manhwalens.app.util.E2ETrace.takePending()
+            ?: com.manhwalens.app.util.E2ETrace.begin("live")
+        com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T1_CAPTURE_DONE)
         // Per-cycle timers start clean: a live pass owns its own span/stage trace.
         com.manhwalens.app.util.PipelineTracer.reset()
         var frame = inputFrame
@@ -3227,6 +3259,7 @@ class FloatingButtonService : Service() {
             com.manhwalens.app.util.PipelineTracer.span("live black frame", 0, "black=true — skipped OCR")
             com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("black")
             com.manhwalens.app.util.LiveSessionBenchmark.recordFrame(SystemClock.elapsedRealtime() - t0, -1L, -1L)
+            com.manhwalens.app.util.E2ETrace.finish(e2ePass)
             runCatching { if (!frame.isRecycled) frame.recycle() }
             setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
             return
@@ -3298,9 +3331,11 @@ class FloatingButtonService : Service() {
                 } else {
                     ocrBitmap = Bitmap.createBitmap(frame, 0, band.top, frame.width, band.height())
                 }
+                com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T2_PREPROCESS_DONE)
                 try {
                     val recognized = ocrClient.recognize(ocrBitmap)
                     ocrMs = recognized.elapsedMs
+                    com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T3_OCR_DONE)
                     com.manhwalens.app.util.LiveSessionBenchmark.recordOcrStats(recognized.engineStats, recognized.lines.size)
                     recordOcrResult(recognized.lines.size, ocrMs)
                     val lines = if (ocrBitmap !== frame) {
@@ -3374,6 +3409,8 @@ class FloatingButtonService : Service() {
                         ownStrings = com.manhwalens.app.util.OwnedWindows.UI_STRINGS,
                         preprocess = { com.manhwalens.app.translate.Glossary.prepare(it) }
                     )
+                    e2ePass.blocks = pagePlan.uniqueCount
+                    com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T4_GROUPED)
                     if (pagePlan.droppedCount > 0 || pagePlan.uniqueCount != pagePlan.originalCount) {
                         com.manhwalens.app.util.PipelineTracer.span(
                             "live page plan", 0, com.manhwalens.app.translate.PagePlan.describe(pagePlan)
@@ -3390,6 +3427,7 @@ class FloatingButtonService : Service() {
                         // Failure carries no elapsedMs, so the live path times the call itself
                         // (self-check stage 10 wants ms for BOTH outcomes).
                         val trStartedAt = android.os.SystemClock.elapsedRealtime()
+                        com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T5_TRANSLATE_START)
                         // A configured remote engine and ML Kit start together. The local
                         // draft is painted immediately and replaced only after a valid remote
                         // page arrives; Live never waits for the remote engine unless the draft failed.
@@ -3453,6 +3491,8 @@ class FloatingButtonService : Service() {
                                 hits = tr.cacheHits
                                 misses = tr.cacheMisses
                                 translatedExpanded = com.manhwalens.app.translate.PagePlan.expand(pagePlan, tr.blocks, newBlocks.associate { it.id to it.english })
+                                e2ePass.translated = translatedExpanded.count { it.arabic.isNotBlank() }
+                                if (e2ePass.translated > 0) com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T6_FIRST_SENTENCE)
                                 recordTranslateResult(tr.engineId, tr.elapsedMs, null)
                                 com.manhwalens.app.util.LiveSessionBenchmark.recordTranslation(true, tr.engineId, unique.size, tr.cacheHits, tr.cacheMisses)
                             }
@@ -3484,6 +3524,8 @@ class FloatingButtonService : Service() {
                                         hits = fb.cacheHits
                                         misses = fb.cacheMisses
                                         translatedExpanded = com.manhwalens.app.translate.PagePlan.expand(pagePlan, fb.blocks, newBlocks.associate { it.id to it.english })
+                                        e2ePass.translated = translatedExpanded.count { it.arabic.isNotBlank() }
+                                        if (e2ePass.translated > 0) com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T6_FIRST_SENTENCE)
                                         recordTranslateResult(engineLabel, fb.elapsedMs, null)
                                         com.manhwalens.app.util.LiveSessionBenchmark.recordTranslation(true, engineLabel, unique.size, fb.cacheHits, fb.cacheMisses)
                                         recovered = true
@@ -3570,6 +3612,7 @@ class FloatingButtonService : Service() {
                     com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("empty")
                     patchOverlay?.clearPatches("page change")
                     setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
+                    com.manhwalens.app.util.E2ETrace.finish(e2ePass)
                     return@post
                 }
                 val meta = CaptureMeta(
@@ -3599,6 +3642,8 @@ class FloatingButtonService : Service() {
                     val overlayApplyStartedAtElapsedMs = SystemClock.elapsedRealtime()
                     val po = patchOverlayEnsure()
                     po.replaceAll(patches, meta.width, meta.height)
+                    com.manhwalens.app.util.E2ETrace.mark(e2ePass, com.manhwalens.app.util.E2ETrace.Mark.T7_ALL_DISPLAYED)
+                    com.manhwalens.app.util.E2ETrace.finish(e2ePass)
                     com.manhwalens.app.util.LiveSessionBenchmark.recordOutput(
                         queuedAtElapsedMs = overlayQueuedAtElapsedMs,
                         callbackStartedAtElapsedMs = overlayCallbackStartedAtElapsedMs,
@@ -3612,11 +3657,13 @@ class FloatingButtonService : Service() {
                     patchOverlay?.clearPatches("error")
                     PipelineTracer.record(PipelineTracer.Stage.OVERLAY, StageTrace.Status.FAILED, 0L,
                         "patch build failed for ${finalBoxes.size} box(es) — page left in original")
+                    com.manhwalens.app.util.E2ETrace.finish(e2ePass, failed = true)
                 }
                 setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
                 PipelineTracer.span("live overlay shown", 0, "patches painted = ${patches.size} of ${finalBoxes.size} · engine=$shownEngine")
             }
         } catch (e: Throwable) {
+            com.manhwalens.app.util.E2ETrace.finish(e2ePass, failed = true)
             val cancelled = isLiveCancellation(e)
             if (cancelled) {
                 com.manhwalens.app.util.LiveSessionBenchmark.recordPassOutcome("cancelled")
