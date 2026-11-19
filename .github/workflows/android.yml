@@ -44,7 +44,14 @@ jobs:
         run: chmod +x gradlew
 
       - name: Unit tests
-        run: ./gradlew $GRADLE_ARGS :app:testDebugUnitTest
+        run: |
+          set -o pipefail
+          ./gradlew $GRADLE_ARGS :app:testDebugUnitTest 2>&1 | tee /tmp/gradle-test.log || {
+            grep -E "^(e: |FAILURE:|> Task |.*FAILED)" /tmp/gradle-test.log | head -n 40 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit 1
+          }
 
       - name: Build debug APK
         run: ./gradlew $GRADLE_ARGS :app:assembleDebug

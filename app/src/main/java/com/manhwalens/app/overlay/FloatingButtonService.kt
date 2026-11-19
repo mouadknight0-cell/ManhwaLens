@@ -3404,7 +3404,6 @@ class FloatingButtonService : Service() {
             var hits = 0
             var misses = 0
             var translatedExpanded: List<com.manhwalens.app.translate.TranslatedBlock> = emptyList()
-            var livePainter: BubblePainter? = null
             var livePainterAttached = false
             var failedTranslation = false
             e2eLive.markT2PreprocessDone()
@@ -3502,18 +3501,17 @@ class FloatingButtonService : Service() {
                             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
                         }
                         val useProgressiveLive = !canReuse && (dual || prefsL.engine == com.manhwalens.app.translate.TranslationEngine.ML_KIT)
-                        if (useProgressiveLive) {
-                            livePainter = BubblePainter(frame, keptForPaint, t0, "ml_kit_en_ar", e2eLive)
-                        }
+                        val livePainter: BubblePainter? = if (useProgressiveLive) {
+                            BubblePainter(frame, keptForPaint, t0, "ml_kit_en_ar", e2eLive)
+                        } else null
                         val tr: com.manhwalens.app.translate.PageTranslation = if (dual) {
                             val up = LiveUpgrade()
                             pendingUpgrade = up
                             startLiveRemote(up, plan, newBlocks, unique)
                             val tDraft = android.os.SystemClock.elapsedRealtime()
                             val draft = runCatching {
-                                val lp = livePainter
-                                val offline = if (lp != null) {
-                                    com.manhwalens.app.translate.TranslatorFactory.createProgressive(applicationContext, lp::onBlockReady)
+                                val offline = if (livePainter != null) {
+                                    com.manhwalens.app.translate.TranslatorFactory.createProgressive(applicationContext, livePainter::onBlockReady)
                                 } else {
                                     com.manhwalens.app.translate.TranslatorFactory.createOffline(applicationContext)
                                 }
