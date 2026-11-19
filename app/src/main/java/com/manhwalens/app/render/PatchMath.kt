@@ -91,22 +91,30 @@ object PatchMath {
         val ib = inner.bottom.toInt().coerceIn(0, h)
         val ol = (il - ringWidth).coerceAtLeast(0); val ot = (it - ringWidth).coerceAtLeast(0)
         val orr = (ir + ringWidth).coerceAtMost(w); val ob = (ib + ringWidth).coerceAtMost(h)
-        val rs = ArrayList<Int>(); val gs = ArrayList<Int>(); val bs = ArrayList<Int>()
+        val histR = IntArray(256)
+        val histG = IntArray(256)
+        val histB = IntArray(256)
+        var n = 0
         for (y in ot until ob) {
+            val row = y * w
+            val yInInner = y in it until ib
             for (x in ol until orr) {
-                val inInner = x in il until ir && y in it until ib
-                if (inInner) continue
-                val px = pixels[y * w + x]
+                if (yInInner && x in il until ir) continue
+                val px = pixels[row + x]
                 if (px ushr 24 < 128) continue
-                rs += (px shr 16) and 0xFF
-                gs += (px shr 8) and 0xFF
-                bs += px and 0xFF
+                histR[(px shr 16) and 0xFF]++
+                histG[(px shr 8) and 0xFF]++
+                histB[px and 0xFF]++
+                n++
             }
         }
-        val n = rs.size
         if (n < minRingPx) return null
-        val mr = medianOf(rs); val mg = medianOf(gs); val mb = medianOf(bs)
-        val vr = varianceOf(rs, mr); val vg = varianceOf(gs, mg); val vb = varianceOf(bs, mb)
+        val mr = histMedian(histR, n)
+        val mg = histMedian(histG, n)
+        val mb = histMedian(histB, n)
+        val vr = histVariance(histR, n, mr)
+        val vg = histVariance(histG, n, mg)
+        val vb = histVariance(histB, n, mb)
         val stddev = sqrt((vr + vg + vb) / 3.0)
         return RingSample(
             color = (0xFF shl 24) or (mr shl 16) or (mg shl 8) or mb,
@@ -116,19 +124,36 @@ object PatchMath {
         )
     }
 
-    private fun medianOf(xs: List<Int>): Int {
-        val sorted = xs.sorted()
-        val m = sorted.size
-        return if (m % 2 == 1) sorted[m / 2] else (sorted[m / 2 - 1] + sorted[m / 2]) / 2
+    private fun histMedian(hist: IntArray, n: Int): Int {
+        val targetLo = (n - 1) ushr 1
+        val targetHi = n ushr 1
+        var cum = 0
+        var loVal = 0
+        var foundLo = false
+        for (v in 0..255) {
+            val c = hist[v]
+            if (c == 0) continue
+            cum += c
+            if (!foundLo && cum > targetLo) {
+                loVal = v
+                foundLo = true
+            }
+            if (cum > targetHi) {
+                return if (targetLo == targetHi) loVal else (loVal + v) ushr 1
+            }
+        }
+        return loVal
     }
 
-    private fun varianceOf(xs: List<Int>, mean: Int): Double {
+    private fun histVariance(hist: IntArray, n: Int, mean: Int): Double {
         var acc = 0.0
-        for (x in xs) {
-            val d = (x - mean).toDouble()
-            acc += d * d
+        for (v in 0..255) {
+            val c = hist[v]
+            if (c == 0) continue
+            val d = (v - mean).toDouble()
+            acc += d * d * c
         }
-        return acc / xs.size
+        return acc / n
     }
 
     // ---------- bounded flood fill (bubble interior growth) ----------
@@ -232,31 +257,38 @@ object PatchMath {
         return if (dilate > 0) dilateMask(mask, w, h, dilate) else mask
     }
 
-    /** Box dilation (fast two-pass). */
+    /** Box dilation (ping-pong buffers, zero per-pass copy). */
     fun dilateMask(mask: BooleanArray, w: Int, h: Int, radius: Int): BooleanArray {
         if (radius <= 0) return mask.copyOf()
-        var current = mask
-        // Iterative 3x3 box dilate — radius is tiny (2).
+        var current = mask.copyOf()
+        var next = BooleanArray(mask.size)
         repeat(radius) {
-            val out = current.copyOf()
+            System.arraycopy(current, 0, next, 0, current.size)
             for (y in 0 until h) {
+                val row = y * w
                 for (x in 0 until w) {
-                    if (current[y * w + x]) continue
+                    if (current[row + x]) continue
                     var hit = false
                     var dy = -1
                     while (dy <= 1 && !hit) {
-                        var dx = -1
-                        while (dx <= 1 && !hit) {
-                            val nx = x + dx; val ny = y + dy
-                            if (nx in 0 until w && ny in 0 until h && current[ny * w + nx]) hit = true
-                            dx++
+                        val ny = y + dy
+                        if (ny in 0 until h) {
+                            val nRow = ny * w
+                            var dx = -1
+                            while (dx <= 1 && !hit) {
+                                val nx = x + dx
+                                if (nx in 0 until w && current[nRow + nx]) hit = true
+                                dx++
+                            }
                         }
                         dy++
                     }
-                    if (hit) out[y * w + x] = true
+                    if (hit) next[row + x] = true
                 }
             }
-            current = out
+            val tmp = current
+            current = next
+            next = tmp
         }
         return current
     }
@@ -266,28 +298,51 @@ object PatchMath {
     /**
      * Fill every masked pixel with the average of its unmasked 8-connected neighbours,
      * iterating until the wavefront reaches the region center or [maxIterations] runs
-     * out. This is a lightweight Telea-style fill — accurate enough for text removal
-     * over smooth/gradient bubble backgrounds. Returns the iteration count actually used.
+     * out. Hoists accumulator arrays outside the loop and tracks active bounding box.
      */
     fun inpaintMasked(pixels: IntArray, w: Int, h: Int, mask: BooleanArray, maxIterations: Int = 256): Int {
-        if (pixels.size < w * h || mask.size < w * h) return 0
-        var current = mask.copyOf()
-        val newMaskBase = BooleanArray(w * h)
+        val total = w * h
+        if (pixels.size < total || mask.size < total) return 0
+        val current = mask.copyOf()
+        // Track tight active bounding box of remaining masked pixels
+        var minX = w; var minY = h; var maxX = -1; var maxY = -1
+        for (y in 0 until h) {
+            val row = y * w
+            for (x in 0 until w) {
+                if (current[row + x]) {
+                    if (x < minX) minX = x
+                    if (x > maxX) maxX = x
+                    if (y < minY) minY = y
+                    if (y > maxY) maxY = y
+                }
+            }
+        }
+        if (maxX < minX) return 0
+
+        val accR = IntArray(total)
+        val accG = IntArray(total)
+        val accB = IntArray(total)
+        val accN = IntArray(total)
+        val filledIndices = IntArray(total)
         var iter = 0
-        while (iter < maxIterations) {
-            val accR = IntArray(w * h); val accG = IntArray(w * h); val accB = IntArray(w * h)
-            val accN = IntArray(w * h)
-            for (y in 0 until h) {
-                for (x in 0 until w) {
-                    val i = y * w + x
+        while (iter < maxIterations && maxX >= minX) {
+            var filledCount = 0
+            var nextMinX = w; var nextMinY = h; var nextMaxX = -1; var nextMaxY = -1
+            for (y in minY..maxY) {
+                val row = y * w
+                for (x in minX..maxX) {
+                    val i = row + x
                     if (!current[i]) continue
                     var r = 0; var g = 0; var b = 0; var cnt = 0
                     for (dy in -1..1) {
+                        val ny = y + dy
+                        if (ny < 0 || ny >= h) continue
+                        val nRow = ny * w
                         for (dx in -1..1) {
                             if (dx == 0 && dy == 0) continue
-                            val nx = x + dx; val ny = y + dy
-                            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
-                            val j = ny * w + nx
+                            val nx = x + dx
+                            if (nx < 0 || nx >= w) continue
+                            val j = nRow + nx
                             if (current[j]) continue
                             val c = pixels[j]
                             r += (c shr 16) and 0xFF; g += (c shr 8) and 0xFF; b += c and 0xFF
@@ -296,22 +351,26 @@ object PatchMath {
                     }
                     if (cnt > 0) {
                         accR[i] = r; accG[i] = g; accB[i] = b; accN[i] = cnt
+                        filledIndices[filledCount++] = i
+                    } else {
+                        if (x < nextMinX) nextMinX = x
+                        if (x > nextMaxX) nextMaxX = x
+                        if (y < nextMinY) nextMinY = y
+                        if (y > nextMaxY) nextMaxY = y
                     }
                 }
             }
-            var filled = 0
-            for (i in 0 until w * h) {
-                if (accN[i] > 0) {
-                    val r = accR[i] / accN[i]; val g = accG[i] / accN[i]; val b = accB[i] / accN[i]
-                    pixels[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
-                    newMaskBase[i] = true
-                    filled++
-                }
+            for (k in 0 until filledCount) {
+                val i = filledIndices[k]
+                val n = accN[i]
+                val r = accR[i] / n; val g = accG[i] / n; val b = accB[i] / n
+                pixels[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                current[i] = false
+                accN[i] = 0
             }
             iter++
-            if (filled == 0) break
-            // Pixels just filled join the known region for the next wavefront.
-            for (i in 0 until w * h) if (newMaskBase[i]) current[i] = false
+            if (filledCount == 0) break
+            minX = nextMinX; maxX = nextMaxX; minY = nextMinY; maxY = nextMaxY
         }
         return iter
     }

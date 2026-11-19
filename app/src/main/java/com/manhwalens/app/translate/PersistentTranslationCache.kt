@@ -2,6 +2,8 @@ package com.manhwalens.app.translate
 
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Disk-backed LRU layer underneath the in-memory [TranslationCache].
@@ -14,15 +16,22 @@ import java.io.File
  * Bounded to [maxEntries] (LRU eviction, oldest writes dropped first — access
  * order). Pure JVM + java.io.File, so it is unit-testable.
  *
+ * When [asyncWrite] is true (production via TranslatorFactory), [put]/[putAll]/[remove]
+ * update the in-memory map immediately and coalesce disk serialization onto a single
+ * background writer thread so disk I/O never delays T6/T7 overlay display.
+ *
  * Thread-safety: all public methods are @Synchronized.
  */
 class PersistentTranslationCache(
     private val file: File,
-    private val maxEntries: Int = 2000
+    private val maxEntries: Int = 2000,
+    private val asyncWrite: Boolean = false
 ) {
 
     private val map = LinkedHashMap<String, String>(16, 0.75f, /* accessOrder = */ true)
     private var loaded = false
+    private val dirty = AtomicBoolean(false)
+    private val writeScheduled = AtomicBoolean(false)
 
     /** Load (once) from disk and drop anything over capacity. */
     private fun ensureLoaded(): LinkedHashMap<String, String> {
@@ -63,11 +72,12 @@ class PersistentTranslationCache(
             it.next()
             it.remove()
         }
-        save()
+        scheduleSave()
     }
 
     @Synchronized
     fun putAll(entries: Map<String, String>) {
+        if (entries.isEmpty()) return
         val m = ensureLoaded()
         for ((k, v) in entries) {
             m[k] = v
@@ -77,12 +87,12 @@ class PersistentTranslationCache(
             it.next()
             it.remove()
         }
-        save()
+        scheduleSave()
     }
 
     @Synchronized
     fun remove(key: String) {
-        if (ensureLoaded().remove(key) != null) save()
+        if (ensureLoaded().remove(key) != null) scheduleSave()
     }
 
     @Synchronized
@@ -92,13 +102,53 @@ class PersistentTranslationCache(
     fun clear() {
         map.clear()
         loaded = true
+        dirty.set(false)
         runCatching { if (file.exists()) file.delete() }
     }
 
+    private fun scheduleSave() {
+        if (!asyncWrite) {
+            writeSnapshotToDisk(snapshotEntries())
+            return
+        }
+        dirty.set(true)
+        if (writeScheduled.compareAndSet(false, true)) {
+            DISK_WRITER.execute {
+                try {
+                    while (dirty.getAndSet(false)) {
+                        val snap = synchronized(this@PersistentTranslationCache) {
+                            snapshotEntries()
+                        }
+                        writeSnapshotToDisk(snap)
+                    }
+                } finally {
+                    writeScheduled.set(false)
+                    if (dirty.get() && writeScheduled.compareAndSet(false, true)) {
+                        DISK_WRITER.execute {
+                            try {
+                                while (dirty.getAndSet(false)) {
+                                    val snap = synchronized(this@PersistentTranslationCache) {
+                                        snapshotEntries()
+                                    }
+                                    writeSnapshotToDisk(snap)
+                                }
+                            } finally {
+                                writeScheduled.set(false)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun snapshotEntries(): List<Pair<String, String>> =
+        map.entries.map { it.key to it.value }
+
     /** Atomic write: temp file then rename. Failures are logged, never thrown. */
-    private fun save() {
+    private fun writeSnapshotToDisk(entries: List<Pair<String, String>>) {
         val obj = JSONObject()
-        for ((k, v) in map) obj.put(k, v)
+        for ((k, v) in entries) obj.put(k, v)
         val tmp = File(file.parentFile, file.name + ".tmp")
         try {
             file.parentFile?.mkdirs()
@@ -111,6 +161,12 @@ class PersistentTranslationCache(
         } catch (e: Exception) {
             // Never let a cache-write failure break a translation.
             runCatching { tmp.delete() }
+        }
+    }
+
+    companion object {
+        private val DISK_WRITER = Executors.newSingleThreadExecutor { r ->
+            Thread(r, "manhwalens-disk-cache").apply { isDaemon = true }
         }
     }
 }

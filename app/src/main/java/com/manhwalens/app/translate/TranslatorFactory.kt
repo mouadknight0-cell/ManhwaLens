@@ -47,7 +47,8 @@ object TranslatorFactory {
     private fun disk(context: Context): PersistentTranslationCache =
         diskCache ?: PersistentTranslationCache(
             File(context.applicationContext.filesDir, "translation_cache.json"),
-            maxEntries = 2000
+            maxEntries = 2000,
+            asyncWrite = true
         ).also { diskCache = it }
 
     /**

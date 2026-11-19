@@ -128,6 +128,16 @@ class LiveLoopDriver<F : Any>(
         fun onSwallowed(where: String, error: Throwable) {
             onError("swallowed in $where — ${error.javaClass.name}: ${error.message}")
         }
+
+        /**
+         * Speculative OCR hook: called during `Settling` when the stashed frame is clean
+         * (no burned-in patches) so OCR can run during the stability window instead of waiting
+         * until `Stable`. Implementations must not assume ownership of [frame] beyond this call.
+         */
+        fun onSettlingClean(frame: F, gray: ByteArray) {}
+
+        /** Cancel/discard any in-flight speculative OCR when scrolling/changing resumes. */
+        fun onCancelSpeculative() {}
     }
 
     /**
@@ -251,6 +261,7 @@ class LiveLoopDriver<F : Any>(
 
     /** Full reset (screen on/off, resume from standby, live toggled): stash + memory + tracker. */
     fun reset() {
+        sink.onCancelSpeculative()
         releaseStash()
         invalidateSamePage()
         lastTranslatedThumb = null
@@ -382,6 +393,7 @@ class LiveLoopDriver<F : Any>(
 
         when (verdict) {
             LiveStabilityTracker.Verdict.Changing -> {
+                sink.onCancelSpeculative()
                 val shift = if (prevGray != null && newFrame != null) {
                     RowHashShift.estimate(prevGray, gray, LiveFrameMath.THUMB_W, LiveFrameMath.THUMB_H)
                 } else null
@@ -408,7 +420,13 @@ class LiveLoopDriver<F : Any>(
                 sink.onStatus(DriverStatus.SCANNING)
             }
 
-            LiveStabilityTracker.Verdict.Settling -> sink.onStatus(DriverStatus.WAITING)
+            LiveStabilityTracker.Verdict.Settling -> {
+                sink.onStatus(DriverStatus.WAITING)
+                val cleanStash = stashFrame
+                if (cleanStash != null && !stashPatchesBurnedIn && !source.patchesBurnedInNow() && !samePage(gray, mask)) {
+                    guard("onSettlingClean") { sink.onSettlingClean(cleanStash, gray) }
+                }
+            }
 
             LiveStabilityTracker.Verdict.Stable -> {
                 if (samePage(gray, mask)) {

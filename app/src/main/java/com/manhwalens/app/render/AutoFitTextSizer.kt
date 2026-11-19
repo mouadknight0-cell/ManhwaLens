@@ -39,17 +39,44 @@ object AutoFitTextSizer {
         if (text.isBlank() || maxWidthPx <= 0 || maxHeightPx <= 0 || maxPx <= minPx) {
             return AutoFitResult(minPx.coerceAtLeast(1f), 0, text.isBlank())
         }
-        var size = maxPx
-        var lastHeight = 0
-        while (size >= minPx) {
-            val m = measurer.measure(text, maxWidthPx, size)
-            lastHeight = m.heightPx
-            if (m.heightPx <= maxHeightPx) {
-                return AutoFitResult(size, m.heightPx, true)
-            }
-            size -= STEP_PX
+        val topMeasure = measurer.measure(text, maxWidthPx, maxPx)
+        if (topMeasure.heightPx <= maxHeightPx) {
+            return AutoFitResult(maxPx, topMeasure.heightPx, true)
         }
-        return AutoFitResult(minPx, lastHeight, false)
+        val maxSteps = kotlin.math.floor(((maxPx - minPx) / STEP_PX).toDouble()).toInt()
+        if (maxSteps <= 0) {
+            return AutoFitResult(minPx, topMeasure.heightPx, false)
+        }
+        // Binary search over k in [1..maxSteps] where size = maxPx - k * STEP_PX.
+        // Smaller k means larger font size; find the smallest k that fits.
+        var lo = 1
+        var hi = maxSteps
+        var bestSize = minPx
+        var bestHeight = 0
+        var found = false
+        while (lo <= hi) {
+            val mid = (lo + hi) ushr 1
+            val size = maxPx - mid * STEP_PX
+            val m = measurer.measure(text, maxWidthPx, size)
+            if (m.heightPx <= maxHeightPx) {
+                found = true
+                bestSize = size
+                bestHeight = m.heightPx
+                hi = mid - 1 // try larger font (smaller k)
+            } else {
+                lo = mid + 1 // try smaller font (larger k)
+            }
+        }
+        if (found) {
+            return AutoFitResult(bestSize, bestHeight, true)
+        }
+        val floorSize = maxPx - maxSteps * STEP_PX
+        val floorHeight = if (floorSize == minPx) {
+            measurer.measure(text, maxWidthPx, minPx).heightPx
+        } else {
+            measurer.measure(text, maxWidthPx, minPx).heightPx
+        }
+        return AutoFitResult(minPx, floorHeight, false)
     }
 }
 

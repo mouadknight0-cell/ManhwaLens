@@ -249,19 +249,24 @@ class MlKitTranslator(
                 null
             }
         }
-        val pool = java.util.concurrent.Executors.newFixedThreadPool(parallelLevel())
+        val concurrency = parallelLevel().coerceIn(1, SHARED_POOL_SIZE)
+        val sem = java.util.concurrent.Semaphore(concurrency)
         val results = arrayOfNulls<String>(blocks.size)
         val latch = java.util.concurrent.CountDownLatch(blocks.size)
-        try {
+        return try {
             blocks.forEachIndexed { i, b ->
-                pool.execute {
+                SHARED_POOL.execute {
+                    var acquired = false
                     try {
+                        sem.acquire()
+                        acquired = true
                         val out = Tasks.await(client.translate(src(b.english)), TRANSLATE_TIMEOUT_SEC, TimeUnit.SECONDS).trim()
                         results[i] = out
                         emitReady(TranslatedBlock(b.id, b.english, out))
                     } catch (e: Exception) {
                         Log.e(TAG, "mlkit parallel block #${b.id} failed — ${e.javaClass.name}: ${e.message}", e)
                     } finally {
+                        if (acquired) sem.release()
                         latch.countDown()
                     }
                 }
@@ -272,12 +277,10 @@ class MlKitTranslator(
                 return null
             }
             if (results.any { it == null }) return null
-            return blocks.mapIndexed { i, b -> TranslatedBlock(b.id, b.english, results.getOrNull(i) ?: "") }
+            blocks.mapIndexed { i, b -> TranslatedBlock(b.id, b.english, results.getOrNull(i) ?: "") }
         } catch (e: Exception) {
             Log.e(TAG, "mlkit parallel failed — ${e.javaClass.name}: ${e.message}", e)
-            return null
-        } finally {
-            pool.shutdownNow()
+            null
         }
     }
 
@@ -407,6 +410,10 @@ class MlKitTranslator(
 
         private const val MODEL_TIMEOUT_SEC = 30L
         private const val TRANSLATE_TIMEOUT_SEC = 15L
+        private const val SHARED_POOL_SIZE = 4
+        private val SHARED_POOL = java.util.concurrent.Executors.newFixedThreadPool(SHARED_POOL_SIZE) { r ->
+            Thread(r, "manhwalens-mlkit").apply { isDaemon = true }
+        }
         /** Per-block calls in flight: the benchmarked level for this device, default 2. */
         private fun parallelLevel(): Int =
             BatchPolicyHolder.instance?.parallelLevel() ?: com.manhwalens.app.translate.BatchPolicy.DEFAULT_PARALLEL

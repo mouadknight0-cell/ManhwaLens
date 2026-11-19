@@ -17,17 +17,14 @@ import kotlin.math.max
  */
 class StaticTextMeasurer(context: Context) : TextMeasurer {
 
-    private val typeface =
-        ResourcesCompat.getFont(context, R.font.cairo_bold)
-            ?: ResourcesCompat.getFont(context, R.font.cairo)
-            ?: android.graphics.Typeface.DEFAULT
+    private val typeface = cachedTypeface(context)
+    private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.typeface = this@StaticTextMeasurer.typeface
+    }
 
     override fun measure(text: String, maxWidthPx: Int, fontSizePx: Float): Measured {
         if (text.isBlank() || maxWidthPx <= 0) return Measured(0, 0)
-        val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.typeface = this@StaticTextMeasurer.typeface
-            this.textSize = fontSizePx
-        }
+        paint.textSize = fontSizePx
         val layout = StaticLayout.Builder.obtain(text, 0, text.length, paint, maxWidthPx)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setIncludePad(false)
@@ -38,5 +35,17 @@ class StaticTextMeasurer(context: Context) : TextMeasurer {
             widest = max(widest, layout.getLineWidth(i))
         }
         return Measured(layout.height, ceil(widest).toInt())
+    }
+
+    companion object {
+        @Volatile
+        private var cached: android.graphics.Typeface? = null
+
+        fun cachedTypeface(context: Context): android.graphics.Typeface =
+            cached ?: synchronized(this) {
+                cached ?: (ResourcesCompat.getFont(context, R.font.cairo_bold)
+                    ?: ResourcesCompat.getFont(context, R.font.cairo)
+                    ?: android.graphics.Typeface.DEFAULT).also { cached = it }
+            }
     }
 }

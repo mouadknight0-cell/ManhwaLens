@@ -27,13 +27,26 @@ class TranslationCache(private val maxEntries: Int = 1000) {
     fun get(engineId: String, source: String, style: String = "default"): String? = map[key(engineId, source, style)]
 
     @Synchronized
+    fun getByKey(fullKey: String): String? = map[fullKey]
+
+    @Synchronized
     fun put(engineId: String, source: String, translated: String, style: String = "default") {
         map[key(engineId, source, style)] = translated
     }
 
     @Synchronized
+    fun putByKey(fullKey: String, translated: String) {
+        map[fullKey] = translated
+    }
+
+    @Synchronized
     fun remove(engineId: String, source: String, style: String = "default") {
         map.remove(key(engineId, source, style))
+    }
+
+    @Synchronized
+    fun removeByKey(fullKey: String) {
+        map.remove(fullKey)
     }
 
     @Synchronized
@@ -43,7 +56,9 @@ class TranslationCache(private val maxEntries: Int = 1000) {
     fun clear() = map.clear()
 
     companion object {
+        private val WS_REGEX = Regex("\\s+")
+
         fun normalize(source: String): String =
-            source.trim().replace(Regex("\\s+"), " ").lowercase()
+            WS_REGEX.replace(source.trim(), " ").lowercase()
     }
 }

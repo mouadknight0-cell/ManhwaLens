@@ -105,6 +105,10 @@ object PipelineTracer {
             sb.append("— waiting / sub-steps —\n")
             for (x in sp) sb.append(x.line()).append('\n')
         }
+        com.manhwalens.app.bench.EndToEndMetricsStore.last()?.let { last ->
+            sb.append("— E2E latency (T0..T7) —\n")
+            sb.append(last.summaryLine()).append('\n')
+        }
         return sb.toString().trim()
     }
 
@@ -113,8 +117,10 @@ object PipelineTracer {
         ErrorLog.writeRaw(context, "pipeline", report())
     }
 
+    private val AIZA_REGEX = Regex("AIza[0-9A-Za-z_-]{10,}")
+    private val API_KEY_REGEX = Regex("(?i)(api[-_ ]?key|key)\\s*[=:]\\s*\\S+")
+
     /** Scrub API keys and anything key-ish before it reaches logs or UI. */
     private fun sanitize(text: String): String =
-        text.replace(Regex("AIza[0-9A-Za-z_-]{10,}"), "[redacted]")
-            .replace(Regex("(?i)(api[-_ ]?key|key)\\s*[=:]\\s*\\S+"), "api_key=[redacted]")
+        API_KEY_REGEX.replace(AIZA_REGEX.replace(text, "[redacted]"), "api_key=[redacted]")
 }

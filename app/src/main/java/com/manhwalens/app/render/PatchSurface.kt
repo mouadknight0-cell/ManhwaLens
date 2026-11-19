@@ -46,12 +46,16 @@ object PatchSurface {
     private const val OUTLINE_LUMA = 80
     private const val MAX_AXIS_SCALE = 1.4f
 
-    private var cairoTypeface: Typeface? = null
+    private fun typeface(context: Context): Typeface = StaticTextMeasurer.cachedTypeface(context)
 
-    private fun typeface(context: Context): Typeface =
-        cairoTypeface ?: (ResourcesCompat.getFont(context, R.font.cairo_bold)
-            ?: ResourcesCompat.getFont(context, R.font.cairo)
-            ?: Typeface.DEFAULT).also { cairoTypeface = it }
+    private class ExpandResult(
+        val rect: com.manhwalens.app.ocr.geometry.Rect2D,
+        val boundPixels: IntArray?,
+        val bl: Int,
+        val bt: Int,
+        val bw: Int,
+        val bh: Int
+    )
 
     /** Build the patch for [box] sampled from [source]. Returns null on unusable input. */
     fun build(context: Context, source: Bitmap, box: BubbleRenderBox): BubblePatch? {
@@ -71,7 +75,8 @@ object PatchSurface {
 
         // ---------- 2) bubble-interior expansion (bounded flood fill) ----------
         val bound = PatchMath.expansionBound(inner, frameW, frameH, MAX_AXIS_SCALE)
-        val patchRect = tryExpandToBubble(source, inner, bound, box.backgroundColor)
+        val expanded = tryExpandToBubble(source, inner, bound, box.backgroundColor)
+        val patchRect = expanded.rect
         val left = patchRect.left.toInt()
         val top = patchRect.top.toInt()
         val right = patchRect.right.toInt().coerceAtMost(frameW)
@@ -81,9 +86,8 @@ object PatchSurface {
         if (w < MIN_PATCH_PX || h < MIN_PATCH_PX) return null
 
         // ---------- 3) crop pixels + ring classification ----------
-        val crop = IntArray(w * h)
         return try {
-            source.getPixels(crop, 0, w, left, top, w, h)
+            val crop = extractCrop(source, expanded, left, top, w, h)
             buildFromCrop(context, crop, w, h, left, top, box, inner, frameW, frameH)
         } catch (oom: OutOfMemoryError) {
             Log.e(TAG, "patch #${box.id}: crop allocation OOM — bubble skipped", oom)
@@ -94,15 +98,46 @@ object PatchSurface {
         }
     }
 
+    private fun extractCrop(
+        source: Bitmap,
+        expanded: ExpandResult,
+        left: Int,
+        top: Int,
+        w: Int,
+        h: Int
+    ): IntArray {
+        val bp = expanded.boundPixels
+        if (bp != null &&
+            left >= expanded.bl &&
+            top >= expanded.bt &&
+            left + w <= expanded.bl + expanded.bw &&
+            top + h <= expanded.bt + expanded.bh
+        ) {
+            if (left == expanded.bl && top == expanded.bt && w == expanded.bw && h == expanded.bh) {
+                return bp
+            }
+            val crop = IntArray(w * h)
+            val srcOffX = left - expanded.bl
+            val srcOffY = top - expanded.bt
+            for (y in 0 until h) {
+                System.arraycopy(bp, (srcOffY + y) * expanded.bw + srcOffX, crop, y * w, w)
+            }
+            return crop
+        }
+        val crop = IntArray(w * h)
+        source.getPixels(crop, 0, w, left, top, w, h)
+        return crop
+    }
+
     // ------------------------------------------------------------------
 
-    /** Flood fill from the text-rect perimeter over background-like pixels; returns the grown rect (or null on starvation). */
+    /** Flood fill from the text-rect perimeter over background-like pixels; returns the grown rect + bound pixels. */
     private fun tryExpandToBubble(
         source: Bitmap,
         inner: com.manhwalens.app.ocr.geometry.Rect2D,
         bound: com.manhwalens.app.ocr.geometry.Rect2D,
         refColor: Int
-    ): com.manhwalens.app.ocr.geometry.Rect2D {
+    ): ExpandResult {
         val bl = bound.left.toInt().coerceIn(0, source.width - 1)
         val bt = bound.top.toInt().coerceIn(0, source.height - 1)
         val br = bound.right.toInt().coerceIn(bl + 1, source.width)
@@ -117,7 +152,7 @@ object PatchSurface {
             )
             val localBound = com.manhwalens.app.ocr.geometry.Rect2D(0f, 0f, cw.toFloat(), ch.toFloat())
             val reached = PatchMath.floodRegion(crop, cw, ch, localInner, refColor, localBound, delta = FLOOD_DELTA, outlineLuma = OUTLINE_LUMA)
-            if (reached == null) {
+            val rect = if (reached == null) {
                 // No flood growth (text touches unresolvable edges) — stay with the padded text rect.
                 inner
             } else {
@@ -129,9 +164,10 @@ object PatchSurface {
                     min(reached.bottom + bt, source.height.toFloat())
                 )
             }
+            ExpandResult(rect, crop, bl, bt, cw, ch)
         } catch (e: Exception) {
             Log.w(TAG, "flood expansion failed (${e.javaClass.name}) — using padded text rect")
-            inner
+            ExpandResult(inner, null, 0, 0, 0, 0)
         }
     }
 

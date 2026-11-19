@@ -79,9 +79,45 @@ object BubbleGrouper {
         }
 
         return byRoot.values
-            .map { group -> group.sortedWith(compareBy({ it.box.top }, { it.box.left })) }
+            .map { group -> sortLinesInReadingOrder(group) }
             .sortedWith(compareBy({ it.minOf { line -> line.box.top } }, { it.minOf { line -> line.box.left } }))
             .mapIndexed { index, group -> BubbleBlock(id = index + 1, lines = group) }
+    }
+
+    /**
+     * Orders lines inside one bubble in true reading order:
+     * lines on the same visual row (vertical overlap >= 50% of shorter line height)
+     * sort left-to-right; distinct rows sort top-to-bottom.
+     */
+    private fun sortLinesInReadingOrder(lines: List<DetectedLine>): List<DetectedLine> {
+        if (lines.size <= 1) return lines
+        val byTop = lines.sortedWith(compareBy({ it.box.top }, { it.box.left }))
+        val rows = ArrayList<MutableList<DetectedLine>>(byTop.size)
+        var rowTop = byTop[0].box.top
+        var rowBottom = byTop[0].box.bottom
+        var curRow = mutableListOf(byTop[0])
+        rows += curRow
+        for (i in 1 until byTop.size) {
+            val l = byTop[i]
+            val overlap = min(rowBottom, l.box.bottom) - max(rowTop, l.box.top)
+            val minH = min(rowBottom - rowTop, l.box.height)
+            if (minH > 0f && overlap >= minH * 0.5f) {
+                curRow += l
+                rowTop = min(rowTop, l.box.top)
+                rowBottom = max(rowBottom, l.box.bottom)
+            } else {
+                curRow = mutableListOf(l)
+                rows += curRow
+                rowTop = l.box.top
+                rowBottom = l.box.bottom
+            }
+        }
+        val out = ArrayList<DetectedLine>(lines.size)
+        for (row in rows) {
+            if (row.size > 1) row.sortBy { it.box.left }
+            out.addAll(row)
+        }
+        return out
     }
 
     fun shouldMerge(a: DetectedLine, b: DetectedLine, params: BubbleMergeParams = BubbleMergeParams()): Boolean {

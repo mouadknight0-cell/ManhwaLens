@@ -218,7 +218,7 @@ class PatchOverlayWindow(private val context: Context, private val windowManager
             v.frameWidth = frameWidth
             v.frameHeight = frameHeight
             v.visibility = View.VISIBLE
-            v.slots[patch.id] = Slot(patch, SystemClock.elapsedRealtime(), fadeInMs, 0f, 1f)
+            v.slots[patch.id] = Slot(patch, SystemClock.elapsedRealtime(), fadeInMs, 0.35f, 1f)
             kickAnimator()
         }
     }
@@ -342,7 +342,7 @@ class PatchOverlayWindow(private val context: Context, private val windowManager
         v.visibility = View.VISIBLE
         val now = SystemClock.elapsedRealtime()
         for (p in patches) {
-            v.slots[p.id] = Slot(p, now, fadeInMs, 0f, 1f)
+            v.slots[p.id] = Slot(p, now, fadeInMs, 0.35f, 1f)
         }
         android.util.Log.i(TAG, "patch overlay: ${patches.size} patch(es) swapped in")
         kickAnimator()

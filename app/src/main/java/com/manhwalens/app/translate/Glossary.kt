@@ -22,24 +22,65 @@ object Glossary {
     var config: Config = Config()
         private set
 
-    private class Compiled(val map: Map<String, String>, val patterns: List<Pair<Regex, String>>)
+    private class PatternRule(
+        val index: Int,
+        val pattern: Regex,
+        val arabic: String
+    )
+
+    private class Compiled(
+        val map: Map<String, String>,
+        val rules: List<PatternRule>,
+        val anchorToRuleIndices: Map<String, IntArray>,
+        val unindexedRuleIndices: IntArray
+    )
+
+    private val LATIN_TOKEN_REGEX = Regex("\\p{L}{3,}")
+    private val ASCII_WORD_REGEX = Regex("[A-Za-z]+")
 
     @Volatile
     private var compiledCache: Compiled? = null
 
+    private const val PREPARE_CACHE_CAP = 256
+    private val prepareCacheLock = Any()
+    private val prepareCache = object : LinkedHashMap<String, String>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean =
+            size > PREPARE_CACHE_CAP
+    }
+
     fun refresh(userText: String, mergeLines: Boolean) {
         config = Config(userText, mergeLines)
         compiledCache = null
+        synchronized(prepareCacheLock) {
+            prepareCache.clear()
+        }
     }
 
-    /** 250 names × every block would mean 250 regex compiles per bubble — compile once. */
+    /** 250 names × every block would mean 250 regex compiles per bubble — compile & index once. */
     private fun compiled(): Compiled = compiledCache ?: synchronized(this) {
         compiledCache ?: run {
             val map = buildEffective(config.userText)
-            val patterns = map.entries.sortedByDescending { it.key.length }.map { (key, arabic) ->
-                Regex("(?i)(?<![\\p{L}])" + Regex.escape(key) + "(?![\\p{L}])") to arabic
+            val sortedEntries = map.entries.sortedByDescending { it.key.length }
+            val rules = ArrayList<PatternRule>(sortedEntries.size)
+            val byAnchor = HashMap<String, MutableList<Int>>()
+            val unindexed = ArrayList<Int>()
+            sortedEntries.forEachIndexed { idx, (key, arabic) ->
+                val regex = Regex("(?i)(?<![\\p{L}])" + Regex.escape(key) + "(?![\\p{L}])")
+                rules += PatternRule(idx, regex, arabic)
+                val anchor = ASCII_WORD_REGEX.findAll(key)
+                    .map { it.value.lowercase() }
+                    .maxByOrNull { it.length }
+                if (anchor != null) {
+                    byAnchor.getOrPut(anchor) { ArrayList(2) }.add(idx)
+                } else {
+                    unindexed.add(idx)
+                }
             }
-            Compiled(map, patterns).also { compiledCache = it }
+            val anchorMap = HashMap<String, IntArray>(byAnchor.size)
+            for ((anchor, list) in byAnchor) {
+                anchorMap[anchor] = list.toIntArray()
+            }
+            Compiled(map, rules, anchorMap, unindexed.toIntArray()).also { compiledCache = it }
         }
     }
 
@@ -59,10 +100,18 @@ object Glossary {
      * Idempotent — an already prepared string comes back unchanged.
      */
     fun prepare(text: String, mergeLines: Boolean = config.mergeLines): String {
+        val cacheKey = if (mergeLines) text else "\u0000$text"
+        synchronized(prepareCacheLock) {
+            prepareCache[cacheKey]?.let { return it }
+        }
         val c = compiled()
         var out = BubbleTextRules.normalize(text)
         if (mergeLines) out = BubbleTextRules.oneLine(out)
-        return applyCompiled(out, c)
+        val prepared = applyCompiled(out, c)
+        synchronized(prepareCacheLock) {
+            prepareCache[cacheKey] = prepared
+        }
+        return prepared
     }
 
     /** Same as [prepare]: the cache must key on what the engine was actually shown. */
@@ -83,10 +132,33 @@ object Glossary {
 
     private fun applyCompiled(text: String, c: Compiled): String {
         if (text.isEmpty()) return text
+        // Fast index: only evaluate rules whose anchor ASCII word actually appears in text.
+        val candidateIndices = ArrayList<Int>(8)
+        if (c.unindexedRuleIndices.isNotEmpty()) {
+            for (idx in c.unindexedRuleIndices) candidateIndices.add(idx)
+        }
+        if (text.any { it.code in 65..122 }) {
+            val seenAnchors = HashSet<String>(16)
+            for (m in ASCII_WORD_REGEX.findAll(text)) {
+                val lower = m.value.lowercase()
+                if (seenAnchors.add(lower)) {
+                    c.anchorToRuleIndices[lower]?.let { arr ->
+                        for (idx in arr) candidateIndices.add(idx)
+                    }
+                }
+            }
+        }
         var out = text
-        for ((pattern, arabic) in c.patterns) {
-            if (!pattern.containsMatchIn(out)) continue
-            out = pattern.replace(out) { m -> if (ambiguousShort(m.value)) m.value else arabic }
+        if (candidateIndices.isNotEmpty()) {
+            if (candidateIndices.size > 1) candidateIndices.sort()
+            var prevIdx = -1
+            for (idx in candidateIndices) {
+                if (idx == prevIdx) continue
+                prevIdx = idx
+                val rule = c.rules[idx]
+                if (!rule.pattern.containsMatchIn(out)) continue
+                out = rule.pattern.replace(out) { m -> if (ambiguousShort(m.value)) m.value else rule.arabic }
+            }
         }
         return transliterateUnknown(out, c.map)
     }
@@ -108,7 +180,7 @@ object Glossary {
 
     private fun transliterateUnknown(text: String, table: Map<String, String>): String {
         if (text.none { it.code in 65..122 }) return text
-        return Regex("\\p{L}{3,}").replace(text) { m ->
+        return LATIN_TOKEN_REGEX.replace(text) { m ->
             val token = m.value
             val lower = token.lowercase()
             when {

@@ -17,6 +17,11 @@ object ColorSampler {
     private const val ALPHA_MIN = 128
     private const val SHIFT = 3               // 5-bit channels
     private const val BUCKETS = 32
+    private const val HIST_SIZE = BUCKETS * BUCKETS * BUCKETS
+
+    private val threadHist = object : ThreadLocal<IntArray>() {
+        override fun initialValue(): IntArray = IntArray(HIST_SIZE)
+    }
 
     /**
      * Sample the dominant interior background color of [left, top, right, bottom)
@@ -39,8 +44,9 @@ object ColorSampler {
         val b = bottom.coerceIn(0, imgH)
         if (r - l < 2 || b - t < 2) return null
 
-        // 5-bit histogram over opaque pixels
-        val counts = IntArray(BUCKETS * BUCKETS * BUCKETS)
+        // 5-bit histogram over opaque pixels (reusable thread-local buffer)
+        val counts = threadHist.get()!!
+        java.util.Arrays.fill(counts, 0)
         var used = 0
         for (y in t until b) {
             val row = y * imgW

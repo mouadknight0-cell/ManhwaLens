@@ -105,8 +105,8 @@ class FloatingButtonService : Service() {
         private const val FRAME_WAIT_MS = 1_500L
         /** Tap path: how long to wait for the frame that follows hiding our own windows. */
         private const val CLEAN_CAPTURE_TIMEOUT_MS = 800L
-        /** Tap path: extra settle time after the first post-hide frame (lets the compositor finish). */
-        private const val CLEAN_CAPTURE_SETTLE_MS = 120L
+        /** Tap path: brief settle after the post-hide frame arrives (condition-waited). */
+        private const val CLEAN_CAPTURE_SETTLE_MS = 25L
         /** A menu closed less than this long ago may still be in the newest buffered frame. */
         private const val MENU_RECENT_MS = 500L
         /** How long a closed menu's rect still vetoes OCR text in a live frame. */
@@ -133,6 +133,11 @@ class FloatingButtonService : Service() {
             val selfTest = com.manhwalens.app.translate.mlkit.MlKitTranslator.lastSelfTestSummary
             if (selfTest.isNotEmpty()) out += "mlkit self-test: $selfTest"
             out += "mlkit warmth: " + com.manhwalens.app.translate.MlKitWarmth.describe(System.currentTimeMillis())
+            val e2eSummary = com.manhwalens.app.bench.EndToEndMetricsStore.summarize()
+            if (e2eSummary.runs > 0) {
+                out += "— live/tap E2E latency (T0..T7, ${e2eSummary.runs} runs) —"
+                out += e2eSummary.formatReport("E2E session").lines()
+            }
             val bench = runCatching {
                 java.io.File(context.filesDir, BENCHMARK_REPORT_FILE).takeIf { it.exists() }?.readLines()
             }.getOrNull()
@@ -243,6 +248,26 @@ class FloatingButtonService : Service() {
      * ML Kit draft. They used to queue on [ioExecutor] (single thread) behind pre-warm work.
      */
     private val remoteExecutor = Executors.newFixedThreadPool(2)
+    /** Parallel patch rasterization pool (keeps cache-hit painting off the translation start path). */
+    private val patchPool = Executors.newFixedThreadPool(2) { r ->
+        Thread(r, "manhwalens-patch").apply { isDaemon = true }
+    }
+    /** Speculative OCR executor (runs during Live `Settling` window). */
+    private val ocrSpeculativeExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "manhwalens-spec-ocr").apply { isDaemon = true }
+    }
+    private class SpeculativeOcrResult(
+        val hash: Long,
+        val createdAtMs: Long,
+        val lines: List<com.manhwalens.app.ocr.DetectedLine>,
+        val ocrMs: Long,
+        val frameWidth: Int,
+        val frameHeight: Int
+    )
+    private val speculativeLock = Any()
+    @Volatile private var speculativeOcr: SpeculativeOcrResult? = null
+    @Volatile private var speculativeInFlightHash: Long = 0L
+    @Volatile private var speculativeCancelledHash: Long = 0L
     private var statusPill: StatusPillWindow? = null
     @Volatile private var liveStatus: com.manhwalens.app.live.LiveStatus = com.manhwalens.app.live.LiveStatus.PAUSED
     private val liveTickRunning = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -487,6 +512,8 @@ class FloatingButtonService : Service() {
         statusPill = null
         runCatching { ioExecutor.shutdown() }
         runCatching { remoteExecutor.shutdown() }
+        runCatching { patchPool.shutdown() }
+        runCatching { ocrSpeculativeExecutor.shutdown() }
         patchOverlay?.detach()
         patchOverlay = null
         reviewWindow?.hide()
@@ -1196,22 +1223,26 @@ class FloatingButtonService : Service() {
         try {
             if (hideAt > 0L) {
                 val deadline = waitStart + CLEAN_CAPTURE_TIMEOUT_MS
-                while (lastFrameArrivedAtMs <= hideAt && SystemClock.elapsedRealtime() < deadline) {
-                    try {
-                        Thread.sleep(15L)
-                    } catch (ie: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                        break
+                frameSignalLock.lock()
+                try {
+                    while (lastFrameArrivedAtMs <= hideAt) {
+                        val remaining = deadline - SystemClock.elapsedRealtime()
+                        if (remaining <= 0L) break
+                        frameSignal.await(remaining, TimeUnit.MILLISECONDS)
                     }
-                }
-                if (lastFrameArrivedAtMs > hideAt) {
-                    try {
-                        Thread.sleep(CLEAN_CAPTURE_SETTLE_MS)
-                    } catch (ie: InterruptedException) {
-                        Thread.currentThread().interrupt()
+                    if (lastFrameArrivedAtMs > hideAt) {
+                        val settleLeft = CLEAN_CAPTURE_SETTLE_MS - (SystemClock.elapsedRealtime() - lastFrameArrivedAtMs)
+                        if (settleLeft > 0L) {
+                            frameSignal.await(settleLeft, TimeUnit.MILLISECONDS)
+                        }
+                    } else {
+                        clean = false
                     }
-                } else {
-                    clean = false
+                } catch (ie: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    if (lastFrameArrivedAtMs <= hideAt) clean = false
+                } finally {
+                    frameSignalLock.unlock()
                 }
             }
             var bitmap: Bitmap? = takeLatestFrame()?.let { image ->
@@ -1837,6 +1868,113 @@ class FloatingButtonService : Service() {
         override fun onSwallowed(where: String, error: Throwable) {
             com.manhwalens.app.util.LiveLog.swallowed("driver/$where", error)
         }
+
+        override fun onSettlingClean(frame: Bitmap, gray: ByteArray) {
+            if (liveJobRunning.get() || frame.isRecycled) return
+            val hash = fnv1a64(gray)
+            synchronized(speculativeLock) {
+                if (speculativeOcr?.hash == hash || speculativeInFlightHash == hash) return
+                speculativeInFlightHash = hash
+                if (speculativeCancelledHash == hash) speculativeCancelledHash = 0L
+            }
+            val copy = runCatching { frame.copy(Bitmap.Config.ARGB_8888, false) }.getOrNull()
+            if (copy == null) {
+                synchronized(speculativeLock) {
+                    if (speculativeInFlightHash == hash) speculativeInFlightHash = 0L
+                }
+                return
+            }
+            val copyGray = gray.copyOf()
+            runCatching {
+                ocrSpeculativeExecutor.execute {
+                    var ocrBmp: Bitmap? = null
+                    try {
+                        val cancelledBefore = synchronized(speculativeLock) {
+                            speculativeCancelledHash == hash || liveJobRunning.get()
+                        }
+                        if (cancelledBefore || isNearlyBlack(copy)) return@execute
+                        val (cropped, yOff) = cropBarsForOcr(copy)
+                        ocrBmp = if (cropped !== copy) cropped else null
+                        val recognized = ocrClient.recognize(cropped)
+                        val lines = if (cropped !== copy) {
+                            recognized.lines.map {
+                                it.copy(
+                                    box = com.manhwalens.app.ocr.geometry.Rect2D(
+                                        it.box.left, it.box.top + yOff, it.box.right, it.box.bottom + yOff
+                                    )
+                                )
+                            }
+                        } else recognized.lines
+                        val cancelledAfter = synchronized(speculativeLock) {
+                            speculativeCancelledHash == hash
+                        }
+                        if (!cancelledAfter) {
+                            synchronized(speculativeLock) {
+                                speculativeOcr = SpeculativeOcrResult(
+                                    hash = hash,
+                                    createdAtMs = SystemClock.elapsedRealtime(),
+                                    lines = lines,
+                                    ocrMs = recognized.elapsedMs,
+                                    frameWidth = copy.width,
+                                    frameHeight = copy.height
+                                )
+                            }
+                            com.manhwalens.app.util.LiveLog.i(
+                                TAG, "live speculative ocr ready: ${lines.size} lines in ${recognized.elapsedMs}ms"
+                            )
+                        }
+                    } catch (t: Throwable) {
+                        com.manhwalens.app.util.LiveLog.swallowed("speculativeOcr", t)
+                    } finally {
+                        ocrBmp?.let { runCatching { if (!it.isRecycled) it.recycle() } }
+                        runCatching { if (!copy.isRecycled) copy.recycle() }
+                        synchronized(speculativeLock) {
+                            if (speculativeInFlightHash == hash) speculativeInFlightHash = 0L
+                        }
+                        // Keep copyGray referenced to avoid unused warning if needed
+                        if (copyGray.isEmpty()) Unit
+                    }
+                }
+            }.onFailure {
+                runCatching { if (!copy.isRecycled) copy.recycle() }
+                synchronized(speculativeLock) {
+                    if (speculativeInFlightHash == hash) speculativeInFlightHash = 0L
+                }
+            }
+        }
+
+        override fun onCancelSpeculative() {
+            synchronized(speculativeLock) {
+                if (speculativeInFlightHash != 0L) speculativeCancelledHash = speculativeInFlightHash
+                speculativeOcr = null
+            }
+        }
+    }
+
+    private fun fnv1a64(bytes: ByteArray): Long {
+        var h = -3750763034362895579L
+        for (b in bytes) {
+            h = h xor (b.toLong() and 0xFFL)
+            h *= 1099511628211L
+        }
+        return h
+    }
+
+    private fun takeMatchingSpeculativeOcr(gray: ByteArray, width: Int, height: Int): SpeculativeOcrResult? {
+        val hash = fnv1a64(gray)
+        val now = SystemClock.elapsedRealtime()
+        return synchronized(speculativeLock) {
+            val res = speculativeOcr
+            speculativeOcr = null
+            if (res != null &&
+                res.hash == hash &&
+                res.frameWidth == width &&
+                res.frameHeight == height &&
+                now - res.createdAtMs <= 3_000L
+            ) {
+                res
+            } else null
+        }
     }
 
     /**
@@ -1995,6 +2133,7 @@ class FloatingButtonService : Service() {
         out += "ocrDrops=" + (if (ocrDropsByReason.isEmpty()) "none"
             else ocrDropsByReason.entries.joinToString(",") { "${it.key}=${it.value}" })
         out += " captureHideWaitMs=$lastCaptureHideWaitMs"
+        com.manhwalens.app.bench.EndToEndMetricsStore.last()?.let { out += it.summaryLine() }
         return out
     }
 
@@ -2512,6 +2651,17 @@ class FloatingButtonService : Service() {
         // Per-cycle timers start clean: spans/stages accumulate only within this run.
         com.manhwalens.app.util.PipelineTracer.reset()
         val startedAt = SystemClock.elapsedRealtime()
+        val e2e = com.manhwalens.app.bench.EndToEndRecorder(
+            label = "tap_${startedAt}",
+            mode = "tap",
+            clockMs = { SystemClock.elapsedRealtime() },
+            cpuTimeMsProvider = { android.os.Debug.threadCpuTimeNanos().coerceAtLeast(0L) / 1_000_000L },
+            memoryUsedKbProvider = {
+                val rt = Runtime.getRuntime()
+                (rt.totalMemory() - rt.freeMemory()) / 1024L
+            }
+        )
+        if (lastTapAt > 0L) e2e.overrideT0(lastTapAt)
         if (captureQueuedAtMs > 0) {
             PipelineTracer.span("capture queue wait", startedAt - captureQueuedAtMs, "captureExecutor")
         }
@@ -2541,6 +2691,7 @@ class FloatingButtonService : Service() {
             val origW = bitmap.width
             val origH = bitmap.height
             val firstFrameAt = SystemClock.elapsedRealtime()
+            e2e.markT1CaptureDone()
 
             var dark = isNearlyBlack(bitmap)
             if (dark) {
@@ -2552,6 +2703,7 @@ class FloatingButtonService : Service() {
                     dark = isNearlyBlack(bitmap)
                 }
             }
+            e2e.markT2PreprocessDone()
             val totalMs = SystemClock.elapsedRealtime() - startedAt
             PipelineTracer.record(
                 PipelineTracer.Stage.CAPTURE, StageTrace.Status.OK,
@@ -2578,19 +2730,32 @@ class FloatingButtonService : Service() {
                     "skipped — black frame")
                 PipelineTracer.record(PipelineTracer.Stage.OVERLAY, StageTrace.Status.SKIPPED, 0L,
                     "nothing drawn — black frame")
+                val rec = e2e.markT7AllDisplayed(0, 0, failed = false)
+                com.manhwalens.app.bench.EndToEndMetricsStore.record(rec)
                 mainHandler.post { statusPill?.hide() }
                 finishPipelineTrace()
                 runCatching { if (!bitmap.isRecycled) bitmap.recycle() }
                 return
             }
 
-            // Write the jpg off the critical path — capture continues straight into OCR.
-            val jpgName = "capture_" + SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date()) + ".jpg"
-            val savedPath = File(cacheDir, jpgName).absolutePath
-            val capBitmap = bitmap
-            ioExecutor.execute {
-                runCatching { saveBitmapToCache(capBitmap, savedPath) }
-                    .onFailure { Log.e("ManhwaLens", "failed to save capture to cache — ${it.javaClass.name}: ${it.message}", it) }
+            // Skip unnecessary cache-dir JPEG compression on the critical path unless debugMode is on.
+            var savedPath: String? = null
+            if (debugMode) {
+                val jpgName = "capture_" + SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date()) + ".jpg"
+                val debugPath = File(cacheDir, jpgName).absolutePath
+                savedPath = debugPath
+                val copyForDisk = runCatching { bitmap.copy(Bitmap.Config.ARGB_8888, false) }.getOrNull()
+                if (copyForDisk != null) {
+                    ioExecutor.execute {
+                        try {
+                            saveBitmapToCache(copyForDisk, debugPath)
+                        } catch (t: Throwable) {
+                            Log.e("ManhwaLens", "failed to save capture to cache — ${t.javaClass.name}: ${t.message}", t)
+                        } finally {
+                            runCatching { if (!copyForDisk.isRecycled) copyForDisk.recycle() }
+                        }
+                    }
+                }
             }
 
             // --- OCR + bubble grouping (Part 2: same clean-capture routine as Live) ----
@@ -2600,6 +2765,7 @@ class FloatingButtonService : Service() {
             var ocrLineCount = 0
             var ocrBlocks: List<BubbleBlock> = emptyList()
             ocrBlocks = recognizeAndFilterBlocks(bitmap)
+            e2e.markT3OcrDone()
             ocrMs = lastOcrMs
             ocrLineCount = lastOcrLines
             // Part 2: retry once after longer hide if OCR output looks cut (incomplete sentence).
@@ -2766,13 +2932,15 @@ class FloatingButtonService : Service() {
             val rankById = HashMap<Int, Int>(priorityIdx.size)
             priorityIdx.forEachIndexed { rank, i -> rankById[keptForPaint[i].id] = rank }
             val blocksToSend = dedupePlan.unique.sortedBy { rankById[it.id] ?: Int.MAX_VALUE }
+            e2e.markT4GroupingDone(pageBlocks.size)
 
             // Progressive display (Part C): paint each bubble the moment its Arabic lands.
             val painter: BubblePainter? = if (pageBlocks.isNotEmpty()) {
-                BubblePainter(bitmap, keptForPaint, lastTapAt, "ml_kit_en_ar")
+                BubblePainter(bitmap, keptForPaint, lastTapAt, "ml_kit_en_ar", e2e)
             } else null
 
             var usedProgressiveMlKit = false
+            e2e.markT5TranslationStart()
             if (pageBlocks.isNotEmpty()) {
                 try {
                     val prefsT = com.manhwalens.app.data.TranslationPrefs(applicationContext)
@@ -3005,6 +3173,14 @@ class FloatingButtonService : Service() {
             retainReviewFrame(bitmap, meta)
             maybeScheduleAiCleanup(bitmap, bubbleBoxes)
             if (painterAttached) {
+                painter?.awaitPending()
+                val rec = e2e.markT7AllDisplayed(
+                    translatedCount = translations.count { it.arabic.isNotBlank() },
+                    failedCount = (pageBlocks.size - translations.count { it.arabic.isNotBlank() }).coerceAtLeast(0),
+                    failed = translateError != null
+                )
+                com.manhwalens.app.bench.EndToEndMetricsStore.record(rec)
+                PipelineTracer.span("E2E T0..T7", rec.fullTranslationLatencyMs, rec.summaryLine())
                 // Patches already on screen with the ML Kit bubbles — nothing else to draw.
                 mainHandler.post {
                     statusPill?.hide()
@@ -3019,6 +3195,7 @@ class FloatingButtonService : Service() {
                     recordPaintResult(patches.size, bubbleBoxes.size)
                     if (patches.isNotEmpty()) {
                         patchOverlayEnsure().replaceAll(patches, bw, bh)
+                        e2e.markT6FirstSentenceDisplayed()
                         PipelineTracer.record(
                             PipelineTracer.Stage.OVERLAY, StageTrace.Status.OK, 0L,
                             "transparent patch overlay attached · patches painted = ${patches.size} of ${bubbleBoxes.size}"
@@ -3031,6 +3208,13 @@ class FloatingButtonService : Service() {
                             else "patch build failed for ${bubbleBoxes.size} box(es)"
                         )
                     }
+                    val rec = e2e.markT7AllDisplayed(
+                        translatedCount = patches.size,
+                        failedCount = (pageBlocks.size - patches.size).coerceAtLeast(0),
+                        failed = translateError != null || (bubbleBoxes.isNotEmpty() && patches.isEmpty())
+                    )
+                    com.manhwalens.app.bench.EndToEndMetricsStore.record(rec)
+                    PipelineTracer.span("E2E T0..T7", rec.fullTranslationLatencyMs, rec.summaryLine())
                     finishPipelineTrace()
                 }
             }
@@ -3140,6 +3324,17 @@ class FloatingButtonService : Service() {
         var frame = inputFrame
         var gray = initialGray
         val t0 = SystemClock.elapsedRealtime()
+        val e2eLive = com.manhwalens.app.bench.EndToEndRecorder(
+            label = "live_${t0}",
+            mode = "live",
+            clockMs = { SystemClock.elapsedRealtime() },
+            cpuTimeMsProvider = { android.os.Debug.threadCpuTimeNanos().coerceAtLeast(0L) / 1_000_000L },
+            memoryUsedKbProvider = {
+                val rt = Runtime.getRuntime()
+                (rt.totalMemory() - rt.freeMemory()) / 1024L
+            }
+        )
+        e2eLive.markT1CaptureDone()
         // Remote request started alongside the ML Kit draft (null = single engine).
         var pendingUpgrade: LiveUpgrade? = null
         // Black frames (FLAG_SECURE) carry no page content — skip OCR, draw nothing.
@@ -3199,39 +3394,60 @@ class FloatingButtonService : Service() {
             }
             val bandHeight = band.height()
 
-            // ---------- 2) OCR (new band only, or full frame) ----------
+            // ---------- 2) OCR (new band only, or full frame / speculative hit) ----------
             val newBoxes: ArrayList<com.manhwalens.app.render.BubbleRenderBox> = ArrayList()
             var ocrMs = -1L
+            var ocrLineCount = 0
             var newBlockCount = 0
             var engineLabel: String? = null
             var engineMs = -1L
             var hits = 0
             var misses = 0
             var translatedExpanded: List<com.manhwalens.app.translate.TranslatedBlock> = emptyList()
+            var livePainter: BubblePainter? = null
+            var livePainterAttached = false
+            var failedTranslation = false
+            e2eLive.markT2PreprocessDone()
             if (bandHeight >= 48) {
+                val isFullFrame = (band.top == 0 && band.bottom == frame.height)
+                val specHit = if (isFullFrame) {
+                    takeMatchingSpeculativeOcr(gray, frame.width, frame.height)
+                } else null
                 var bandTop = band.top
-                val ocrBitmap: Bitmap
-                if (band.top == 0 && band.bottom == frame.height) {
+                val ocrBitmap: Bitmap = if (specHit != null) {
+                    frame
+                } else if (isFullFrame) {
                     val (cropped, yOff) = cropBarsForOcr(frame)
-                    ocrBitmap = cropped
                     bandTop = (band.top + yOff).toInt()
+                    cropped
                 } else {
-                    ocrBitmap = Bitmap.createBitmap(frame, 0, band.top, frame.width, band.height())
+                    Bitmap.createBitmap(frame, 0, band.top, frame.width, band.height())
                 }
                 try {
-                    val recognized = ocrClient.recognize(ocrBitmap)
-                    ocrMs = recognized.elapsedMs
-                    recordOcrResult(recognized.lines.size, ocrMs)
-                    val lines = if (ocrBitmap !== frame) {
-                        recognized.lines.map {
-                            it.copy(box = com.manhwalens.app.ocr.geometry.Rect2D(
-                                it.box.left,
-                                it.box.top + bandTop,
-                                it.box.right,
-                                it.box.bottom + bandTop
-                            ))
-                        }
-                    } else recognized.lines
+                    val lines: List<com.manhwalens.app.ocr.DetectedLine>
+                    if (specHit != null) {
+                        lines = specHit.lines
+                        ocrMs = specHit.ocrMs
+                        ocrLineCount = lines.size
+                        recordOcrResult(ocrLineCount, ocrMs)
+                        com.manhwalens.app.util.PipelineTracer.span("speculative ocr hit", ocrMs, "lines=$ocrLineCount")
+                    } else {
+                        val recognized = ocrClient.recognize(ocrBitmap)
+                        ocrMs = recognized.elapsedMs
+                        ocrLineCount = recognized.lines.size
+                        recordOcrResult(ocrLineCount, ocrMs)
+                        lines = if (ocrBitmap !== frame) {
+                            recognized.lines.map {
+                                it.copy(box = com.manhwalens.app.ocr.geometry.Rect2D(
+                                    it.box.left,
+                                    it.box.top + bandTop,
+                                    it.box.right,
+                                    it.box.bottom + bandTop
+                                ))
+                            }
+                        } else recognized.lines
+                    }
+                    e2eLive.markT3OcrDone()
                     val grouped = BubbleGrouper.group(lines)
                     val edgePrefs = com.manhwalens.app.data.SettingsPrefs(applicationContext)
                     val density = resources.displayMetrics.density
@@ -3254,17 +3470,29 @@ class FloatingButtonService : Service() {
                         .map { com.manhwalens.app.translate.TranslationBlock(it.id, it.text) }
                         .filter { it.english.isNotBlank() }
                     newBlockCount = newBlocks.size
+                    e2eLive.markT4GroupingDone(newBlockCount)
 
-                    // ---------- 3) dedupe + translate ONLY the new blocks ----------
+                    // ---------- 3) dedupe + priority sort + translate ONLY the new blocks ----------
                     if (newBlocks.isNotEmpty()) {
                         val plan = com.manhwalens.app.translate.PageDedupe.plan(newBlocks)
-                        val unique = plan.unique
+                        val pageIds = newBlocks.map { it.id }.toHashSet()
+                        val keptForPaint = pageBlocks.filter { it.id in pageIds }
+                        val priorityIdx = com.manhwalens.app.translate.BlockPriority.orderRects(
+                            keptForPaint.map { it.text },
+                            keptForPaint.map { it.bounds.left },
+                            keptForPaint.map { it.bounds.top },
+                            keptForPaint.map { it.bounds.right },
+                            keptForPaint.map { it.bounds.bottom },
+                            frame.width, frame.height
+                        )
+                        val rankById = HashMap<Int, Int>(priorityIdx.size)
+                        priorityIdx.forEachIndexed { rank, i -> rankById[keptForPaint[i].id] = rank }
+                        val unique = plan.unique.sortedBy { rankById[it.id] ?: Int.MAX_VALUE }
+
                         // Failure carries no elapsedMs, so the live path times the call itself
                         // (self-check stage 10 wants ms for BOTH outcomes).
                         val trStartedAt = android.os.SystemClock.elapsedRealtime()
-                        // A configured remote engine and ML Kit start together. The local
-                        // draft is painted immediately and replaced only after a valid remote
-                        // page arrives; Live never waits for the remote engine unless the draft failed.
+                        e2eLive.markT5TranslationStart()
                         val prefsL = com.manhwalens.app.data.TranslationPrefs(applicationContext)
                         val dual = com.manhwalens.app.translate.TranslatorFactory
                             .remoteUpgradeAvailable(applicationContext)
@@ -3273,20 +3501,35 @@ class FloatingButtonService : Service() {
                             com.manhwalens.app.translate.TranslationEngine.LIBRE_TRANSLATE -> "libre_translate"
                             com.manhwalens.app.translate.TranslationEngine.ML_KIT -> "remote"
                         }
+                        val useProgressiveLive = !canReuse && (dual || prefsL.engine == com.manhwalens.app.translate.TranslationEngine.ML_KIT)
+                        if (useProgressiveLive) {
+                            livePainter = BubblePainter(frame, keptForPaint, t0, "ml_kit_en_ar", e2eLive)
+                        }
                         val tr: com.manhwalens.app.translate.PageTranslation = if (dual) {
                             val up = LiveUpgrade()
                             pendingUpgrade = up
                             startLiveRemote(up, plan, newBlocks, unique)
                             val tDraft = android.os.SystemClock.elapsedRealtime()
                             val draft = runCatching {
-                                com.manhwalens.app.translate.TranslatorFactory.createOffline(applicationContext)
-                                    .translatePage(unique)
+                                val lp = livePainter
+                                val offline = if (lp != null) {
+                                    com.manhwalens.app.translate.TranslatorFactory.createProgressive(applicationContext, lp::onBlockReady)
+                                } else {
+                                    com.manhwalens.app.translate.TranslatorFactory.createOffline(applicationContext)
+                                }
+                                offline.translatePage(unique)
                             }.getOrNull()
                             up.draftMs = android.os.SystemClock.elapsedRealtime() - tDraft
-                            // Remote engine already back (cache / fast server)? Paint it directly, once.
-                            val early = synchronized(up) { up.result.also { if (it != null) up.consumed = true } }
+                            // Remote engine already back (cache / fast server)? Paint it directly, once if nothing painted yet.
+                            val early = synchronized(up) {
+                                if (up.result != null && livePainter?.attached != true && livePainter?.attachRequested != true) {
+                                    up.consumed = true
+                                    up.result
+                                } else up.result
+                            }
                             when {
-                                early is com.manhwalens.app.translate.PageTranslation.Success -> {
+                                early is com.manhwalens.app.translate.PageTranslation.Success &&
+                                    livePainter?.attached != true && livePainter?.attachRequested != true -> {
                                     com.manhwalens.app.util.PipelineTracer.span(
                                         "live phases", up.remoteMs,
                                         "ML Kit draft ${up.draftMs} ms · ${early.engineId} ${up.remoteMs} ms (already back — painted once)"
@@ -3297,7 +3540,7 @@ class FloatingButtonService : Service() {
                                     com.manhwalens.app.util.PipelineTracer.span(
                                         "live phase 1 (ML Kit)", up.draftMs,
                                         if (early == null) "draft painted now · $remoteEngineId still running, will replace in place"
-                                        else "draft painted · $remoteEngineId failed — draft stays"
+                                        else "draft painted · $remoteEngineId will upgrade or keep draft"
                                     )
                                     draft
                                 }
@@ -3315,6 +3558,10 @@ class FloatingButtonService : Service() {
                                     )
                                 }
                             }
+                        } else if (livePainter != null) {
+                            com.manhwalens.app.translate.TranslatorFactory
+                                .createProgressive(applicationContext, livePainter::onBlockReady)
+                                .translatePage(unique)
                         } else {
                             com.manhwalens.app.translate.TranslatorFactory.create(applicationContext).translatePage(unique)
                         }
@@ -3344,8 +3591,15 @@ class FloatingButtonService : Service() {
                                 var recovered = false
                                 if ((tr.engineId == "gemini" || tr.engineId == "libre_translate") && !dual) {
                                     val fb = runCatching {
-                                        com.manhwalens.app.translate.TranslatorFactory.createOffline(applicationContext)
-                                            .translatePage(unique)
+                                        val lp = livePainter
+                                        if (lp != null) {
+                                            com.manhwalens.app.translate.TranslatorFactory
+                                                .createProgressive(applicationContext, lp::onBlockReady)
+                                                .translatePage(unique)
+                                        } else {
+                                            com.manhwalens.app.translate.TranslatorFactory.createOffline(applicationContext)
+                                                .translatePage(unique)
+                                        }
                                     }.getOrNull()
                                     if (fb is com.manhwalens.app.translate.PageTranslation.Success) {
                                         engineLabel = "ml_kit_en_ar (offline fallback)"
@@ -3359,6 +3613,7 @@ class FloatingButtonService : Service() {
                                 }
                                 // …and when nothing worked, SAY so and retry the page shortly.
                                 if (!recovered) {
+                                    failedTranslation = true
                                     val nowMs = SystemClock.elapsedRealtime()
                                     if (nowMs - lastLiveFailureToastAtMs > LIVE_FAILURE_TOAST_INTERVAL_MS) {
                                         lastLiveFailureToastAtMs = nowMs
@@ -3376,13 +3631,24 @@ class FloatingButtonService : Service() {
                                 }
                             }
                         }
-                        val arabicById = translatedExpanded.associateBy({ it.id }, { it.arabic })
-                        newBoxes += sampleBubbleBoxes(frame, filtered.kept, arabicById)
+                        if (livePainter != null && (livePainter.attached || livePainter.attachRequested)) {
+                            livePainter.finish(translatedExpanded)
+                            livePainterAttached = true
+                            newBoxes += livePainter.snapshot()
+                        } else {
+                            val arabicById = translatedExpanded.associateBy({ it.id }, { it.arabic })
+                            newBoxes += sampleBubbleBoxes(frame, keptForPaint, arabicById)
+                        }
+                    } else {
+                        e2eLive.markT5TranslationStart()
                     }
                 } finally {
                     if (ocrBitmap !== frame) runCatching { ocrBitmap.recycle() }
                 }
             } else if (canReuse) {
+                e2eLive.markT3OcrDone()
+                e2eLive.markT4GroupingDone(0)
+                e2eLive.markT5TranslationStart()
                 Log.i(TAG, "live: revealed band ${bandHeight}px < 48 — keeping reused bubbles only (OCR skipped)")
             }
 
@@ -3400,10 +3666,8 @@ class FloatingButtonService : Service() {
             )
             com.manhwalens.app.util.PipelineTracer.span("cache", 0, "hits=$hits misses=$misses")
 
-            // ---------- 4) swap the overlay content in place ----------
+            // ---------- 4) build patches on worker thread + swap overlay ----------
             val frameToShow = frame
-            // A remote reply that is still on its way needs these pixels to re-render its
-            // bubbles: it takes over the frame and recycles it when it is done.
             val upgrade = pendingUpgrade
             val upgradeOwnsFrame = upgrade != null && newBoxes.isNotEmpty() &&
                 synchronized(upgrade) {
@@ -3413,54 +3677,52 @@ class FloatingButtonService : Service() {
                         true
                     }
                 }
+            // Rasterize off the main thread when batch-painting so UI never stalls!
+            val prebuiltPatches = if (!livePainterAttached && finalBoxes.isNotEmpty()) {
+                buildPatches(frameToShow, finalBoxes)
+            } else emptyList()
             mainHandler.post {
                 statusPill?.hide()
                 if (finalBoxes.isEmpty()) {
-                    // Nothing to translate on this page — drop stale patches, keep the raw reader visible.
                     patchOverlay?.clearPatches("page change")
                     if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
+                    val rec = e2eLive.markT7AllDisplayed(0, 0, failedTranslation)
+                    com.manhwalens.app.bench.EndToEndMetricsStore.record(rec)
+                    PipelineTracer.span("E2E T0..T7", rec.fullTranslationLatencyMs, rec.summaryLine())
                     setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
                     return@post
                 }
-                val meta = CaptureMeta(
-                    width = frameToShow.width,
-                    height = frameToShow.height,
-                    totalMs = ms,
-                    firstFrameWaitMs = -1L,
-                    savedPath = null,
-                    nearBlack = false,
-                    capturedAt = System.currentTimeMillis(),
-                    ocrMs = ocrMs,
-                    ocrLineCount = -1,
-                    bubbleCount = finalBoxes.size,
-                    translateEngine = shownEngine,
-                    translateMs = engineMs,
-                    cacheHits = hits,
-                    cacheMisses = misses,
-                    translateError = null,
-                    translations = translatedExpanded,
-                    bubbleBoxes = finalBoxes,
-                    tapToOverlayMs = -1L,
-                    liveMode = true
-                )
-                val patches = buildPatches(frameToShow, finalBoxes)
-                // The overlay shows patches ONLY — the captured frame is never displayed,
-                // never retained by Live. Recycle it now that the patches own their pixels
-                // (unless a pending remote upgrade took it over — it recycles it itself).
+                if (livePainterAttached) {
+                    if (upgradeOwnsFrame) upgrade?.epoch = patchOverlay?.contentEpoch() ?: -1
+                    if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
+                    val rec = e2eLive.markT7AllDisplayed(finalBoxes.size, 0, failedTranslation)
+                    com.manhwalens.app.bench.EndToEndMetricsStore.record(rec)
+                    PipelineTracer.span("E2E T0..T7", rec.fullTranslationLatencyMs, rec.summaryLine())
+                    setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
+                    PipelineTracer.span("live overlay shown", 0, "progressive patches=${finalBoxes.size} · engine=$shownEngine")
+                    return@post
+                }
                 if (!upgradeOwnsFrame) runCatching { if (!frameToShow.isRecycled) frameToShow.recycle() }
-                recordPaintResult(patches.size, finalBoxes.size)
-                if (patches.isNotEmpty()) {
+                recordPaintResult(prebuiltPatches.size, finalBoxes.size)
+                if (prebuiltPatches.isNotEmpty()) {
                     val po = patchOverlayEnsure()
-                    po.replaceAll(patches, meta.width, meta.height)
-                    // Runs on the main thread, so replaceAll has already been applied.
+                    po.replaceAll(prebuiltPatches, frameToShow.width, frameToShow.height)
+                    e2eLive.markT6FirstSentenceDisplayed()
                     if (upgradeOwnsFrame) upgrade?.epoch = po.contentEpoch()
                 } else {
                     patchOverlay?.clearPatches("error")
                     PipelineTracer.record(PipelineTracer.Stage.OVERLAY, StageTrace.Status.FAILED, 0L,
                         "patch build failed for ${finalBoxes.size} box(es) — page left in original")
                 }
+                val rec = e2eLive.markT7AllDisplayed(
+                    translatedCount = prebuiltPatches.size,
+                    failedCount = (finalBoxes.size - prebuiltPatches.size).coerceAtLeast(0),
+                    failed = failedTranslation || prebuiltPatches.isEmpty()
+                )
+                com.manhwalens.app.bench.EndToEndMetricsStore.record(rec)
+                PipelineTracer.span("E2E T0..T7", rec.fullTranslationLatencyMs, rec.summaryLine())
                 setLiveStatus(com.manhwalens.app.live.LiveStatus.WAITING)
-                PipelineTracer.span("live overlay shown", 0, "patches painted = ${patches.size} of ${finalBoxes.size} · engine=$shownEngine")
+                PipelineTracer.span("live overlay shown", 0, "patches painted = ${prebuiltPatches.size} of ${finalBoxes.size} · engine=$shownEngine")
             }
         } catch (e: Throwable) {
             Log.e(TAG, "live translate failed — ${e.javaClass.name}: ${e.message}", e)
@@ -3759,13 +4021,16 @@ class FloatingButtonService : Service() {
         private val bitmap: Bitmap,
         keptBlocks: List<BubbleBlock>,
         private val tapStartMs: Long,
-        private val engineId: String
+        private val engineId: String,
+        private val e2e: com.manhwalens.app.bench.EndToEndRecorder? = null,
+        private val ownerThread: Thread = Thread.currentThread()
     ) {
         private val lock = Any()
         private val blocksById = keptBlocks.associateBy { it.id }
         private val painted = LinkedHashMap<Int, com.manhwalens.app.render.BubbleRenderBox>()
         private val remoteWins = HashSet<Int>()
         private val paintLedger = com.manhwalens.app.render.PaintLedger(keptBlocks.size)
+        private val inFlight = java.util.concurrent.Phaser(1)
 
         @Volatile var attached: Boolean = false
             private set
@@ -3780,63 +4045,82 @@ class FloatingButtonService : Service() {
         fun onBlockReady(tb: com.manhwalens.app.translate.TranslatedBlock) = paint(tb, remote = false)
         fun onRemote(tb: com.manhwalens.app.translate.TranslatedBlock) = paint(tb, remote = true)
 
+        fun awaitPending() {
+            runCatching { inFlight.arriveAndAwaitAdvance() }
+        }
+
         private fun paint(tb: com.manhwalens.app.translate.TranslatedBlock, remote: Boolean) {
             if (tb.arabic.isBlank()) return
             val block = blocksById[tb.id] ?: return
             val r = block.bounds
             val left = r.left.toInt().coerceIn(0, bitmap.width); val top = r.top.toInt().coerceIn(0, bitmap.height)
             val right = r.right.toInt().coerceIn(0, bitmap.width); val bottom = r.bottom.toInt().coerceIn(0, bitmap.height)
-            val bg = sampleBackground(bitmap, left, top, right, bottom)
-            val box = com.manhwalens.app.render.BubbleRenderBox(
-                id = tb.id,
-                left = left, top = top, right = right, bottom = bottom,
-                english = block.text,
-                arabic = tb.arabic,
-                backgroundColor = bg,
-                textColor = com.manhwalens.app.render.ColorSampler.bestTextColorOn(bg)
-            )
-            val won: Boolean
-            synchronized(lock) {
-                if (!remote && remoteWins.contains(tb.id)) return
-                painted[tb.id] = box
-                if (remote) remoteWins.add(tb.id)
-                paintLedger.record(tb.id)
-                won = true
-            }
-            Log.i(TAG, paintLedger.line())
-            // Rasterize the patch HERE (worker thread) — small bitmap, bounded work.
-            val patch = try {
-                com.manhwalens.app.render.PatchSurface.build(applicationContext, bitmap, box)
-            } catch (oom: OutOfMemoryError) {
-                Log.e("ManhwaLens", "patch build OOM for #${box.id} — bubble skipped", oom)
-                null
-            } catch (e: Exception) {
-                Log.e("ManhwaLens", "patch build failed for #${box.id} — ${e.javaClass.name}: ${e.message}", e)
-                null
-            }
-            val elapsed = SystemClock.elapsedRealtime() - tapStartMs
-            if (patch != null && !attached && !attachRequested) attachRequested = true
-            mainHandler.post {
-                if (patch == null) return@post
-                statusPill?.hide()
-                val po = patchOverlayEnsure()
-                if (!attached) {
-                    attached = true
-                    firstBubbleMs = elapsed
-                    // A fresh tap capture invalidates the previous page's patches.
-                    po.beginSession("page change")
-                    if (firstBubbleMs >= 0) {
-                        PipelineTracer.span(
-                            "first bubble shown at", firstBubbleMs,
-                            "patch 1 painted (${if (remote) "remote" else engineId})"
-                        )
-                    }
-                    PipelineTracer.record(
-                        PipelineTracer.Stage.OVERLAY, StageTrace.Status.OK, 0L,
-                        "transparent patch overlay attached (tap→overlay ${firstBubbleMs} ms)"
+            val task = Runnable {
+                try {
+                    if (bitmap.isRecycled) return@Runnable
+                    val bg = sampleBackground(bitmap, left, top, right, bottom)
+                    val box = com.manhwalens.app.render.BubbleRenderBox(
+                        id = tb.id,
+                        left = left, top = top, right = right, bottom = bottom,
+                        english = block.text,
+                        arabic = tb.arabic,
+                        backgroundColor = bg,
+                        textColor = com.manhwalens.app.render.ColorSampler.bestTextColorOn(bg)
                     )
+                    synchronized(lock) {
+                        if (!remote && remoteWins.contains(tb.id)) return@Runnable
+                        painted[tb.id] = box
+                        if (remote) remoteWins.add(tb.id)
+                        paintLedger.record(tb.id)
+                    }
+                    Log.i(TAG, paintLedger.line())
+                    val patch = try {
+                        com.manhwalens.app.render.PatchSurface.build(applicationContext, bitmap, box)
+                    } catch (oom: OutOfMemoryError) {
+                        Log.e("ManhwaLens", "patch build OOM for #${box.id} — bubble skipped", oom)
+                        null
+                    } catch (e: Exception) {
+                        Log.e("ManhwaLens", "patch build failed for #${box.id} — ${e.javaClass.name}: ${e.message}", e)
+                        null
+                    }
+                    val elapsed = SystemClock.elapsedRealtime() - tapStartMs
+                    if (patch != null && !attached && !attachRequested) attachRequested = true
+                    mainHandler.post {
+                        if (patch == null) return@post
+                        statusPill?.hide()
+                        val po = patchOverlayEnsure()
+                        if (!attached) {
+                            attached = true
+                            firstBubbleMs = elapsed
+                            po.beginSession("page change")
+                            e2e?.markT6FirstSentenceDisplayed()
+                            if (firstBubbleMs >= 0) {
+                                PipelineTracer.span(
+                                    "first bubble shown at", firstBubbleMs,
+                                    "patch 1 painted (${if (remote) "remote" else engineId})"
+                                )
+                            }
+                            PipelineTracer.record(
+                                PipelineTracer.Stage.OVERLAY, StageTrace.Status.OK, 0L,
+                                "transparent patch overlay attached (tap→overlay ${firstBubbleMs} ms)"
+                            )
+                        }
+                        po.upsert(patch, bitmap.width, bitmap.height)
+                    }
+                } finally {
+                    inFlight.arriveAndDeregister()
                 }
-                po.upsert(patch, bitmap.width, bitmap.height)
+            }
+            inFlight.register()
+            // Offload cache-hit / orchestrator-thread calls onto patchPool so ML Kit misses start immediately!
+            if (Thread.currentThread() === ownerThread && !patchPool.isShutdown) {
+                try {
+                    patchPool.execute(task)
+                } catch (_: Throwable) {
+                    task.run()
+                }
+            } else {
+                task.run()
             }
         }
 
@@ -3845,6 +4129,7 @@ class FloatingButtonService : Service() {
 
         /** Fill anything not painted yet (cache-hit path paints earlier; engine call paints via listener). */
         fun finish(translations: List<com.manhwalens.app.translate.TranslatedBlock>) {
+            awaitPending()
             synchronized(lock) {
                 for (t in translations) {
                     if (t.arabic.isBlank() || painted.containsKey(t.id)) continue
@@ -3875,6 +4160,7 @@ class FloatingButtonService : Service() {
                 mainHandler.post {
                     if (patches.isNotEmpty()) {
                         patchOverlayEnsure().replaceAll(patches, bitmap.width, bitmap.height)
+                        e2e?.markT6FirstSentenceDisplayed()
                         Log.i(TAG, "painter finish: batch-swapped ${patches.size} patch(es) (elapsed=${elapsed} ms)")
                     }
                 }
@@ -3885,22 +4171,51 @@ class FloatingButtonService : Service() {
     private fun patchOverlayEnsure(): com.manhwalens.app.overlay.PatchOverlayWindow =
         patchOverlay ?: com.manhwalens.app.overlay.PatchOverlayWindow(this, windowManager).also { patchOverlay = it }
 
-    /** Rasterize ALL boxes into small patch bitmaps (worker-thread safe). */
+    /** Rasterize ALL boxes into small patch bitmaps concurrently across [patchPool]. */
     private fun buildPatches(
         source: Bitmap,
         boxes: List<com.manhwalens.app.render.BubbleRenderBox>
     ): List<com.manhwalens.app.render.BubblePatch> {
-        val out = ArrayList<com.manhwalens.app.render.BubblePatch>(boxes.size)
-        for (box in boxes) {
+        if (boxes.isEmpty()) return emptyList()
+        if (boxes.size == 1 || patchPool.isShutdown) {
+            val out = ArrayList<com.manhwalens.app.render.BubblePatch>(boxes.size)
+            for (box in boxes) {
+                try {
+                    com.manhwalens.app.render.PatchSurface.build(applicationContext, source, box)?.let { out += it }
+                } catch (oom: OutOfMemoryError) {
+                    Log.e("ManhwaLens", "patch build OOM for #${box.id} — bubble skipped", oom)
+                } catch (e: Exception) {
+                    Log.e("ManhwaLens", "patch build failed for #${box.id} — ${e.javaClass.name}: ${e.message}", e)
+                }
+            }
+            return out
+        }
+        val slots = arrayOfNulls<com.manhwalens.app.render.BubblePatch>(boxes.size)
+        val latch = CountDownLatch(boxes.size)
+        for (i in boxes.indices) {
+            val box = boxes[i]
             try {
-                com.manhwalens.app.render.PatchSurface.build(applicationContext, source, box)?.let { out += it }
-            } catch (oom: OutOfMemoryError) {
-                Log.e("ManhwaLens", "patch build OOM for #${box.id} — bubble skipped", oom)
-            } catch (e: Exception) {
-                Log.e("ManhwaLens", "patch build failed for #${box.id} — ${e.javaClass.name}: ${e.message}", e)
+                patchPool.execute {
+                    try {
+                        slots[i] = com.manhwalens.app.render.PatchSurface.build(applicationContext, source, box)
+                    } catch (oom: OutOfMemoryError) {
+                        Log.e("ManhwaLens", "patch build OOM for #${box.id} — bubble skipped", oom)
+                    } catch (e: Exception) {
+                        Log.e("ManhwaLens", "patch build failed for #${box.id} — ${e.javaClass.name}: ${e.message}", e)
+                    } finally {
+                        latch.countDown()
+                    }
+                }
+            } catch (_: Throwable) {
+                try {
+                    slots[i] = com.manhwalens.app.render.PatchSurface.build(applicationContext, source, box)
+                } finally {
+                    latch.countDown()
+                }
             }
         }
-        return out
+        runCatching { latch.await(10L, TimeUnit.SECONDS) }
+        return slots.mapNotNull { it }
     }
 
     /**
@@ -4186,6 +4501,13 @@ class FloatingButtonService : Service() {
             .onFailure { Log.e(TAG, "could not open SettingsActivity — ${it.javaClass.name}: ${it.message}", it) }
     }
 
+    @Volatile private var scratchPixelBuffer: java.nio.ByteBuffer? = null
+
+    /**
+     * Native RGBA_8888 Image -> ARGB_8888 Bitmap conversion via [Bitmap.copyPixelsFromBuffer]
+     * (zero per-pixel Kotlin bit-manipulation). Crops row padding and scales down to <= 720px
+     * width in a single pass when possible.
+     */
     private fun imageToBitmap(image: Image): Bitmap {
         val plane = image.planes[0]
         val width = image.width
@@ -4196,31 +4518,63 @@ class FloatingButtonService : Service() {
             throw CaptureException("unsupported pixelStride=$pixelStride (expected 4 for RGBA_8888)")
         }
         val buffer = plane.buffer
-        val pixels = IntArray(width * height)
-        val row = ByteArray(width * 4)
-        for (y in 0 until height) {
-            buffer.position(y * rowStride)
-            buffer.get(row)
-            var i = 0
-            var p = y * width
-            while (i < row.size) {
-                val r = row[i].toInt() and 0xFF
-                val g = row[i + 1].toInt() and 0xFF
-                val b = row[i + 2].toInt() and 0xFF
-                val a = row[i + 3].toInt() and 0xFF
-                pixels[p] = (a shl 24) or (r shl 16) or (g shl 8) or b
-                i += 4
-                p++
+        buffer.rewind()
+        val rowBytes = width * 4
+        val rawBmp: Bitmap
+        if (rowStride == rowBytes) {
+            rawBmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            rawBmp.copyPixelsFromBuffer(buffer)
+        } else {
+            val stridePixels = rowStride / 4
+            if (rowStride % 4 == 0 && buffer.remaining() >= rowStride * height) {
+                val padded = Bitmap.createBitmap(stridePixels, height, Bitmap.Config.ARGB_8888)
+                padded.copyPixelsFromBuffer(buffer)
+                if (width <= 720) {
+                    rawBmp = Bitmap.createBitmap(padded, 0, 0, width, height)
+                    padded.recycle()
+                } else {
+                    val targetH = (height * (720f / width)).toInt().coerceAtLeast(1)
+                    rawBmp = Bitmap.createBitmap(720, targetH, Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(rawBmp)
+                    val paint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+                    canvas.drawBitmap(
+                        padded,
+                        android.graphics.Rect(0, 0, width, height),
+                        android.graphics.Rect(0, 0, 720, targetH),
+                        paint
+                    )
+                    padded.recycle()
+                    return rawBmp
+                }
+            } else {
+                // Packed native direct buffer copy per row (no Kotlin pixel bit-shifts)
+                val needed = rowBytes * height
+                var scratch = scratchPixelBuffer
+                if (scratch == null || scratch.capacity() < needed) {
+                    scratch = java.nio.ByteBuffer.allocateDirect(needed)
+                    scratchPixelBuffer = scratch
+                }
+                scratch.clear()
+                val dup = buffer.duplicate()
+                for (y in 0 until height) {
+                    val start = y * rowStride
+                    dup.limit(start + rowBytes)
+                    dup.position(start)
+                    scratch.put(dup)
+                }
+                scratch.flip()
+                rawBmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                rawBmp.copyPixelsFromBuffer(scratch)
             }
         }
         buffer.clear()
-        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+        return rawBmp
     }
 
     /**
      * True only for a protected (FLAG_SECURE) frame: a dense 40×40 sample of the middle 84 %
-     * of the frame is PURE black. v0.9.11 — the old 3×3 "darker than 32" test skipped every
-     * dark page. See [com.manhwalens.app.util.FrameDarkness.isProtectedBlack].
+     * of the frame is PURE black. Reads 40 scanlines via [Bitmap.getPixels] (40 JNI crossings
+     * instead of 1,600 [Bitmap.getPixel] calls).
      */
     private fun isNearlyBlack(bitmap: Bitmap): Boolean {
         val w = bitmap.width
@@ -4228,12 +4582,14 @@ class FloatingButtonService : Service() {
         return try {
             val n = com.manhwalens.app.util.FrameDarkness.DENSE_GRID
             val samples = IntArray(n * n)
+            val rowBuf = IntArray(w)
+            val xs = IntArray(n) { gx -> (w * (gx + 0.5f) / n).toInt().coerceIn(0, w - 1) }
             var i = 0
             for (gy in 0 until n) {
                 val y = (h * (0.08f + 0.84f * (gy + 0.5f) / n)).toInt().coerceIn(0, h - 1)
+                bitmap.getPixels(rowBuf, 0, w, 0, y, w, 1)
                 for (gx in 0 until n) {
-                    val x = (w * (gx + 0.5f) / n).toInt().coerceIn(0, w - 1)
-                    samples[i++] = bitmap.getPixel(x, y)
+                    samples[i++] = rowBuf[xs[gx]]
                 }
             }
             lastBlackCheck = "${com.manhwalens.app.util.FrameDarkness.nonBlackCount(samples)}/${samples.size} samples not black"
@@ -4262,8 +4618,20 @@ class FloatingButtonService : Service() {
             display.setSurface(null)
             display.setSurface(surface)
             val deadline = t0 + BLACK_REFETCH_WAIT_MS
-            while (lastFrameArrivedAtMs <= t0 && SystemClock.elapsedRealtime() < deadline) Thread.sleep(15L)
-            if (lastFrameArrivedAtMs > t0) Thread.sleep(CLEAN_CAPTURE_SETTLE_MS)
+            frameSignalLock.lock()
+            try {
+                while (lastFrameArrivedAtMs <= t0) {
+                    val remaining = deadline - SystemClock.elapsedRealtime()
+                    if (remaining <= 0L) break
+                    frameSignal.await(remaining, TimeUnit.MILLISECONDS)
+                }
+                if (lastFrameArrivedAtMs > t0) {
+                    val settleLeft = CLEAN_CAPTURE_SETTLE_MS - (SystemClock.elapsedRealtime() - lastFrameArrivedAtMs)
+                    if (settleLeft > 0L) frameSignal.await(settleLeft, TimeUnit.MILLISECONDS)
+                }
+            } finally {
+                frameSignalLock.unlock()
+            }
             val fresh = takeLatestFrame()?.let { image -> try { imageToBitmap(image) } finally { image.close() } }
             PipelineTracer.span(
                 "black frame re-fetch", SystemClock.elapsedRealtime() - t0,

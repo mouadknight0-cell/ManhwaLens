@@ -28,6 +28,8 @@ object BlockFilter {
 
     /** Arabic Unicode ranges — such bubbles need no EN→AR translation. */
     private val ARABIC_REGEX = Regex("[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]")
+    private val WS_REGEX = Regex("\\s+")
+    private val NEWLINE_TAB_REGEX = Regex("[\n\t]+")
 
     private const val MAX_IGNORE_TOKENS = 3
     private const val MAX_IGNORE_CHARS = 24
@@ -60,6 +62,12 @@ object BlockFilter {
      * Never substring matches: "stop" must not eat "stopwatch", and "TOP" must not
      * eat "top of the tower".
      */
+    private class CompiledIgnore(
+        val raw: String,
+        val norm: String,
+        val wholeWordRegex: Regex
+    )
+
     fun apply(
         blocks: List<BubbleBlock>,
         frameHeight: Int = 0,
@@ -73,6 +81,14 @@ object BlockFilter {
         val removed = ArrayList<Removal>()
         val edgeTop = if (frameHeight > 0 && topPct > 0f) frameHeight * (topPct / 100f) else 0f
         val edgeBottom = if (frameHeight > 0 && bottomPct > 0f) frameHeight * (1f - bottomPct / 100f) else Float.MAX_VALUE
+        val compiledIgnore = if (userIgnore.isEmpty()) emptyList() else userIgnore.mapNotNull { p ->
+            val norm = normalizeIgnore(p)
+            if (norm.isEmpty()) null else CompiledIgnore(
+                raw = p,
+                norm = norm,
+                wholeWordRegex = Regex("(^|[^a-z0-9_])${Regex.escape(norm)}($|[^a-z0-9_])")
+            )
+        }
         for (block in blocks) {
             val flat = block.text.replace('\n', ' ').trim()
             val edgeReason = when {
@@ -84,7 +100,7 @@ object BlockFilter {
                 removed += Removal(block.id, flat.take(60), edgeReason)
                 continue
             }
-            val ignoreHit = matchUserIgnore(flat, block, frameHeight, edgeTop, edgeBottom, userIgnore)
+            val ignoreHit = matchUserIgnore(flat, block, frameHeight, edgeTop, edgeBottom, compiledIgnore)
             if (ignoreHit != null) {
                 removed += Removal(block.id, flat.take(60), "ignore-list")
                 continue
@@ -96,7 +112,7 @@ object BlockFilter {
             }
             // Bubble-like check: blocks below both min height AND min word count
             // are isolated tiny boxes (non-bubble chrome) — drop them.
-            val wordCount = flat.split(Regex("\\s+")).filter { it.isNotBlank() }.size
+            val wordCount = countWords(flat)
             val blockHeight = block.bounds.bottom - block.bounds.top
             if (minHeightPx > 0f && minWordCount > 0 &&
                 blockHeight < minHeightPx && wordCount < minWordCount
@@ -109,16 +125,23 @@ object BlockFilter {
         return Result(kept, removed)
     }
 
+    private fun countWords(s: String): Int {
+        var count = 0
+        var inWord = false
+        for (i in 0 until s.length) {
+            if (s[i].isWhitespace()) {
+                inWord = false
+            } else if (!inWord) {
+                inWord = true
+                count++
+            }
+        }
+        return count
+    }
+
     /** Normalized text for ignore matching: lowercase, newlines/tabs → space, collapsed spaces. */
     private fun normalizeIgnore(s: String): String =
-        s.lowercase().replace(Regex("[\n\t]+"), " ").replace(Regex("""\s+"""), " ").trim()
-
-    /** Whole-word (unicode-naive) containment: boundaries are non a-z0-9 or string ends. */
-    private fun containsWholeWord(text: String, phrase: String): Boolean {
-        if (phrase.isBlank()) return false
-        val escaped = Regex.escape(phrase)
-        return Regex("(^|[^a-z0-9_])$escaped($|[^a-z0-9_])").containsMatchIn(text)
-    }
+        WS_REGEX.replace(NEWLINE_TAB_REGEX.replace(s.lowercase(), " "), " ").trim()
 
     /**
      * Returns the matched ignore phrase (for the reason text), or null.
@@ -130,22 +153,20 @@ object BlockFilter {
         frameHeight: Int,
         edgeTop: Float,
         edgeBottom: Float,
-        phrases: List<String>
+        phrases: List<CompiledIgnore>
     ): String? {
         if (phrases.isEmpty()) return null
         val lower = normalizeIgnore(flat)
         if (lower.isEmpty()) return null
-        val tokens = lower.split(' ').filter { it.isNotBlank() }
+        val tokenCount = countWords(lower)
         val centerY = block.bounds.centerY
         val nearEdge = frameHeight > 0 && (centerY <= edgeTop || centerY >= edgeBottom)
-        val shortEdgeText = tokens.size in 1..MAX_IGNORE_TOKENS && lower.length <= MAX_IGNORE_CHARS
+        val shortEdgeText = tokenCount in 1..MAX_IGNORE_TOKENS && lower.length <= MAX_IGNORE_CHARS
         for (p in phrases) {
-            val norm = normalizeIgnore(p)
-            if (norm.isEmpty()) continue
             // 1) whole normalized text equals the phrase — anywhere on the frame
-            if (lower == norm) return p
+            if (lower == p.norm) return p.raw
             // 2) whole words only — short blocks whose center sits in an edge band
-            if (nearEdge && shortEdgeText && containsWholeWord(lower, norm)) return p
+            if (nearEdge && shortEdgeText && p.wholeWordRegex.containsMatchIn(lower)) return p.raw
         }
         return null
     }
@@ -170,7 +191,7 @@ object BlockFilter {
         // Pure symbols/punctuation (browser chrome icons, dividers) — no language content.
         if (lettersOrDigits == 0) return "symbols-only"
 
-        val tokens = flat.split(Regex("\\s+")).filter { it.isNotBlank() }
+        val tokens = flat.split(WS_REGEX).filter { it.isNotBlank() }
         if (tokens.size > 3) return null // real sentence — keep unconditionally
 
         // Single token: drop only exact SFX words ("BOOM", "KRAK!").

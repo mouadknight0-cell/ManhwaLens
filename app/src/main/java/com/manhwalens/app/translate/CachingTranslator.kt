@@ -42,11 +42,16 @@ class CachingTranslator(
         // 1) Serve what we can from cache (engine+style namespaced, normalized).
         val cached = LinkedHashMap<Int, String>(blocks.size)
         val misses = ArrayList<TranslationBlock>(blocks.size)
+        val keyById = HashMap<Int, String>(blocks.size)
+        val englishById = if (onBlockReady != null) HashMap<Int, String>(blocks.size) else null
         var diskHits = 0
         for (b in blocks) {
             if (b.english.isBlank()) continue // echoed back empty below; never sent to engine
-            val memHit = cache.get(engineId, b.english, style)
-            val diskHit = if (memHit == null) persistent?.get(cache.key(engineId, b.english, style)) else null
+            val key = cache.key(engineId, b.english, style)
+            keyById[b.id] = key
+            englishById?.put(b.id, b.english)
+            val memHit = cache.getByKey(key)
+            val diskHit = if (memHit == null) persistent?.get(key) else null
             val hit = memHit ?: diskHit
             val issue = if (hit != null && requiresArabicGuard) {
                 ArabicValidator.issue(b.english, hit)
@@ -54,13 +59,12 @@ class CachingTranslator(
             if (hit != null && issue == null) {
                 cached[b.id] = hit
                 if (diskHit != null) {
-                    cache.put(engineId, b.english, diskHit, style) // promote a valid disk hit to memory
+                    cache.putByKey(key, diskHit) // promote a valid disk hit to memory
                     diskHits++
                 }
             } else {
                 if (hit != null && issue != null) {
-                    val key = cache.key(engineId, b.english, style)
-                    cache.remove(engineId, b.english, style)
+                    cache.removeByKey(key)
                     persistent?.remove(key)
                 }
                 // A stale pre-guard remote entry is a cache MISS, never a visible translation.
@@ -70,7 +74,7 @@ class CachingTranslator(
         if (onBlockReady != null && cached.isNotEmpty()) {
             for ((id, arabic) in cached) {
                 if (arabic.isNotBlank()) {
-                    val english = blocks.firstOrNull { it.id == id }?.english ?: ""
+                    val english = englishById?.get(id) ?: ""
                     runCatching { onBlockReady(TranslatedBlock(id, english, arabic)) }
                 }
             }
@@ -113,8 +117,9 @@ class CachingTranslator(
                     for (tb in polished) {
                         translatedById[tb.id] = tb.arabic
                         if (tb.arabic.isNotBlank()) {
-                            cache.put(engineId, tb.english, tb.arabic, style)
-                            toPersist[cache.key(engineId, tb.english, style)] = tb.arabic
+                            val key = keyById[tb.id] ?: cache.key(engineId, tb.english, style)
+                            cache.putByKey(key, tb.arabic)
+                            toPersist[key] = tb.arabic
                         }
                     }
                     if (toPersist.isNotEmpty()) persistent?.putAll(toPersist)
