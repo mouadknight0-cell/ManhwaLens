@@ -94,7 +94,14 @@ jobs:
           # they are visible without downloading the test-reports artifact.
           set +e
           out=$(grep -rhoE "ORCH-BENCH[^<]*" app/build/test-results/testDebugUnitTest/ 2>/dev/null | sed 's/&gt;/>/g; s/&amp;/\&/g' | sort -u)
-          if [ -n "$out" ]; then echo "$out"; else echo "(no ORCH-BENCH output found)"; fi
+          if [ -n "$out" ]; then
+            echo "$out"
+            # Also emit as check-run annotations (readable via the API without
+            # downloading logs/artifacts) so baselines can be compared over time.
+            echo "$out" | while IFS= read -r line; do echo "::notice::$line"; done
+          else
+            echo "(no ORCH-BENCH output found)"
+          fi
 
       - name: Build debug APK
         run: ./gradlew $GRADLE_ARGS :app:assembleDebug
