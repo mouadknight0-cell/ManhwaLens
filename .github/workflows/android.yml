@@ -47,8 +47,8 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew $GRADLE_ARGS :app:testDebugUnitTest 2>&1 | tee /tmp/gradle-test.log || {
-            grep -E "^(e: |FAILURE:|> Task |.*FAILED)" /tmp/gradle-test.log | head -n 40 | while IFS= read -r line; do
-              echo "::error::$line"
+            (grep -E "^e: " /tmp/gradle-test.log; grep -E "FAILED$" /tmp/gradle-test.log; awk '/\* What went wrong:/,/\* Try:/' /tmp/gradle-test.log) | head -n 9 | while IFS= read -r line; do
+              [ -n "$line" ] && echo "::error::$line"
             done
             exit 1
           }
