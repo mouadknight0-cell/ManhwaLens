@@ -86,6 +86,16 @@ jobs:
             exit $code
           fi
 
+      - name: Print orchestration benchmark (fixed dataset)
+        if: always()
+        run: |
+          # ORCH-BENCH lines from OrchestrationBenchmarkTest (issue #15): the
+          # comparable baseline for every optimization. Printed to the job log so
+          # they are visible without downloading the test-reports artifact.
+          set +e
+          out=$(grep -rhoE "ORCH-BENCH[^<]*" app/build/test-results/testDebugUnitTest/ 2>/dev/null | sed 's/&gt;/>/g; s/&amp;/\&/g' | sort -u)
+          if [ -n "$out" ]; then echo "$out"; else echo "(no ORCH-BENCH output found)"; fi
+
       - name: Build debug APK
         run: ./gradlew $GRADLE_ARGS :app:assembleDebug
 
