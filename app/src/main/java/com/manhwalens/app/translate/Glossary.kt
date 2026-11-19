@@ -33,9 +33,23 @@ object Glossary {
     @Volatile
     private var compiledCache: Compiled? = null
 
+    /**
+     * v0.13.0 — prepare() is called several times per block per page (cache get, memo
+     * lookup, engine input, cache put, memo put): hundreds of regex passes on a busy
+     * page. The function is pure for a given config, so a small LRU memo makes repeat
+     * calls ~free. Cleared on every refresh() together with [compiledCache].
+     */
+    private const val PREPARE_MEMO_MAX = 256
+
+    private val prepareMemo = object : LinkedHashMap<String, String>(64, 0.75f, /* accessOrder = */ true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean =
+            size > PREPARE_MEMO_MAX
+    }
+
     fun refresh(userText: String, mergeLines: Boolean) {
         config = Config(userText, mergeLines)
         compiledCache = null
+        synchronized(prepareMemo) { prepareMemo.clear() }
     }
 
     /** 250 names × every block would mean 250 regex compiles per bubble — compile once. */
@@ -74,10 +88,18 @@ object Glossary {
      * being swapped for Arabic letters.
      */
     fun prepare(text: String, mergeLines: Boolean = config.mergeLines): String {
+        val memoKey = (if (mergeLines) "1|" else "0|") + text
+        synchronized(prepareMemo) { prepareMemo[memoKey] }?.let { return it }
         val c = compiled()
         var out = BubbleTextRules.normalize(text)
         if (mergeLines) out = BubbleTextRules.oneLine(out)
-        return applyCompiled(out, c)
+        out = applyCompiled(out, c)
+        // Only memoize when the compiled rules are still current — a refresh() that
+        // landed mid-compute must not leave a stale entry behind.
+        synchronized(prepareMemo) {
+            if (compiledCache === c) prepareMemo[memoKey] = out
+        }
+        return out
     }
 
     /** Same as [prepare]: the cache must key on what the engine was actually shown. */

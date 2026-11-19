@@ -9,6 +9,7 @@ import com.manhwalens.app.translate.TranslatedBlock
 import com.manhwalens.app.render.BubbleRenderBox
 import com.manhwalens.app.render.BubblePatch
 import com.manhwalens.app.render.PatchPlanner
+import com.manhwalens.app.util.EndToEndLatency
 import com.manhwalens.app.util.PipelineTracer
 import com.manhwalens.app.util.StageTrace
 
@@ -52,6 +53,17 @@ internal class ProgressiveBubblePainter(
     private val builtGenerationByArea = HashMap<Int, Int>()
     private val areaPlanById = HashMap<Int, com.manhwalens.app.render.PatchPlanner.Area>()
     private val remoteWins = HashSet<Int>()
+    /**
+     * v0.13.0 — single-flight raster builds per area. Sibling blocks of one visual bubble
+     * often land within milliseconds; the old code rasterized a full opaque patch per
+     * block and discarded all but the newest on the main thread. Now at most one build
+     * per area runs at a time: paints that arrive during a build set a pending flag and
+     * trigger exactly one rebuild with the latest composite.
+     */
+    private val buildingAreas = HashSet<Int>()
+    private val pendingAreas = HashSet<Int>()
+    /** Latest translation per area owner, so a coalesced rebuild paints the newest text. */
+    private val latestByArea = HashMap<Int, Pair<com.manhwalens.app.translate.TranslatedBlock, Boolean>>()
     /**
      * One patch area per visual bubble, decided up-front from EVERY kept block. Each
      * update composes all translations known for that area into its owner's stable patch ID.
@@ -123,44 +135,97 @@ internal class ProgressiveBubblePainter(
             )
         } else box
 
-        val composite: com.manhwalens.app.render.BubbleRenderBox
-        val generation: Int
         synchronized(lock) {
             if (!remote && remoteWins.contains(tb.id)) return
             if (remote) remoteWins.add(tb.id)
             renderBoxesById[tb.id] = box
             painted[tb.id] = textBox
             paintLedger.record(tb.id)
+            latestByArea[ownerId] = tb to remote
+            val generation = (areaGeneration[ownerId] ?: 0) + 1
+            areaGeneration[ownerId] = generation
+        }
+        Log.i(TAG, paintLedger.line())
+        scheduleBuild(ownerId)
+    }
 
-            val plan = areaPlan ?: com.manhwalens.app.render.PatchPlanner.Area(
+    /**
+     * v0.13.0 — at most one raster build per area at a time. A paint that arrives while
+     * its area is already building only sets the pending flag; the in-flight build loop
+     * then rebuilds once with the newest composite instead of every intermediate one.
+     */
+    private fun scheduleBuild(ownerId: Int) {
+        synchronized(lock) {
+            if (!buildingAreas.add(ownerId)) {
+                pendingAreas.add(ownerId)
+                return
+            }
+        }
+        try {
+            while (true) {
+                buildAndPost(ownerId)
+                val more = synchronized(lock) { pendingAreas.remove(ownerId) }
+                if (!more) break
+            }
+        } finally {
+            synchronized(lock) { buildingAreas.remove(ownerId) }
+        }
+    }
+
+    /** One raster build + main-thread post for [ownerId], from the latest known state. */
+    private fun buildAndPost(ownerId: Int) {
+        val snap = synchronized(lock) {
+            val latest = latestByArea[ownerId] ?: return
+            val tb = latest.first
+            val remote = latest.second
+            val block = blocksById[tb.id] ?: return
+            val plan = areaPlanById[tb.id] ?: com.manhwalens.app.render.PatchPlanner.Area(
                 ownerId = tb.id,
                 memberIds = listOf(tb.id),
                 cover = com.manhwalens.app.ocr.geometry.Rect2D(
-                    left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat()
+                    block.bounds.left, block.bounds.top, block.bounds.right, block.bounds.bottom
                 )
             )
             val members = plan.memberIds.mapNotNull { renderBoxesById[it] }
             val composed = com.manhwalens.app.render.PatchPlanner.compose(listOf(plan), members)
-                .firstOrNull() ?: box
+                .firstOrNull() ?: members.firstOrNull() ?: return
             // Use a stable sample from the area's owner, not whichever sibling happened
             // to finish first; this keeps flood expansion and patch geometry deterministic.
-            val ownerBlock = blocksById[ownerId] ?: block
-            val ob = ownerBlock.bounds
-            val ownerBg = sampleBackground(
-                bitmap,
-                ob.left.toInt().coerceIn(0, bitmap.width),
-                ob.top.toInt().coerceIn(0, bitmap.height),
-                ob.right.toInt().coerceIn(0, bitmap.width),
-                ob.bottom.toInt().coerceIn(0, bitmap.height)
-            )
-            composite = composed.copy(
+            // Single-member area: the owner IS this block, so its already-sampled
+            // background is identical — skip the duplicate sample.
+            val ownerBg = if (plan.memberIds.size == 1) {
+                members.first().backgroundColor
+            } else {
+                val ownerBlock = blocksById[ownerId] ?: block
+                val ob = ownerBlock.bounds
+                sampleBackground(
+                    bitmap,
+                    ob.left.toInt().coerceIn(0, bitmap.width),
+                    ob.top.toInt().coerceIn(0, bitmap.height),
+                    ob.right.toInt().coerceIn(0, bitmap.width),
+                    ob.bottom.toInt().coerceIn(0, bitmap.height)
+                )
+            }
+            val composite = composed.copy(
                 backgroundColor = ownerBg,
                 textColor = com.manhwalens.app.render.ColorSampler.bestTextColorOn(ownerBg)
             )
-            generation = (areaGeneration[ownerId] ?: 0) + 1
-            areaGeneration[ownerId] = generation
+            BuildSnap(
+                composite = composite,
+                cover = plan.cover,
+                memberIds = plan.memberIds,
+                generation = areaGeneration[ownerId] ?: 0,
+                tb = tb,
+                remote = remote,
+                block = block
+            )
         }
-        Log.i(TAG, paintLedger.line())
+        val composite = snap.composite
+        val cover = snap.cover
+        val generation = snap.generation
+        val tb = snap.tb
+        val remote = snap.remote
+        val block = snap.block
 
         // One opaque bitmap per area: it contains every sibling translation known so far.
         val patch = try {
@@ -185,7 +250,7 @@ internal class ProgressiveBubblePainter(
             )
             diagnostics?.recordOverlayPatch(
                 ownerId, patch.left, patch.top, patch.right, patch.bottom,
-                cover, areaPlan?.memberIds ?: listOf(tb.id)
+                cover, snap.memberIds
             )
         }
         val elapsed = SystemClock.elapsedRealtime() - tapStartMs
@@ -202,6 +267,8 @@ internal class ProgressiveBubblePainter(
             if (!attached) {
                 attached = true
                 firstBubbleMs = elapsed
+                // v0.13.0: T6 — first complete Arabic sentence on screen.
+                EndToEndLatency.mark(EndToEndLatency.Event.T6_FIRST_SENTENCE_DISPLAYED)
                 po.beginSession("page change")
                 if (firstBubbleMs >= 0) {
                     PipelineTracer.span(
@@ -221,6 +288,17 @@ internal class ProgressiveBubblePainter(
             }
         }
     }
+
+    /** Immutable snapshot of one area's latest state for a single raster build. */
+    private data class BuildSnap(
+        val composite: com.manhwalens.app.render.BubbleRenderBox,
+        val cover: com.manhwalens.app.ocr.geometry.Rect2D?,
+        val memberIds: List<Int>,
+        val generation: Int,
+        val tb: com.manhwalens.app.translate.TranslatedBlock,
+        val remote: Boolean,
+        val block: BubbleBlock
+    )
 
     fun snapshot(): List<com.manhwalens.app.render.BubbleRenderBox> =
         synchronized(lock) {
@@ -310,6 +388,8 @@ internal class ProgressiveBubblePainter(
             if (!attached) {
                 attached = true
                 firstBubbleMs = elapsed
+                // v0.13.0: T6 — first complete Arabic sentence on screen.
+                EndToEndLatency.mark(EndToEndLatency.Event.T6_FIRST_SENTENCE_DISPLAYED)
                 po.beginSession("page change")
                 PipelineTracer.span(
                     "first bubble shown at", firstBubbleMs,

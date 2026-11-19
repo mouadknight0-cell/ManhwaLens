@@ -24,6 +24,15 @@ class PersistentTranslationCache(
     private val map = LinkedHashMap<String, String>(16, 0.75f, /* accessOrder = */ true)
     private var loaded = false
 
+    /** Single background thread for [putAllAsync]; daemon so it never blocks process exit. */
+    private val saveExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "translation-cache-save").apply { isDaemon = true }
+    }
+
+    private companion object {
+        const val SAVE_FLUSH_TIMEOUT_SEC = 5L
+    }
+
     /** Load (once) from disk and drop anything over capacity. */
     private fun ensureLoaded(): LinkedHashMap<String, String> {
         if (loaded) return map
@@ -88,17 +97,55 @@ class PersistentTranslationCache(
     @Synchronized
     fun size(): Int = ensureLoaded().size
 
-    @Synchronized
     fun clear() {
-        map.clear()
-        loaded = true
-        runCatching { if (file.exists()) file.delete() }
+        // Drain queued background writes first so a pending save cannot rewrite the file
+        // after we delete it (or resurrect entries the user just asked to drop). The
+        // flush must happen BEFORE taking the monitor: save() snapshots under the
+        // monitor, so flushing while holding it would deadlock until the timeout.
+        flush()
+        synchronized(this) {
+            map.clear()
+            loaded = true
+            runCatching { if (file.exists()) file.delete() }
+        }
+    }
+
+    /**
+     * v0.13.0 — same as [putAll], but the disk write happens on a single background
+     * thread instead of the caller's thread (the caller is usually the translation
+     * pipeline, and translatePage() must not serialize the whole JSON cache).
+     * The in-memory LRU is updated synchronously, so reads never see stale data.
+     */
+    @Synchronized
+    fun putAllAsync(entries: Map<String, String>) {
+        val m = ensureLoaded()
+        for ((k, v) in entries) {
+            m[k] = v
+        }
+        while (m.size > maxEntries) {
+            val it = m.entries.iterator()
+            it.next()
+            it.remove()
+        }
+        saveExecutor.execute { save() }
+    }
+
+    /** Wait for every queued background write to reach disk (or time out). Clear() and tests call this. */
+    fun flush() {
+        try {
+            saveExecutor.submit { }.get(SAVE_FLUSH_TIMEOUT_SEC, java.util.concurrent.TimeUnit.SECONDS)
+        } catch (_: Exception) {
+            // A stuck save must never wedge the pipeline; the disk cache is best-effort.
+        }
     }
 
     /** Atomic write: temp file then rename. Failures are logged, never thrown. */
     private fun save() {
+        // Snapshot under the @Synchronized monitor so background writes never iterate a
+        // map that a concurrent put/remove is mutating.
+        val snapshot = synchronized(this) { LinkedHashMap(map) }
         val obj = JSONObject()
-        for ((k, v) in map) obj.put(k, v)
+        for ((k, v) in snapshot) obj.put(k, v)
         val tmp = File(file.parentFile, file.name + ".tmp")
         try {
             file.parentFile?.mkdirs()
