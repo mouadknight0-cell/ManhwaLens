@@ -3029,7 +3029,7 @@ class FloatingButtonService : Service() {
                     statusPill?.hide()
                     recordPaintResult(patches.size, bubbleBoxes.size)
                     if (patches.isNotEmpty()) {
-                        patchOverlayEnsure().replaceAll(patches, bw, bh)
+                        patchOverlayEnsure().replaceAll(patches, bw, bh) { latency.drawn(it) }
                         PipelineTracer.record(
                             PipelineTracer.Stage.OVERLAY, StageTrace.Status.OK, 0L,
                             "transparent patch overlay attached · patches painted = ${patches.size} of ${bubbleBoxes.size}"
@@ -3867,8 +3867,16 @@ class FloatingButtonService : Service() {
         fun finish(translations: List<com.manhwalens.app.translate.TranslatedBlock>) {
             // Do not rebuild successful patches. Retry only missing/rasterization-failed
             // bubbles; hasPatches() alone used to strand these when ANY bubble succeeded.
-            val missing = synchronized(lock) { translations.filter { it.id !in patchReady } }
-            missing.forEach { paint(it, remote = false) }
+            val missing = synchronized(lock) {
+                val candidates = translations.associateBy { it.id }.toMutableMap()
+                // A remote winner may have failed rasterization: retry that accepted
+                // Arabic, not the local draft that remoteWins correctly suppresses.
+                for ((id, box) in painted) if (id in remoteWins) {
+                    candidates[id] = com.manhwalens.app.translate.TranslatedBlock(id, box.english, box.arabic)
+                }
+                candidates.values.filter { it.id !in patchReady }.map { it to (it.id in remoteWins) }
+            }
+            missing.forEach { (block, remote) -> paint(block, remote) }
             latency?.translationFinished()
         }
     }

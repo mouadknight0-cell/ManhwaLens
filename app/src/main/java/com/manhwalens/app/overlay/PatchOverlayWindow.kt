@@ -180,8 +180,15 @@ class PatchOverlayWindow(private val context: Context, private val windowManager
 
     fun contentEpoch(): Int = contentEpochValue
 
-    fun replaceAll(patches: List<BubblePatch>, frameWidth: Int, frameHeight: Int) {
-        MainThread.run { replaceAllImpl(patches, frameWidth, frameHeight) }
+    fun replaceAll(patches: List<BubblePatch>, frameWidth: Int, frameHeight: Int,
+                   onDrawn: ((Int) -> Unit)? = null) {
+        MainThread.run {
+            replaceAllImpl(patches, frameWidth, frameHeight)
+            val v = root ?: return@run
+            if (onDrawn != null) patches.forEach { patch ->
+                v.pendingDraws[patch.id] = { onDrawn(patch.id) }
+            }
+        }
     }
 
     /**
