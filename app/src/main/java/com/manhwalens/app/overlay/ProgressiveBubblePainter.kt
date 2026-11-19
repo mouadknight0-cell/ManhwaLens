@@ -34,7 +34,9 @@ internal class ProgressiveBubblePainter(
     private val sampleBackground: (Bitmap, Int, Int, Int, Int) -> Int,
     private val buildPatches: (Bitmap, List<com.manhwalens.app.render.BubbleRenderBox>, List<com.manhwalens.app.render.PatchPlanner.Area>?) -> List<com.manhwalens.app.render.BubblePatch>,
     private val ensureOverlay: () -> com.manhwalens.app.overlay.PatchOverlayWindow,
-    private val hideStatus: () -> Unit
+    private val hideStatus: () -> Unit,
+    private val onFirstSentenceReady: (() -> Unit)? = null,
+    private val onAllDisplayed: ((Boolean) -> Unit)? = null
 ) {
     private val lock = Any()
     private val blocksById = keptBlocks.associateBy { it.id }
@@ -83,6 +85,26 @@ internal class ProgressiveBubblePainter(
 
     @Volatile var firstBubbleMs: Long = -1L
         private set
+    @Volatile private var firstSentenceReported = false
+    @Volatile private var allDisplayedReported = false
+
+    private fun reportFirstSentence() {
+        if (!firstSentenceReported) synchronized(lock) {
+            if (!firstSentenceReported) {
+                firstSentenceReported = true
+                onFirstSentenceReady?.invoke()
+            }
+        }
+    }
+
+    private fun reportAllDisplayed(displayed: Boolean) {
+        if (!allDisplayedReported) synchronized(lock) {
+            if (!allDisplayedReported) {
+                allDisplayedReported = true
+                onAllDisplayed?.invoke(displayed)
+            }
+        }
+    }
 
     fun onBlockReady(tb: com.manhwalens.app.translate.TranslatedBlock) = paint(tb, remote = false)
     fun onRemote(tb: com.manhwalens.app.translate.TranslatedBlock) = paint(tb, remote = true)
@@ -219,6 +241,7 @@ internal class ProgressiveBubblePainter(
             } else {
                 po.upsert(patch, bitmap.width, bitmap.height)
             }
+            reportFirstSentence()
         }
     }
 
@@ -281,7 +304,10 @@ internal class ProgressiveBubblePainter(
         val snap = state.first
         val generationSnapshot = state.second
         val staleAreas = state.third
-        if (snap.isEmpty() || staleAreas.isEmpty()) return
+        if (snap.isEmpty() || staleAreas.isEmpty()) {
+            mainHandler.post { reportAllDisplayed(snap.isNotEmpty() && synchronized(lock) { blocksById.keys.all { painted.containsKey(it) } }) }
+            return
+        }
         if (!attachRequested) attachRequested = true
 
         // Retry only areas whose latest composite failed or was superseded. Successful
@@ -305,7 +331,10 @@ internal class ProgressiveBubblePainter(
         }
         val elapsed = SystemClock.elapsedRealtime() - tapStartMs
         mainHandler.post {
-            if (patches.isEmpty()) return@post
+            if (patches.isEmpty()) {
+                reportAllDisplayed(false)
+                return@post
+            }
             val po = ensureOverlay()
             if (!attached) {
                 attached = true
@@ -320,10 +349,12 @@ internal class ProgressiveBubblePainter(
                     "transparent patch overlay attached (tap→overlay ${firstBubbleMs} ms)"
                 )
             }
+            var allApplied = true
             for (patch in patches) {
                 val expected = generationSnapshot[patch.id] ?: 0
                 val stillLatest = synchronized(lock) { areaGeneration[patch.id] == expected }
                 if (!stillLatest) {
+                    allApplied = false
                     runCatching { patch.bitmap.recycle() }
                     continue
                 }
@@ -333,6 +364,9 @@ internal class ProgressiveBubblePainter(
                     po.upsert(patch, bitmap.width, bitmap.height)
                 }
             }
+            if (patches.isNotEmpty()) reportFirstSentence()
+            val everyBlockPainted = synchronized(lock) { blocksById.keys.all { painted.containsKey(it) } }
+            reportAllDisplayed(allApplied && everyBlockPainted)
             Log.i(TAG, "painter finish: reconciled ${patches.size} composite area(s) (elapsed=${elapsed} ms)")
         }
     }
