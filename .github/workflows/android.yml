@@ -2,7 +2,7 @@ name: Android build
 
 on:
   push:
-    branches: [main, master, arena/cebceb7a-manhwalens]
+    branches: [main, master, "arena/**"]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -42,6 +42,9 @@ jobs:
 
       - name: Make gradlew executable
         run: chmod +x gradlew
+
+      - name: Performance report tests
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
 
       - name: Unit tests
         run: ./gradlew $GRADLE_ARGS :app:testDebugUnitTest
