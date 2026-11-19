@@ -49,22 +49,55 @@ jobs:
       - name: Unit tests
         run: ./gradlew $GRADLE_ARGS :app:testDebugUnitTest
 
+      - name: Restore persistent update signing key
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MANHWALENS_UPDATE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            umask 077
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/manhwalens-update.keystore"
+            echo "MANHWALENS_UPDATE_STORE=$RUNNER_TEMP/manhwalens-update.keystore" >> "$GITHUB_ENV"
+            echo "mode=persistent-key" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No persistent signing key configured. This debug APK is NOT guaranteed to update previous or future APKs."
+            echo "mode=ephemeral-debug-key-NOT-update-guaranteed" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build debug APK
+        env:
+          MANHWALENS_UPDATE_STORE_PASSWORD: ${{ secrets.MANHWALENS_UPDATE_STORE_PASSWORD }}
+          MANHWALENS_UPDATE_KEY_ALIAS: ${{ secrets.MANHWALENS_UPDATE_KEY_ALIAS }}
+          MANHWALENS_UPDATE_KEY_PASSWORD: ${{ secrets.MANHWALENS_UPDATE_KEY_PASSWORD }}
         run: ./gradlew $GRADLE_ARGS :app:assembleDebug
 
       - name: Rename APK
         id: apk
         run: |
           VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-          OUT="ManhwaLens-v${VERSION}-debug.apk"
+          CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts)
+          OUT="ManhwaLens-v${VERSION}-code${CODE}-${GITHUB_SHA:0:7}-debug.apk"
           cp app/build/outputs/apk/debug/app-debug.apk "$OUT"
           echo "file=$OUT" >> "$GITHUB_OUTPUT"
+          {
+            echo "versionName=$VERSION"
+            echo "versionCode=$CODE"
+            echo "applicationId=com.manhwalens.app"
+            echo "commit=$GITHUB_SHA"
+            echo "signing=${{ steps.signing.outputs.mode }}"
+            sha256sum "$OUT"
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$OUT"
+          } > APK-METADATA.txt
+          cat APK-METADATA.txt >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v6
         with:
           name: ManhwaLens-debug-apk
-          path: ${{ steps.apk.outputs.file }}
+          path: |
+            ${{ steps.apk.outputs.file }}
+            APK-METADATA.txt
           if-no-files-found: error
 
       - name: Upload test reports
@@ -81,3 +114,7 @@ jobs:
         with:
           files: ${{ steps.apk.outputs.file }}
           generate_release_notes: true
+
+      - name: Remove restored signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/manhwalens-update.keystore"

@@ -23,11 +23,22 @@ android {
         applicationId = "com.manhwalens.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 29
-        versionName = "0.10.0"
+        versionCode = 30
+        versionName = "0.10.1"
     }
 
     signingConfigs {
+        // CI must restore the SAME keystore on every build to support APK updates.
+        // Never persist signing material in Git or an Actions cache/artifact.
+        val updateStore = System.getenv("MANHWALENS_UPDATE_STORE")
+        if (!updateStore.isNullOrBlank()) {
+            getByName("debug") {
+                storeFile = file(updateStore)
+                storePassword = requireNotNull(System.getenv("MANHWALENS_UPDATE_STORE_PASSWORD"))
+                keyAlias = requireNotNull(System.getenv("MANHWALENS_UPDATE_KEY_ALIAS"))
+                keyPassword = requireNotNull(System.getenv("MANHWALENS_UPDATE_KEY_PASSWORD"))
+            }
+        }
         if (hasReleaseKeystore) {
             create("release") {
                 storeFile = rootProject.file(releaseStore!!)
